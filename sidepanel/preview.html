@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collections — dev preview</title>
+    <link rel="stylesheet" href="panel.css" />
+    <!--
+      Standalone preview of the side panel WITHOUT installing the extension.
+      It shims the chrome.* APIs the panel uses with localStorage + seed data,
+      so you can iterate on the UI in a normal tab. Not shipped/used by the
+      extension itself — open sidepanel/preview.html directly.
+    -->
+    <script>
+      (function shimChrome() {
+        const KEY = 'collectionsData';
+        const listeners = [];
+        const store = {
+          async get(k) {
+            const raw = localStorage.getItem(KEY);
+            return { [KEY]: raw ? JSON.parse(raw) : undefined };
+          },
+          async set(obj) {
+            const oldRaw = localStorage.getItem(KEY);
+            localStorage.setItem(KEY, JSON.stringify(obj[KEY]));
+            const change = { [KEY]: { oldValue: oldRaw && JSON.parse(oldRaw), newValue: obj[KEY] } };
+            listeners.forEach((fn) => fn(change, 'local'));
+          },
+        };
+        window.chrome = {
+          storage: {
+            local: store,
+            onChanged: { addListener: (fn) => listeners.push(fn) },
+          },
+          tabs: {
+            async query() {
+              return [
+                { id: 1, url: 'https://example.com/demo', title: 'Example demo page', favIconUrl: '' },
+              ];
+            },
+            create: ({ url }) => window.open(url, '_blank'),
+          },
+          runtime: {
+            async sendMessage() {
+              return { title: 'Example demo page', thumbnail: '' };
+            },
+          },
+        };
+
+        // Seed sample data on first load so the UI isn't empty.
+        if (!localStorage.getItem(KEY)) {
+          const now = Date.now();
+          localStorage.setItem(
+            KEY,
+            JSON.stringify({
+              version: 1,
+              activeCollectionId: 'c1',
+              collections: [
+                {
+                  id: 'c1', title: 'Trip to Japan', createdAt: now, updatedAt: now,
+                  cover: '', items: [
+                    { id: 'i1', type: 'page', url: 'https://example.com/tokyo', title: 'Tokyo neighborhood guide', favIconUrl: '', thumbnail: '', note: '', addedAt: now },
+                    { id: 'i2', type: 'page', url: 'https://example.com/ramen', title: 'Best ramen in Osaka', favIconUrl: '', thumbnail: '', note: '', addedAt: now },
+                    { id: 'i3', type: 'note', text: 'Book the JR Pass before arriving — cheaper online.', addedAt: now },
+                  ],
+                },
+                {
+                  id: 'c2', title: 'Home Office', createdAt: now, updatedAt: now,
+                  cover: '', items: [
+                    { id: 'i4', type: 'page', url: 'https://example.com/desk', title: 'Standing desk review', favIconUrl: '', thumbnail: '', note: '', addedAt: now },
+                  ],
+                },
+                { id: 'c3', title: 'New collection', createdAt: now, updatedAt: now, cover: '', items: [] },
+              ],
+            })
+          );
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <!-- The preview reuses the real panel markup verbatim. -->
+    <div id="preview-root"></div>
+    <script type="module">
+      const html = await (await fetch('panel.html')).text();
+      const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)[1]
+        .replace(/<script[\s\S]*?<\/script>/gi, '');
+      document.getElementById('preview-root').outerHTML = body;
+      await import('./panel.js');
+    </script>
+  </body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collections</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <!-- ===== List view ===== -->
+    <section id="list-view" class="view">
+      <header class="topbar">
+        <h1 class="brand">Collections</h1>
+        <div class="topbar-actions">
+          <button id="new-collection-btn" class="btn primary" title="New collection">
+            ＋ New
+          </button>
+          <div class="menu-wrap">
+            <button id="overflow-btn" class="btn icon" title="More" aria-haspopup="true">⋯</button>
+            <div id="overflow-menu" class="menu" hidden>
+              <button data-action="import-csv">Import Edge CSV…</button>
+              <button data-action="import-json">Import backup (JSON)…</button>
+              <button data-action="export-json">Export backup (JSON)</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div id="collections" class="cards" role="list"></div>
+
+      <div id="list-empty" class="empty" hidden>
+        <div class="empty-art">🗂️</div>
+        <p class="empty-title">No collections yet</p>
+        <p class="empty-sub">
+          Create one, or import your data from the retired Edge Collections.
+        </p>
+        <div class="empty-actions">
+          <button class="btn primary" data-action="new">＋ New collection</button>
+          <button class="btn" data-action="import-csv">Import Edge CSV</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Detail view ===== -->
+    <section id="detail-view" class="view" hidden>
+      <header class="topbar">
+        <button id="back-btn" class="btn icon" title="Back">‹</button>
+        <input id="detail-title" class="title-input" aria-label="Collection title" />
+        <div class="menu-wrap">
+          <button id="detail-overflow-btn" class="btn icon" title="More">⋯</button>
+          <div id="detail-overflow-menu" class="menu" hidden>
+            <button data-action="open-all">Open all pages</button>
+            <button data-action="add-note">Add a note</button>
+            <button data-action="delete-collection" class="danger">Delete collection</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="detail-toolbar">
+        <button id="add-current-btn" class="btn primary wide">＋ Add current page</button>
+      </div>
+
+      <div id="items" class="items" role="list"></div>
+
+      <div id="detail-empty" class="empty" hidden>
+        <div class="empty-art">📑</div>
+        <p class="empty-title">This collection is empty</p>
+        <p class="empty-sub">
+          Add the current page, right-click a link/image on any site, or add a note.
+        </p>
+      </div>
+    </section>
+
+    <!-- Hidden file input reused for both JSON and CSV imports -->
+    <input id="file-input" type="file" hidden />
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>

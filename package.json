@@ -1,0 +1,11 @@
+{
+  "name": "collections-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Open replacement for Microsoft Edge Collections (MV3 browser extension).",
+  "scripts": {
+    "test": "node tools/test_csv.mjs",
+    "icons": "python tools/make_icons.py"
+  }
+}

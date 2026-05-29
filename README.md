@@ -92,6 +92,10 @@ fixtures/            sample Edge CSV for testing the importer
   python tools/make_icons.py
   ```
 
+## License
+
+[MIT](LICENSE) © Rod Trent. Use it, fork it, improve it.
+
 ## Roadmap ideas
 
 - Optional image caching (store blobs so saved images survive link rot).

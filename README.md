@@ -2,8 +2,8 @@
 
 An open, local-first replacement for **Microsoft Edge Collections**, which is
 being retired in Edge 149 (~June 2026). It's a small Manifest V3 browser
-extension that works in **Microsoft Edge** and **Google Chrome** — no account,
-no server, no build step. Your data stays in your browser.
+extension for **Chromium-based browsers** — no account, no server, no build
+step. Your data stays in your browser.
 
 ![icon](icons/icon128.png)
 
@@ -19,6 +19,25 @@ no server, no build step. Your data stays in your browser.
   collections carry over on day one.
 - **Export / import a JSON backup** (high fidelity — keeps notes and images,
   which the Edge CSV does not).
+
+## Browser support
+
+This is a standard Chromium Manifest V3 extension, so the core (context-menu
+saving, storage, page capture, import/export) runs on any modern Chromium
+browser. The catch is the **Side Panel API** (`chrome.sidePanel`), which hosts
+the whole UI — its support varies:
+
+| Browser | Side panel UI | Notes |
+|---|---|---|
+| **Google Chrome** (114+) | ✅ Full | Verified. |
+| **Microsoft Edge** (114+) | ✅ Full | Verified. |
+| **Brave** | ⚠️ Partial | Panel opens but a known bug can dismiss it after ~1s. |
+| **Vivaldi** | ⚠️ Broken | Ships its own "Web Panels"; the standard API doesn't work. |
+| **Opera** | ❌ No | Doesn't implement the extension Side Panel API. |
+| **Arc / other Chromium** | ➖ Likely | Should work if built on Chromium 114+ with the Side Panel API. |
+
+In short: **Chrome and Edge are the recommended, fully-tested targets.** Other
+Chromium browsers may work depending on their Side Panel API support.
 
 ## Install (Load unpacked)
 

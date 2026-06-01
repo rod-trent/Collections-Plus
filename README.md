@@ -127,11 +127,13 @@ future edits sync too. From then on:
 - The extension pulls newer changes when the panel opens or regains focus.
 - **Sync now** / **Pull from sync file** force a push / pull on demand.
 
-Reconciliation is **last-write-wins** on a timestamp in the file, which is
-ideal for one person across several machines. If you edit on two devices while
-both are offline, the device that syncs its file *last* wins — so let the cloud
-catch up before editing elsewhere. For a guaranteed-complete snapshot, keep
-using **Export backup (JSON)**.
+Reconciliation is **last-write-wins** based on the sync file's modification
+time as each device sees it locally (so it doesn't depend on your computers'
+clocks agreeing). An open panel checks for changes on focus and every ~20
+seconds. This is ideal for one person across several machines. If you edit on
+two devices while both are offline, the device that syncs its file *last* wins —
+so let the cloud catch up before editing elsewhere. For a guaranteed-complete
+snapshot, keep using **Export backup (JSON)**.
 
 > Requires a Chromium browser with the **File System Access API** (Chrome/Edge
 > have it). If it's unavailable, the sync menu says so and the rest of the

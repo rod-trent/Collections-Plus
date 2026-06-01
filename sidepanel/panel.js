@@ -590,6 +590,9 @@ async function disconnectSync() {
 async function autoPull() {
   try {
     if (!(await sync.status()).connected) return;
+    // Only engage the remote-apply guard when there's actually a new version,
+    // so frequent polling can't suppress a concurrent local edit's push.
+    if (!(await sync.hasRemoteChange())) return;
     applyingRemote = true;
     const res = await sync.pull({ interactive: false });
     if (!res.applied) applyingRemote = false;
@@ -599,7 +602,15 @@ async function autoPull() {
   }
 }
 
+// Pull on focus, when the panel becomes visible again, and on a light timer so
+// an open panel notices changes another device made (the focus event alone is
+// unreliable for a side panel). pull() reads only the file's mtime unless it
+// actually changed, so polling is cheap.
 window.addEventListener('focus', autoPull);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) autoPull();
+});
+setInterval(autoPull, 20000);
 
 // ---- Event wiring ----------------------------------------------------------
 

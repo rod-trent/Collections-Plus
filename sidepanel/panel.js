@@ -995,6 +995,11 @@ els.fileInput.addEventListener('change', async () => {
 
 let applyingRemote = false; // true while a pull writes data — skip the echo push
 let pushTimer = null;
+// FSA write permission is lost on every reload/restart; until the user
+// re-grants it (a gesture), background pushes can't write. We pause rather than
+// spam errors, and surface a one-click Resume.
+let syncPaused = false;
+let syncPausedNotified = false;
 
 function syncBtn(action) {
   return document.querySelector(`#overflow-menu [data-action="${action}"]`);
@@ -1003,13 +1008,14 @@ function syncBtn(action) {
 async function refreshSyncMenu() {
   const create = syncBtn('sync-create');
   const openExisting = syncBtn('sync-open');
+  const resume = syncBtn('sync-resume');
   const now = syncBtn('sync-now');
   const pull = syncBtn('sync-pull');
   const disc = syncBtn('sync-disconnect');
   const status = els.syncStatus;
 
   if (!sync.supported()) {
-    create.hidden = openExisting.hidden = now.hidden = pull.hidden = disc.hidden = true;
+    create.hidden = openExisting.hidden = resume.hidden = now.hidden = pull.hidden = disc.hidden = true;
     status.hidden = false;
     status.textContent = 'Sync needs a Chromium browser with the File System Access API.';
     return;
@@ -1018,10 +1024,15 @@ async function refreshSyncMenu() {
   const { connected, name, lastSyncAt } = await sync.status();
   create.hidden = openExisting.hidden = connected;
   now.hidden = pull.hidden = disc.hidden = !connected;
+  resume.hidden = !(connected && syncPaused);
   status.hidden = !connected;
   if (connected) {
-    const when = lastSyncAt ? ` · ${relativeTime(lastSyncAt)}` : '';
-    status.textContent = `Synced to ${name}${when}`;
+    if (syncPaused) {
+      status.textContent = `Sync paused — write access needed (Resume above).`;
+    } else {
+      const when = lastSyncAt ? ` · ${relativeTime(lastSyncAt)}` : '';
+      status.textContent = `Synced to ${name}${when}`;
+    }
   }
 }
 
@@ -1041,6 +1052,12 @@ let pendingPush = false; // local edits not yet written to the sync file
 // Debounced background write after local edits.
 function schedulePush() {
   pendingPush = true;
+  if (syncPaused) {
+    // Write access is gone; don't hammer the API. The edit is remembered in
+    // pendingPush and flushes when the user clicks Resume.
+    notifySyncPaused();
+    return;
+  }
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(async () => {
     pushTimer = null;
@@ -1051,9 +1068,38 @@ function schedulePush() {
         conflictNotified = false;
       }
     } catch (err) {
-      console.warn('Background sync push failed', err);
+      if (err?.code === 'permission') {
+        // Expected after a reload/restart — pause quietly, don't log an error.
+        syncPaused = true;
+        notifySyncPaused();
+      } else {
+        console.warn('Background sync push failed', err);
+      }
     }
   }, 1500);
+}
+
+// Show the "sync paused" affordance once, and reflect it in the menu.
+function notifySyncPaused() {
+  refreshSyncMenu();
+  if (syncPausedNotified) return;
+  syncPausedNotified = true;
+  toast('Sync paused — write access needed.', { label: 'Resume', fn: resumeSync });
+}
+
+// Re-grant write access (needs the user gesture from the Resume click) and flush.
+async function resumeSync() {
+  try {
+    await sync.push({ interactive: true });
+    syncPaused = false;
+    syncPausedNotified = false;
+    pendingPush = false;
+    conflictNotified = false;
+    toast('Sync resumed');
+  } catch (err) {
+    toast('Could not resume sync — write access denied');
+  }
+  refreshSyncMenu();
 }
 
 // FIRST device — create the sync file and seed it with local data.
@@ -1079,6 +1125,9 @@ async function createSync() {
       await sync.push({ interactive: true });
       toast('Sync set up');
     }
+    syncPaused = false;
+    syncPausedNotified = false;
+    pendingPush = false;
   } catch (err) {
     if (err?.name === 'AbortError') return; // user dismissed the file picker
     console.error(err);
@@ -1111,6 +1160,9 @@ async function openSync() {
       await sync.requestWriteAccess();
       toast('Synced from file');
     }
+    syncPaused = false;
+    syncPausedNotified = false;
+    pendingPush = false;
   } catch (err) {
     if (err?.name === 'AbortError') return; // user dismissed the file picker
     console.error(err);
@@ -1122,11 +1174,15 @@ async function openSync() {
 async function syncNow() {
   try {
     await sync.push({ interactive: true });
+    syncPaused = false;
+    syncPausedNotified = false;
+    pendingPush = false;
     toast('Synced');
   } catch (err) {
     console.error(err);
     toast('Sync failed');
   }
+  refreshSyncMenu();
 }
 
 async function syncPull() {
@@ -1269,6 +1325,7 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   if (action === 'history') openHistoryMenu();
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();
+  if (action === 'sync-resume') resumeSync();
   if (action === 'sync-now') syncNow();
   if (action === 'sync-pull') syncPull();
   if (action === 'sync-disconnect') disconnectSync();
@@ -1429,5 +1486,12 @@ document.addEventListener('drop', async (e) => {
 // Initial paint, then reflect sync state, theme, and pull any newer remote data.
 getSettings().then((s) => applyTheme(s.theme));
 render();
-refreshSyncMenu();
+// If connected but write access lapsed (e.g. after a reload), mark sync paused
+// up front so the menu shows Resume instead of failing the first push.
+sync.status().then(async ({ connected }) => {
+  if (connected && !(await sync.canWrite())) {
+    syncPaused = true;
+  }
+  refreshSyncMenu();
+});
 autoPull();

@@ -69,6 +69,36 @@ The CSV only contains saved pages (Edge's export drops images and notes), so
 the import is pages-only. Going forward, use **Export backup (JSON)** for a
 complete backup.
 
+## Organizing & exporting
+
+### Reorder collections and items
+
+Drag the **⠿ handle** on a collection card to reorder your list, and the handle
+on an item to reorder it within a collection. The new order is saved instantly.
+
+### Custom covers
+
+Every collection has a cover thumbnail (the first saved item by default). To
+change it:
+
+- Open a collection and click **Change cover…** to upload your own image — it's
+  downscaled and stored inline, so it always renders even if the original page
+  goes offline.
+- Or hover any saved page/image and click its **★** to promote that thumbnail to
+  the cover.
+- ⋯ → **Remove cover** clears it back to the default.
+
+### Export to Excel (CSV)
+
+- ⋯ (top-right) → **Export to Excel (CSV)** exports *every* collection.
+- Inside a collection, ⋯ → **Export to Excel (CSV)** exports *just that one*.
+
+The file opens straight in Excel / Google Sheets / Numbers — one row per item,
+with columns **Collection, Type, Title, URL, Note, Added**. It's a UTF-8 CSV
+(with a BOM) so accented characters and emoji survive. Handy for part lists,
+shopping lists, research sources, or anything you want to sort, filter, or total
+in a spreadsheet.
+
 ## Syncing across devices
 
 Sync is **optional and provider-agnostic** — there's no account and no API keys.

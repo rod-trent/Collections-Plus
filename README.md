@@ -78,6 +78,12 @@ Chromium browsers may work depending on their Side Panel API support.
 To update after pulling changes, click the **reload** ↻ button on the
 extension's card in `edge://extensions`.
 
+### Keyboard shortcut
+
+`Ctrl+Shift+S` saves the current page to the active collection. To change it,
+open **`edge://extensions/shortcuts`** (or **`chrome://extensions/shortcuts`**)
+and rebind *"Save the current page to Collections Plus."*
+
 ### Updating across devices
 
 An unpacked extension does **not** auto-update — each browser keeps running the

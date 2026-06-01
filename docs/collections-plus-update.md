@@ -1,100 +1,109 @@
-title: Collections Plus Just Got a Major Update — Excel Export, Custom Covers, and Real Cross‑Device Sync
+title: Collections Plus 1.1 — It Grew Into a Power Tool (and Still Keeps Your Data on Your Machine)
 
-subtitle: My open replacement for the retiring Microsoft Edge Collections grows up — and it still keeps your data on your machine.
+subtitle: My open replacement for the retiring Microsoft Edge Collections now has folders, search, checklists, real Excel export, offline image caching, cross-device sync, and a lot more.
 
 ---
 
-If you've been following along, you know I've been a little annoyed.
-
-Microsoft is **retiring Edge Collections** in Edge 149 (around June 2026). I *use* Collections. It's the quiet little feature I lean on to corral research, shopping lists, trip planning, and the eleven browser tabs I swear I'll read later. So when I heard it was going away, I did the reasonable thing: I built my own open replacement and gave it away.
+If you've been following along, you know the backstory: Microsoft is **retiring Edge Collections** in Edge 149 (around June 2026). I *use* Collections — it's the quiet little feature I lean on for research, shopping lists, trip planning, and the eleven tabs I swear I'll read later. So when I heard it was going away, I built my own open replacement and gave it away.
 
 That project is **Collections Plus** — a small, local-first browser extension for Chrome and Edge. No account. No server. No build step. Your data lives in your browser, full stop.
 
-And it just got its biggest update yet. Here's everything that's new.
+The first release covered the basics plus Excel export, custom covers, and cross-device sync. Since then it's grown into something genuinely more capable than the thing it replaces. Here's the whole tour.
 
-## First, a quick rename
+## Find and organize anything
 
-It started life simply called "Collections." That was always going to be confusing next to Edge's feature of the same name, so it's now **Collections Plus**. Same extension, clearer name, and a nod to the fact that it now does a few things the original never did. (If you already had it installed, nothing breaks — your collections are right where you left them.)
+Once you have more than a handful of collections, finding things matters.
 
-## 1. Export to Excel
+- **Search** across everything — titles, URLs, notes, and tags — from one box at the top.
+- **Folders** group related collections under collapsible headers. Hit **+📁**, then use each card's **📁** button to file it away.
+- **Pin** your favorites so they float to the top of the list.
+- **Tags** label collections, and clicking a tag instantly filters the list to it.
 
-This is the one I get asked about most, and it turns out to be the most useful in everyday life.
+Drag-and-drop works on both the items inside a collection *and* the collections themselves — grab the **⠿** handle and drop where it belongs.
 
-You can now export your collections straight to a spreadsheet:
+## Turn any collection into a real list
 
-- **Everything at once** — the ⋯ menu → *Export to Excel (CSV)*.
-- **Just one collection** — open it, then ⋯ → *Export to Excel (CSV)*.
+This is my favorite addition, because it changes what a collection *is*.
 
-The file opens directly in Excel, Google Sheets, or Numbers, with one row per saved item and clean columns: **Collection, Type, Title, URL, Note, Added**.
+- **Checkboxes** — every item has one. Suddenly a collection is a shopping list, a reading list, a packing list, a parts list you can tick off.
+- **Custom fields** — add your own columns like **Price**, **Qty**, or **SKU** to any saved page or image. They're not just notes; they're structured data…
 
-Why does this matter? Because a collection is often secretly a *list*. A parts list for a project. A shopping list with links to the exact items. Research sources you need to cite. The moment you can pull that into a spreadsheet, you can sort it, filter it, add a price column, total it up, or share it with someone who lives in Excel. That's a genuinely different superpower than "a pretty panel of links."
+…which matters because of the next part.
 
-## 2. Custom covers
+## Get your data out — properly
 
-Every collection shows a cover thumbnail. Until now, that was just whatever you happened to save first. Now you're in charge:
+- **Real Excel (`.xlsx`)** export now, not just CSV. One sheet per collection, a bold header row, and **clickable links**. Those custom fields you added? They become columns. I wrote the `.xlsx` writer from scratch so it stays dependency-free — no bloat.
+- **CSV** is still there for quick sorting and totaling.
+- **Markdown** and **HTML** export, too — drop a collection straight into your notes, a blog post, or a wiki. (The Markdown uses real task-list checkboxes.)
+- **Copy links** puts a clean "Title — URL" list on your clipboard in one click.
 
-- **Upload your own image** with *Change cover…* — it's automatically downscaled and stored inside the extension, so it renders forever even if the original web page disappears.
-- Or hover any saved page or image and click its **★** to promote that thumbnail to the cover.
-- Don't like it? *Remove cover* puts it back to the default.
+A collection is often secretly a list or a dataset. Now you can treat it like one.
 
-Small feature, surprisingly satisfying. A wall of well-chosen covers makes a big list of collections actually *scannable*.
+## Capture faster
 
-## 3. Drag‑and‑drop organization
+- **Keyboard shortcut** — `Ctrl+Shift+S` saves the current page without touching the mouse (rebindable in your browser's shortcuts page).
+- **Add all open tabs** — corral an entire window of "I'll read this later" into a collection at once.
+- **Drag a link or image** straight onto the panel to save it.
+- **No more duplicates** — saving a page that's already in the collection is skipped.
+- **Local screenshots** — when a page has no preview image, Collections Plus grabs a screenshot for the thumbnail, so your list still looks like something.
 
-You could already drag items around inside a collection. Now you can **drag the collections themselves** into whatever order you want — grab the **⠿** handle on a card and drop it where it belongs. Your most-used collections go to the top where they belong. The order saves instantly.
+## Never lose anything
 
-## 4. Cross‑device sync — without handing your data to anyone
+- **Offline image caching** (optional) — turn it on and saved images are downscaled and stored *inside* the extension, so they survive the original page going offline. This was the one genuinely fragile thing in the old version; now it's a switch.
+- **Undo** — deleted a collection or item by mistake? The toast has an **Undo** button.
+- **Version history** — Collections Plus quietly keeps recent snapshots you can roll back to from ⋯ → *Version history…*.
+- **JSON backup** — a complete, high-fidelity export whenever you want one.
 
-This is the big one, and it's the feature I'm proudest of because of *how* it works.
+## A couple of nice touches
 
-Most sync features want you to log into their cloud. I didn't want to build that, and frankly I didn't want to *be* that — another company holding your bookmarks. So Collections Plus syncs a different way: **it's provider‑agnostic and account‑free.**
+- **Custom covers** — upload your own image or promote any saved thumbnail with **★**. A wall of well-chosen covers makes a big list actually scannable.
+- **Light or dark theme** — your call.
 
-Here's the trick. Instead of integrating with OneDrive *or* Google Drive *or* Dropbox, the extension reads and writes a **single file** — `collections-sync.json` — that *you* drop into a folder your computer already keeps synced. Your existing cloud client (OneDrive, Google Drive, Dropbox, iCloud Drive — your call) does the actual syncing. The extension just keeps that one file up to date and reads it back.
+## Cross-device sync — without handing your data to anyone
+
+This is the feature I'm proudest of, because of *how* it works. Most sync wants you to log into someone's cloud. I didn't want to build that, and I didn't want to *be* that — another company holding your bookmarks.
+
+So Collections Plus syncs a different way: **provider-agnostic and account-free.** Instead of integrating with OneDrive *or* Google Drive *or* Dropbox, it reads and writes a **single file** — `collections-sync.json` — that *you* drop into a folder your computer already keeps synced. Your existing cloud client does the actual syncing; the extension just keeps that one file current.
 
 Setting it up:
 
-1. On your first device: ⋯ → **Create sync file…** and save `collections-sync.json` inside your synced folder.
-2. On your second device: once the cloud has finished downloading that file, ⋯ → **Use existing sync file…** and open the same file. It loads the data and asks permission to write so this device's edits sync too.
+1. First device: ⋯ → **Create sync file…** and save `collections-sync.json` in your synced folder.
+2. Other devices: ⋯ → **Use existing sync file…** and open that same file once the cloud has downloaded it.
 
-From then on it's hands‑off:
+From there it's hands-off — your edits write out automatically, and an open panel pulls in changes from your other devices on focus and every ~20 seconds. It reconciles with a simple **last-edit-wins** rule, judged by the file's timestamp *as each device sees it locally*, so mismatched computer clocks can't make a real change look "old" and skip it.
 
-- Your edits are written to the file automatically a moment after you make them.
-- An open panel watches for changes from your other devices — when you focus it, when it comes back into view, and on a quiet timer every ~20 seconds — so updates just appear. No button-pressing required.
-- And if you're impatient, **Sync now** and **Pull from sync file** force a push or pull on the spot.
+And it's gotten smarter since launch:
 
-It reconciles with a simple, predictable rule — **last edit wins** — which is exactly right for one person across a laptop and a desktop. It figures out "which copy is newer" from the file's own timestamp *as each device sees it*, so it doesn't matter if your two computers' clocks aren't perfectly in step. (This is also the fix for an early gremlin where a change on one machine could quietly fail to show up on another — sorted.)
+- A **conflict guard** — if a device has un-pushed edits when the file changes elsewhere, it won't silently overwrite your work. It keeps your changes and offers *"Use file instead."*
+- The menu shows **when you last synced**, and version history is your rollback net.
 
-It's *not* built for two people editing the same collection at the same instant; if that's you, let the cloud catch up before you bounce between machines. And the JSON backup export is always there as a belt‑and‑suspenders snapshot.
+The best part: **I never see your data, and neither does any server I run. There is no server I run.** The sync file lives in a folder you chose, touched only by a cloud client you already trust.
 
-The best part: **I never see your data, and neither does any server I run. There is no server I run.** The sync file sits in a folder you chose, touched only by a cloud client you already trust.
+> Sync uses the browser's File System Access API (Chrome and Edge have it). If your browser doesn't, the menu says so and everything else works unchanged.
 
-> Note: sync uses the browser's File System Access API, which Chrome and Edge support. If you're on a browser that doesn't have it, the menu tells you — and everything else still works exactly the same.
+## Still local-first, still yours
 
-## Still local‑first, still yours
-
-None of this changes the core promise. Collections Plus stores everything locally in your browser. Nothing is sent to me. The new sync is opt‑in and points at a file *you* control. Uploaded covers are stored inside the extension so they don't rot. It's still a no‑account, no‑telemetry, no‑nonsense tool.
+None of this changes the core promise. Everything is stored locally in your browser. Nothing is sent to me. Sync and image caching are both **off until you turn them on**, and sync points at a file *you* control. No account, no telemetry, no nonsense.
 
 ## How to get it
 
-It's free and open source (MIT). You load it as an unpacked extension today:
+It's free and open source (MIT). Load it as an unpacked extension:
 
 1. Open `edge://extensions` (or `chrome://extensions`).
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the project folder.
 4. Pin the **Collections Plus** icon and click it.
 
-Migrating from Edge is one click: in Edge, export your Collections data, then in Collections Plus use **Import Edge CSV…**. Your existing collections come right over.
+Migrating from Edge is one click: export your Collections data in Edge, then in Collections Plus use **Import Edge CSV…**.
+
+> Running it on more than one computer? After any update, hit **reload ↻** on the extension card on *each* device — unpacked extensions don't auto-update.
 
 ## What's next
 
-A few things I'm chewing on:
+- **Bulk multi-select** — move, copy, or delete several items at once.
+- Eventually, a **Web Store / Add-ons** listing so updates land automatically.
 
-- **Search** across all your collections.
-- **Tags or folders** for when you have a *lot* of collections.
-- **Custom item fields** like price and quantity — which would flow right into that Excel export and make the part‑list use case sing.
-- A true **.xlsx** export with multiple sheets and clickable links.
-
-If one of those would change your life, tell me — I build the things people actually ask for.
+If something here would make your day better — or you want a feature I haven't built — tell me. I build the things people actually ask for.
 
 Edge Collections is going away. Yours doesn't have to.
 

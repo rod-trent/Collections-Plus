@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Collections Plus",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Save pages, images and notes into organized collections — an open replacement for the retired Microsoft Edge Collections.",
   "permissions": [
     "storage",

@@ -9,3 +9,6 @@ Thumbs.db
 # Web Store packaging output
 dist/
 *.zip
+
+# Local-only Web Store submission notes (listing copy, etc.)
+docs/CHROME_WEB_STORE.md

@@ -119,6 +119,84 @@ function openMenu(menu, open) {
   menu.hidden = !open;
 }
 
+// ---- In-panel dialogs (replace native prompt/confirm) ----------------------
+// Native prompt()/confirm() in an extension page render as "The extension
+// Collections Plus says…" and, after a couple of uses, let the user tick
+// "Prevent this page from creating additional dialogs" — which would silently
+// break every prompt/confirm in the app. These custom dialogs avoid both.
+const dlg = {
+  overlay: $('#modal'),
+  title: $('#modal-title'),
+  input: $('#modal-input'),
+  ok: $('#modal-ok'),
+  cancel: $('#modal-cancel'),
+};
+let dlgResolve = null;
+let dlgMode = 'confirm'; // 'confirm' | 'prompt'
+
+function closeDialog(value) {
+  dlg.overlay.hidden = true;
+  dlg.ok.classList.remove('danger');
+  const resolve = dlgResolve;
+  dlgResolve = null;
+  if (resolve) resolve(value);
+}
+
+/** Async replacement for prompt(). Resolves to the string, or null on cancel. */
+function showPrompt(title, { value = '', placeholder = '', okLabel = 'OK' } = {}) {
+  return new Promise((resolve) => {
+    if (dlgResolve) closeDialog(dlgMode === 'prompt' ? null : false);
+    dlgResolve = resolve;
+    dlgMode = 'prompt';
+    dlg.title.textContent = title;
+    dlg.input.hidden = false;
+    dlg.input.value = value;
+    dlg.input.placeholder = placeholder;
+    dlg.ok.textContent = okLabel;
+    dlg.cancel.textContent = 'Cancel';
+    dlg.overlay.hidden = false;
+    dlg.input.focus();
+    dlg.input.select();
+  });
+}
+
+/** Async replacement for confirm(). Resolves to true (OK) or false (Cancel). */
+function showConfirm(title, { okLabel = 'OK', cancelLabel = 'Cancel', danger = false } = {}) {
+  return new Promise((resolve) => {
+    if (dlgResolve) closeDialog(dlgMode === 'prompt' ? null : false);
+    dlgResolve = resolve;
+    dlgMode = 'confirm';
+    dlg.title.textContent = title;
+    dlg.input.hidden = true;
+    dlg.ok.textContent = okLabel;
+    dlg.cancel.textContent = cancelLabel;
+    dlg.ok.classList.toggle('danger', danger);
+    dlg.overlay.hidden = false;
+    dlg.ok.focus();
+  });
+}
+
+dlg.ok.addEventListener('click', () =>
+  closeDialog(dlgMode === 'prompt' ? dlg.input.value : true)
+);
+dlg.cancel.addEventListener('click', () =>
+  closeDialog(dlgMode === 'prompt' ? null : false)
+);
+dlg.overlay.addEventListener('click', (e) => {
+  if (e.target === dlg.overlay) closeDialog(dlgMode === 'prompt' ? null : false);
+});
+dlg.input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    closeDialog(dlg.input.value);
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (!dlg.overlay.hidden && e.key === 'Escape') {
+    closeDialog(dlgMode === 'prompt' ? null : false);
+  }
+});
+
 // Close any open overflow menus when clicking elsewhere.
 document.addEventListener('click', (e) => {
   document.querySelectorAll('.menu').forEach((m) => {
@@ -221,7 +299,7 @@ folderMenu.addEventListener('click', async (e) => {
   folderMenu.hidden = true;
   let to = btn.dataset.to;
   if (to === '__new') {
-    const name = (prompt('New folder name:') || '').trim();
+    const name = ((await showPrompt('New folder name:')) || '').trim();
     if (!name) return;
     to = (await createFolder(name)).id;
   }
@@ -261,7 +339,7 @@ historyMenu.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-at]');
   if (!btn) return;
   historyMenu.hidden = true;
-  if (!confirm('Restore this snapshot? Your current data is snapshotted first, so you can roll back.'))
+  if (!(await showConfirm('Restore this snapshot? Your current data is snapshotted first, so you can roll back.', { okLabel: 'Restore' })))
     return;
   await snapshotHistory(0); // force-capture current state before overwriting
   await restoreHistory(Number(btn.dataset.at));
@@ -388,12 +466,12 @@ function buildFolderHeader(f, count) {
   el.querySelector('.folder-name').addEventListener('click', toggle);
   el.querySelector('.folder-rename').addEventListener('click', async (e) => {
     e.stopPropagation();
-    const name = prompt('Folder name:', f.name);
+    const name = await showPrompt('Folder name:', { value: f.name });
     if (name !== null) await renameFolder(f.id, name);
   });
   el.querySelector('.folder-del').addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (confirm(`Delete folder "${f.name}"? Its collections move back to the top level.`)) {
+    if (await showConfirm(`Delete folder "${f.name}"? Its collections move back to the top level.`, { okLabel: 'Delete', danger: true })) {
       await removeFolder(f.id);
     }
   });
@@ -607,8 +685,8 @@ function renderItem(collectionId, item) {
   });
   const addBtn = row.querySelector('.item-field-add');
   if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      const name = (prompt('Field name (e.g. Price, Qty, SKU)') || '').trim();
+    addBtn.addEventListener('click', async () => {
+      const name = ((await showPrompt('Field name (e.g. Price, Qty, SKU)')) || '').trim();
       if (!name) return;
       if (item.fields && name in item.fields) return toast('That field already exists');
       updateItem(collectionId, item.id, { fields: { ...item.fields, [name]: '' } });
@@ -900,8 +978,10 @@ els.fileInput.addEventListener('change', async () => {
       const stats = await importEdgeCsv(text);
       toast(`Imported ${stats.pages} page(s) into ${stats.collections} collection(s)`);
     } else {
-      const replace =
-        confirm('Replace all current data with this backup?\n\nOK = replace, Cancel = merge');
+      const replace = await showConfirm('Replace all current data with this backup?', {
+        okLabel: 'Replace',
+        cancelLabel: 'Merge',
+      });
       await importJSON(text, replace ? 'replace' : 'merge');
       toast('Backup imported');
     }
@@ -982,10 +1062,9 @@ async function createSync() {
     const { name, existing } = await sync.createFile();
     if (existing) {
       // The chosen file already has data — don't clobber it without asking.
-      const useFile = confirm(
-        `"${name}" already contains ${existing.collections} collection(s).\n\n` +
-          'OK = load that file and replace your local data\n' +
-          'Cancel = overwrite the file with your current data'
+      const useFile = await showConfirm(
+        `"${name}" already contains ${existing.collections} collection(s). Load that file and replace your local data, or overwrite the file with your current data?`,
+        { okLabel: 'Load file', cancelLabel: 'Overwrite' }
       );
       if (useFile) {
         applyingRemote = true;
@@ -1013,10 +1092,9 @@ async function openSync() {
   try {
     const { name, existing } = await sync.openFile();
     if (!existing) {
-      const proceed = confirm(
-        `"${name}" has no collections to load yet.\n\n` +
-          'OK = use it anyway and upload your current data\n' +
-          'Cancel = pick a different file'
+      const proceed = await showConfirm(
+        `"${name}" has no collections to load yet. Use it anyway and upload your current data?`,
+        { okLabel: 'Use it', cancelLabel: 'Cancel' }
       );
       if (!proceed) {
         await sync.disconnect();
@@ -1140,7 +1218,7 @@ els.searchInput.addEventListener('input', () => {
 });
 
 $('#new-folder-btn').addEventListener('click', async () => {
-  const name = (prompt('New folder name:') || '').trim();
+  const name = ((await showPrompt('New folder name:')) || '').trim();
   if (name) await createFolder(name);
 });
 
@@ -1239,7 +1317,7 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   if (action === 'open-all') {
     const pages = c.items.filter((i) => i.type === 'page');
     if (!pages.length) return toast('No pages to open');
-    if (pages.length > 8 && !confirm(`Open all ${pages.length} pages in new tabs?`)) return;
+    if (pages.length > 8 && !(await showConfirm(`Open all ${pages.length} pages in new tabs?`, { okLabel: 'Open all' }))) return;
     pages.forEach((p) => chrome.tabs.create({ url: p.url, active: false }));
   }
   if (action === 'add-note') {
@@ -1265,7 +1343,7 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'edit-tags') {
     const current = (c.tags || []).join(', ');
-    const input = prompt('Tags (comma-separated):', current);
+    const input = await showPrompt('Tags (comma-separated):', { value: current });
     if (input !== null) {
       await setTags(openId, input.split(',').map((t) => t.trim()).filter(Boolean));
       toast('Tags updated');

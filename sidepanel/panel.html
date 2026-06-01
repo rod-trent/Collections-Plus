@@ -133,6 +133,18 @@
     <!-- Floating menu to assign a collection to a folder -->
     <div id="folder-menu" class="menu floating" hidden></div>
 
+    <!-- Custom dialog (replaces the browser's native prompt/confirm) -->
+    <div id="modal" class="modal-overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-title" id="modal-title"></div>
+        <input id="modal-input" class="modal-input" type="text" hidden />
+        <div class="modal-actions">
+          <button id="modal-cancel" class="btn">Cancel</button>
+          <button id="modal-ok" class="btn primary">OK</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toast" class="toast" hidden></div>
 
     <script type="module" src="panel.js"></script>

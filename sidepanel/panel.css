@@ -687,10 +687,11 @@ body {
 /* ---- Floating move/copy menu ---- */
 .menu.floating {
   position: fixed;
-  min-width: 180px;
-  max-width: 240px;
+  min-width: 200px;
+  max-width: 260px;
   max-height: 60vh;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .move-row {
@@ -701,6 +702,7 @@ body {
 
 .move-go {
   flex: 1;
+  min-width: 0; /* allow the name to shrink + ellipsis instead of overflowing */
   text-align: left;
   background: none;
   border: none;
@@ -860,6 +862,64 @@ body.drag-over::after {
   color: var(--accent);
   pointer-events: none;
   z-index: 60;
+}
+
+/* ---- In-panel dialogs (replace native prompt/confirm) ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.modal {
+  width: 100%;
+  max-width: 320px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.modal-title {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.modal-input {
+  width: 100%;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn.primary.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
 }
 
 /* Scrollbar polish */

@@ -92,8 +92,68 @@ function openMenu(menu, open) {
 // Close any open overflow menus when clicking elsewhere.
 document.addEventListener('click', (e) => {
   document.querySelectorAll('.menu').forEach((m) => {
+    if (m.id === 'move-menu') return; // handled separately (floating)
     if (!m.hidden && !m.parentElement.contains(e.target)) m.hidden = true;
   });
+});
+
+// ---- Move / copy an item to another collection -----------------------------
+const moveMenu = $('#move-menu');
+
+async function openMoveMenu(anchor, fromId, itemId) {
+  const data = await getData();
+  const others = data.collections.filter((c) => c.id !== fromId);
+  if (!others.length) {
+    toast('No other collection to move to');
+    return;
+  }
+  moveMenu.dataset.from = fromId;
+  moveMenu.dataset.item = itemId;
+  moveMenu.innerHTML =
+    `<div class="menu-note">Move or copy to…</div>` +
+    others
+      .map(
+        (c) => `
+      <div class="move-row">
+        <button class="move-go" data-act="move" data-to="${c.id}" title="Move here">${escapeHtml(
+          c.title
+        )}</button>
+        <button class="move-copy" data-act="copy" data-to="${c.id}" title="Copy here">⎘</button>
+      </div>`
+      )
+      .join('');
+  // Unhide to measure, then position near the anchor and keep it on-screen.
+  moveMenu.hidden = false;
+  const r = anchor.getBoundingClientRect();
+  const mw = moveMenu.offsetWidth || 220;
+  const mh = moveMenu.offsetHeight || 0;
+  let left = Math.max(8, r.right - mw);
+  let top = r.bottom + 4;
+  if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 4);
+  moveMenu.style.left = `${left}px`;
+  moveMenu.style.top = `${top}px`;
+}
+
+moveMenu.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const to = btn.dataset.to;
+  const from = moveMenu.dataset.from;
+  const itemId = moveMenu.dataset.item;
+  moveMenu.hidden = true;
+  if (btn.dataset.act === 'copy') {
+    await copyItems(from, [itemId], to);
+    toast('Copied to collection');
+  } else {
+    await moveItems(from, [itemId], to);
+    toast('Moved to collection');
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!moveMenu.hidden && !moveMenu.contains(e.target) && !e.target.closest('.item-move-btn')) {
+    moveMenu.hidden = true;
+  }
 });
 
 // ---- Rendering -------------------------------------------------------------
@@ -302,13 +362,34 @@ function renderItem(collectionId, item) {
     ? `<button class="item-cover-btn" title="Use as collection cover">★</button>`
     : '';
 
+  // Custom fields (price, qty, …) — page/image items only.
+  const supportsFields = item.type !== 'note';
+  const fields = item.fields || {};
+  const fieldsHtml = supportsFields
+    ? `<div class="item-fields">${Object.keys(fields)
+        .map(
+          (k) => `
+        <div class="item-field" data-key="${escapeHtml(k)}">
+          <span class="field-key">${escapeHtml(k)}</span>
+          <input class="field-val" value="${escapeHtml(fields[k])}" />
+          <button class="field-del" title="Remove field">✕</button>
+        </div>`
+        )
+        .join('')}</div>`
+    : '';
+  const addFieldBtn = supportsFields
+    ? `<button class="item-field-add" title="Add a field (price, qty…)">⊞</button>`
+    : '';
+
   row.innerHTML = `
     <span class="drag-handle" title="Drag to reorder">⠿</span>
     <input type="checkbox" class="item-check" ${item.done ? 'checked' : ''} title="Mark done" />
     ${thumbHtml}
-    <div class="item-body">${bodyHtml}</div>
+    <div class="item-body">${bodyHtml}${fieldsHtml}</div>
     <div class="item-actions">
       ${coverBtnHtml}
+      ${addFieldBtn}
+      <button class="item-move-btn" title="Move or copy to another collection">⇄</button>
       <button class="item-del" title="Remove">✕</button>
     </div>
   `;
@@ -320,6 +401,36 @@ function renderItem(collectionId, item) {
   row.querySelector('.item-check').addEventListener('change', (e) =>
     toggleDone(collectionId, item.id, e.target.checked)
   );
+
+  row.querySelector('.item-move-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openMoveMenu(e.currentTarget, collectionId, item.id);
+  });
+
+  // Custom-field wiring.
+  row.querySelectorAll('.field-val').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const key = inp.closest('.item-field').dataset.key;
+      updateItem(collectionId, item.id, { fields: { ...item.fields, [key]: inp.value } });
+    });
+  });
+  row.querySelectorAll('.field-del').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.closest('.item-field').dataset.key;
+      const next = { ...item.fields };
+      delete next[key];
+      updateItem(collectionId, item.id, { fields: next });
+    });
+  });
+  const addBtn = row.querySelector('.item-field-add');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      const name = (prompt('Field name (e.g. Price, Qty, SKU)') || '').trim();
+      if (!name) return;
+      if (item.fields && name in item.fields) return toast('That field already exists');
+      updateItem(collectionId, item.id, { fields: { ...item.fields, [name]: '' } });
+    });
+  }
 
   if (coverSrc) {
     row.querySelector('.item-cover-btn').addEventListener('click', async (e) => {

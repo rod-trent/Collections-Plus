@@ -504,7 +504,9 @@ body {
   gap: 2px;
 }
 
-.item-cover-btn {
+.item-cover-btn,
+.item-field-add,
+.item-move-btn {
   background: none;
   border: none;
   color: var(--text-faint);
@@ -516,11 +518,122 @@ body {
   transition: opacity 0.12s ease;
 }
 
-.item:hover .item-cover-btn {
+.item:hover .item-cover-btn,
+.item:hover .item-field-add,
+.item:hover .item-move-btn {
   opacity: 1;
 }
 
-.item-cover-btn:hover {
+.item-cover-btn:hover,
+.item-field-add:hover,
+.item-move-btn:hover {
+  background: var(--bg-elev-2);
+  color: var(--accent);
+}
+
+/* ---- Custom item fields ---- */
+.item-fields {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-key {
+  flex: 0 0 auto;
+  min-width: 54px;
+  max-width: 110px;
+  color: var(--text-dim);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-val {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+.field-val:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field-del {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.field-del:hover {
+  color: var(--danger);
+}
+
+/* ---- Floating move/copy menu ---- */
+.menu.floating {
+  position: fixed;
+  min-width: 180px;
+  max-width: 240px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.move-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.move-go {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 7px 8px;
+  border-radius: 5px;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.move-go:hover {
+  background: var(--bg-elev-2);
+}
+
+.move-copy {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.move-copy:hover {
   background: var(--bg-elev-2);
   color: var(--accent);
 }

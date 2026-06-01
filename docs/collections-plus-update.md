@@ -59,10 +59,12 @@ Setting it up:
 From then on it's hands‑off:
 
 - Your edits are written to the file automatically a moment after you make them.
-- New changes are pulled in when you open the panel or click back into it.
-- **Sync now** and **Pull from sync file** are there if you want to force the issue.
+- An open panel watches for changes from your other devices — when you focus it, when it comes back into view, and on a quiet timer every ~20 seconds — so updates just appear. No button-pressing required.
+- And if you're impatient, **Sync now** and **Pull from sync file** force a push or pull on the spot.
 
-It reconciles with a simple, predictable rule — **last edit wins** — which is exactly right for one person across a laptop and a desktop. (It's not built for two people editing the same collection at the same instant; if that's you, let the cloud catch up before you bounce between machines. And the JSON backup export is always there as a belt‑and‑suspenders snapshot.)
+It reconciles with a simple, predictable rule — **last edit wins** — which is exactly right for one person across a laptop and a desktop. It figures out "which copy is newer" from the file's own timestamp *as each device sees it*, so it doesn't matter if your two computers' clocks aren't perfectly in step. (This is also the fix for an early gremlin where a change on one machine could quietly fail to show up on another — sorted.)
+
+It's *not* built for two people editing the same collection at the same instant; if that's you, let the cloud catch up before you bounce between machines. And the JSON backup export is always there as a belt‑and‑suspenders snapshot.
 
 The best part: **I never see your data, and neither does any server I run. There is no server I run.** The sync file sits in a folder you chose, touched only by a cloud client you already trust.
 

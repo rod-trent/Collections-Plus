@@ -9,22 +9,43 @@ step. Your data stays in your browser.
 
 ## What it does
 
+**Saving**
+
 - **Side panel** that mirrors the original Collections pane.
-- Save the **current page** (with thumbnail, favicon and title) with one click.
+- Save the **current page** (with thumbnail, favicon and title) with one click,
+  or with the **`Ctrl+Shift+S`** keyboard shortcut (rebindable).
 - **Right-click** any page, link, or image → *Save to Collections Plus ▸ pick a collection*
   (or create a new one on the spot). Select text → *Save selection as note*.
-- Add free-form **notes**, **reorder** items by drag-and-drop, and **Open all**
-  pages in a collection at once.
-- **Reorder collections** themselves by dragging the ⠿ handle on each card.
-- **Customize the cover** of a collection — upload your own image, or promote
-  any saved page thumbnail / image to the cover with its ★ button.
-- **Export to Excel** — dump all collections (or just one) to a CSV that opens
-  straight in Excel / Google Sheets / Numbers. Handy for part lists, shopping
-  lists, or anything you want to sort and total in a spreadsheet.
+- **Add all open tabs** in the window to a collection at once.
+- **Drag a link or image** straight onto the panel to save it.
+- **Duplicate-aware** — saving a page already in the collection is skipped.
+- When a page has no preview image, a **local screenshot** is captured as the
+  thumbnail.
+
+**Organizing**
+
+- Free-form **notes**; **drag-and-drop reorder** of both items and collections.
+- **Search** across every collection (titles, URLs, notes, tags).
+- **Folders** to group collections, **pin** favorites to the top, and **tags**
+  (click a tag to filter).
+- **Checkboxes** turn any collection into a checklist; **custom fields**
+  (price, qty, SKU…) add structured data that flows into exports.
+- **Move or copy** items between collections; **undo** deletes.
+- **Custom covers** — upload an image or promote a saved thumbnail with ★.
+- **Light / dark theme**.
+
+**Exporting & backup**
+
+- **Export to Excel** as a real **`.xlsx`** workbook (one sheet per collection,
+  clickable links) or as **CSV** — great for part lists, shopping lists, or
+  anything you want to sort and total.
+- **Export to Markdown or HTML**, or **copy a collection's links** to the
+  clipboard.
 - **Import your Edge export** (`collections_export.csv`) so your existing
   collections carry over on day one.
-- **Export / import a JSON backup** (high fidelity — keeps notes and images,
-  which the Edge CSV does not).
+- **JSON backup** (high fidelity — keeps notes, images, fields) and a local
+  **version history** you can roll back to.
+- **Optional offline image caching** so saved images survive link rot.
 - **Optional cross-device sync** through a single file you keep in any
   cloud-synced folder — see [Syncing across devices](#syncing-across-devices).
 
@@ -167,7 +188,10 @@ elsewhere, and keep **Export backup (JSON)** as a guaranteed-complete snapshot.
 When you connect a device to a file that already has data, it asks before doing
 anything destructive — load the file (replace this device's data) or overwrite
 the file with this device's data — so you can't accidentally clobber the good
-copy.
+copy. And if a device has **un-pushed local edits** when the file changes
+elsewhere, it won't silently overwrite them — it keeps your changes and offers
+*"Use file instead."* The sync menu shows when you last synced, and a local
+**version history** (⋯ → *Version history…*) lets you roll back recent states.
 
 > Requires a Chromium browser with the **File System Access API** (Chrome/Edge
 > have it). If it's unavailable, the sync menu says so and the rest of the
@@ -179,22 +203,27 @@ Everything is stored locally via `chrome.storage.local` on your machine.
 Nothing is sent to us or any server — the optional sync file lives in a folder
 *you* chose, and only your own cloud client touches it. Saved page/image
 thumbnails are stored as references to their original URLs (not copied), so they
-display as long as the source stays online; **uploaded covers** are downscaled
-and stored inline so they always render.
+display as long as the source stays online; **uploaded covers**, **captured
+screenshots**, and **cached images** are downscaled and stored inline so they
+always render. Offline image caching and cross-device sync are both **off until
+you turn them on**.
 
 ## Project layout
 
 ```
-manifest.json        MV3 manifest
-background.js        service worker: side panel + context menus
+manifest.json        MV3 manifest (+ keyboard command)
+background.js        service worker: side panel, context menus, shortcut
 sidepanel/           panel.html / panel.css / panel.js (the UI)
-lib/store.js         data layer (chrome.storage.local) + import/export
+lib/store.js         data layer (chrome.storage.local), schema, settings, history
 lib/csv.js           tolerant CSV parser + Edge-export mapper (pure, testable)
-lib/export.js        collections → spreadsheet-friendly CSV (pure, testable)
-lib/image.js         downscale an uploaded cover image to a small data URL
+lib/export.js        collections → CSV + .xlsx sheet structures (pure, testable)
+lib/render.js        collections → Markdown / HTML / link list (pure, testable)
+lib/xlsx.js          dependency-free .xlsx writer (pure, testable)
+lib/image.js         downscale a file/URL/screenshot into a small data URL
 lib/sync.js          optional synced-file sync (File System Access API)
 icons/               generated PNG icons
 tools/make_icons.py  regenerate the icons
+tools/test_*.mjs     pure-logic test harnesses (no browser needed)
 fixtures/            sample Edge CSV for testing the importer
 ```
 
@@ -203,7 +232,7 @@ fixtures/            sample Edge CSV for testing the importer
 - No build step — edit files and hit reload on the extension card.
 - Run the pure-logic tests without a browser:
   ```
-  npm test            # CSV importer + CSV exporter
+  npm test            # csv import, csv/xlsx export, render, store/migrate
   ```
 - Regenerate icons:
   ```
@@ -216,8 +245,6 @@ fixtures/            sample Edge CSV for testing the importer
 
 ## Roadmap ideas
 
-- Optional image caching (store blobs so saved images survive link rot).
-- Search across collections.
-- Tags / folders for grouping many collections.
-- Custom item fields (e.g. price, quantity) that flow into the Excel export.
-- True `.xlsx` export (multiple sheets, clickable hyperlinks) alongside CSV.
+- Bulk multi-select of items (move/copy/delete several at once).
+- Full-text search ranking and per-collection search.
+- Publishing to the Chrome Web Store / Edge Add-ons for background auto-updates.

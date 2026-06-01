@@ -307,7 +307,8 @@ body {
   color: var(--text);
 }
 
-.card-pin {
+.card-pin,
+.card-folder {
   align-self: center;
   background: none;
   border: none;
@@ -320,11 +321,86 @@ body {
 }
 
 .card.pinned .card-pin,
-.card:hover .card-pin {
+.card:hover .card-pin,
+.card:hover .card-folder {
   opacity: 1;
 }
 
-.card-pin:hover {
+.card-pin:hover,
+.card-folder:hover {
+  background: var(--bg-elev-2);
+}
+
+/* ---- Folders ---- */
+.folder-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.folder-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.folder-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-count {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.folder-rename,
+.folder-del {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 5px;
+  border-radius: 5px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.folder-header:hover .folder-rename,
+.folder-header:hover .folder-del {
+  opacity: 1;
+}
+
+.folder-del:hover {
+  color: var(--danger);
+}
+
+.folder-pick {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 5px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.folder-pick:hover {
   background: var(--bg-elev-2);
 }
 

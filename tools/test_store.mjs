@@ -118,6 +118,52 @@ console.log('\npin / tags / dedupe:');
   assert(hit && !miss, 'findPageByUrl matches existing URL only');
 }
 
+console.log('\nfolders:');
+{
+  reset();
+  const a = await store.createCollection('A');
+  const folder = await store.createFolder('Work');
+  await store.setParent(a.id, folder.id);
+  let data = await store.getData();
+  assert(data.folders.length === 1 && data.folders[0].name === 'Work', 'folder created');
+  assert(data.collections[0].parentId === folder.id, 'collection assigned to folder');
+
+  await store.toggleFolder(folder.id);
+  data = await store.getData();
+  assert(data.folders[0].collapsed === true, 'toggleFolder flips collapsed');
+
+  await store.removeFolder(folder.id);
+  data = await store.getData();
+  assert(data.folders.length === 0, 'removeFolder deletes the folder');
+  assert(data.collections[0].parentId === null, 'orphaned collection falls back to top level');
+}
+
+console.log('\nmigrate (dangling parentId):');
+{
+  reset();
+  mem.collectionsData = {
+    version: 2,
+    activeCollectionId: 'c1',
+    folders: [],
+    collections: [{ id: 'c1', title: 'X', parentId: 'ghost', items: [] }],
+  };
+  const data = await store.getData();
+  assert(data.collections[0].parentId === null, 'parentId pointing at a missing folder is cleared');
+}
+
+console.log('\nhistory:');
+{
+  reset();
+  await store.createCollection('Snap me');
+  await store.snapshotHistory(0); // force
+  const hist = await store.getHistory();
+  assert(hist.length === 1 && hist[0].collections === 1, 'snapshot recorded');
+  await store.createCollection('Another');
+  await store.restoreHistory(hist[0].at);
+  const data = await store.getData();
+  assert(data.collections.length === 1, 'restore brings back the snapshot state');
+}
+
 console.log('');
 if (failures) {
   console.error(`${failures} assertion(s) failed`);

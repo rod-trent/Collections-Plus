@@ -11,6 +11,11 @@ import {
   setCover,
   setPinned,
   setTags,
+  setParent,
+  createFolder,
+  renameFolder,
+  removeFolder,
+  toggleFolder,
   reorderCollections,
   addItem,
   updateItem,
@@ -181,6 +186,54 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// ---- Assign a collection to a folder ---------------------------------------
+const folderMenu = $('#folder-menu');
+
+async function openFolderMenu(anchor, collectionId) {
+  const data = await getData();
+  const folders = data.folders || [];
+  const current = data.collections.find((c) => c.id === collectionId)?.parentId || '';
+  folderMenu.dataset.collection = collectionId;
+  folderMenu.innerHTML =
+    `<div class="menu-note">Move to folder</div>` +
+    `<button class="folder-pick" data-to="">${current ? '' : '✓ '}No folder</button>` +
+    folders
+      .map(
+        (f) =>
+          `<button class="folder-pick" data-to="${f.id}">${current === f.id ? '✓ ' : ''}${escapeHtml(
+            f.name
+          )}</button>`
+      )
+      .join('') +
+    `<div class="menu-sep"></div><button class="folder-pick" data-to="__new">＋ New folder…</button>`;
+
+  folderMenu.hidden = false;
+  const r = anchor.getBoundingClientRect();
+  const mw = folderMenu.offsetWidth || 200;
+  folderMenu.style.left = `${Math.max(8, r.right - mw)}px`;
+  folderMenu.style.top = `${Math.min(r.bottom + 4, window.innerHeight - 10)}px`;
+}
+
+folderMenu.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-to]');
+  if (!btn) return;
+  const collectionId = folderMenu.dataset.collection;
+  folderMenu.hidden = true;
+  let to = btn.dataset.to;
+  if (to === '__new') {
+    const name = (prompt('New folder name:') || '').trim();
+    if (!name) return;
+    to = (await createFolder(name)).id;
+  }
+  await setParent(collectionId, to || null);
+});
+
+document.addEventListener('click', (e) => {
+  if (!folderMenu.hidden && !folderMenu.contains(e.target) && !e.target.closest('.card-folder')) {
+    folderMenu.hidden = true;
+  }
+});
+
 // ---- Version history -------------------------------------------------------
 const historyMenu = $('#history-menu');
 
@@ -251,76 +304,130 @@ function matchesQuery(c) {
   });
 }
 
+const pinnedFirst = (arr) =>
+  [...arr].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+function buildCard(c) {
+  const card = document.createElement('div');
+  card.className = 'card' + (c.pinned ? ' pinned' : '');
+  card.setAttribute('role', 'listitem');
+  card.dataset.id = c.id;
+
+  const coverInner = c.cover
+    ? `<div class="card-cover" style="background-image:url('${encodeURI(c.cover)}')"></div>`
+    : `<div class="card-cover">🗂️</div>`;
+  const tagsHtml = (c.tags || []).length
+    ? `<div class="card-tags">${c.tags
+        .map((t) => `<span class="tag">${escapeHtml(t)}</span>`)
+        .join('')}</div>`
+    : '';
+
+  card.innerHTML = `
+    <span class="card-handle" title="Drag to reorder">⠿</span>
+    ${coverInner}
+    <div class="card-body">
+      <div class="card-title">${escapeHtml(c.title)}</div>
+      <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}</div>
+      ${tagsHtml}
+    </div>
+    <button class="card-folder" title="Move to folder">📁</button>
+    <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
+    <button class="card-del" title="Delete collection">🗑</button>
+  `;
+
+  card.addEventListener('click', (e) => {
+    if (
+      e.target.closest('.card-del') ||
+      e.target.closest('.card-pin') ||
+      e.target.closest('.card-folder') ||
+      e.target.closest('.card-handle')
+    )
+      return;
+    if (card.dataset.dragged) return; // a drag just finished; don't open
+    open(c.id);
+  });
+  card.querySelector('.card-pin').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await setPinned(c.id, !c.pinned);
+  });
+  card.querySelector('.card-folder').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openFolderMenu(e.currentTarget, c.id);
+  });
+  card.querySelector('.card-del').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await deleteCollectionWithUndo(c.id);
+  });
+  // Click a tag chip to filter the list by it.
+  card.querySelectorAll('.tag').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      query = el.textContent.toLowerCase();
+      els.searchInput.value = el.textContent;
+      render();
+    });
+  });
+
+  wireCardDrag(card);
+  return card;
+}
+
+function buildFolderHeader(f, count) {
+  const el = document.createElement('div');
+  el.className = 'folder-header';
+  el.dataset.folder = f.id;
+  el.innerHTML = `
+    <button class="folder-toggle" title="Collapse / expand">${f.collapsed ? '▸' : '▾'}</button>
+    <span class="folder-name">📁 ${escapeHtml(f.name)}</span>
+    <span class="folder-count">${count}</span>
+    <button class="folder-rename" title="Rename folder">✎</button>
+    <button class="folder-del" title="Delete folder">🗑</button>
+  `;
+  const toggle = () => toggleFolder(f.id);
+  el.querySelector('.folder-toggle').addEventListener('click', toggle);
+  el.querySelector('.folder-name').addEventListener('click', toggle);
+  el.querySelector('.folder-rename').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const name = prompt('Folder name:', f.name);
+    if (name !== null) await renameFolder(f.id, name);
+  });
+  el.querySelector('.folder-del').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (confirm(`Delete folder "${f.name}"? Its collections move back to the top level.`)) {
+      await removeFolder(f.id);
+    }
+  });
+  return el;
+}
+
 function renderList(data) {
   els.detailView.hidden = true;
   els.listView.hidden = false;
 
   const all = data.collections;
+  const folders = data.folders || [];
   els.searchbar.hidden = all.length === 0;
   els.listEmpty.hidden = all.length > 0;
 
-  // Filter by search, then float pinned collections to the top (stable sort
-  // keeps the manual drag order within each group).
   const filtered = all.filter(matchesQuery);
-  const visible = [...filtered].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
-
-  els.listNoResults.hidden = !(all.length > 0 && visible.length === 0);
-  els.collections.hidden = visible.length === 0;
+  els.listNoResults.hidden = !(all.length > 0 && filtered.length === 0);
+  els.collections.hidden = filtered.length === 0;
   els.collections.innerHTML = '';
 
-  for (const c of visible) {
-    const card = document.createElement('div');
-    card.className = 'card' + (c.pinned ? ' pinned' : '');
-    card.setAttribute('role', 'listitem');
-    card.dataset.id = c.id;
+  // While searching, show a flat list (no folder grouping).
+  if (query) {
+    for (const c of pinnedFirst(filtered)) els.collections.appendChild(buildCard(c));
+    return;
+  }
 
-    const coverInner = c.cover
-      ? `<div class="card-cover" style="background-image:url('${encodeURI(c.cover)}')"></div>`
-      : `<div class="card-cover">🗂️</div>`;
-    const tagsHtml = (c.tags || []).length
-      ? `<div class="card-tags">${c.tags
-          .map((t) => `<span class="tag">${escapeHtml(t)}</span>`)
-          .join('')}</div>`
-      : '';
-
-    card.innerHTML = `
-      <span class="card-handle" title="Drag to reorder">⠿</span>
-      ${coverInner}
-      <div class="card-body">
-        <div class="card-title">${escapeHtml(c.title)}</div>
-        <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}</div>
-        ${tagsHtml}
-      </div>
-      <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
-      <button class="card-del" title="Delete collection">🗑</button>
-    `;
-
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-del') || e.target.closest('.card-pin') || e.target.closest('.card-handle'))
-        return;
-      if (card.dataset.dragged) return; // a drag just finished; don't open
-      open(c.id);
-    });
-    card.querySelector('.card-pin').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await setPinned(c.id, !c.pinned);
-    });
-    card.querySelector('.card-del').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await deleteCollectionWithUndo(c.id);
-    });
-    // Click a tag chip to filter the list by it.
-    card.querySelectorAll('.tag').forEach((el) => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        query = el.textContent.toLowerCase();
-        els.searchInput.value = el.textContent;
-        render();
-      });
-    });
-
-    wireCardDrag(card);
-    els.collections.appendChild(card);
+  // Top-level collections first, then each folder with its collections.
+  for (const c of pinnedFirst(filtered.filter((c) => !c.parentId))) {
+    els.collections.appendChild(buildCard(c));
+  }
+  for (const f of folders) {
+    const kids = pinnedFirst(filtered.filter((c) => c.parentId === f.id));
+    els.collections.appendChild(buildFolderHeader(f, kids.length));
+    if (!f.collapsed) for (const c of kids) els.collections.appendChild(buildCard(c));
   }
 }
 
@@ -1030,6 +1137,11 @@ $('#new-collection-btn').addEventListener('click', async () => {
 els.searchInput.addEventListener('input', () => {
   query = els.searchInput.value.trim().toLowerCase();
   render();
+});
+
+$('#new-folder-btn').addEventListener('click', async () => {
+  const name = (prompt('New folder name:') || '').trim();
+  if (name) await createFolder(name);
 });
 
 async function updateSettingLabels() {

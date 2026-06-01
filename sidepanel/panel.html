@@ -19,6 +19,8 @@
             <button id="overflow-btn" class="btn icon" title="More" aria-haspopup="true">⋯</button>
             <div id="overflow-menu" class="menu" hidden>
               <button data-action="export-csv">Export to Excel (CSV)</button>
+              <button data-action="export-md">Export all as Markdown</button>
+              <button data-action="export-html">Export all as HTML</button>
               <button data-action="export-json">Export backup (JSON)</button>
               <button data-action="import-csv">Import Edge CSV…</button>
               <button data-action="import-json">Import backup (JSON)…</button>
@@ -75,8 +77,13 @@
           <div id="detail-overflow-menu" class="menu" hidden>
             <button data-action="open-all">Open all pages</button>
             <button data-action="add-note">Add a note</button>
-            <button data-action="export-collection-csv">Export to Excel (CSV)</button>
             <div class="menu-sep"></div>
+            <button data-action="export-collection-csv">Export to Excel (CSV)</button>
+            <button data-action="export-collection-md">Export as Markdown</button>
+            <button data-action="export-collection-html">Export as HTML</button>
+            <button data-action="copy-links">Copy links</button>
+            <div class="menu-sep"></div>
+            <button data-action="edit-tags">Edit tags…</button>
             <button data-action="cover-upload">Change cover…</button>
             <button data-action="cover-remove">Remove cover</button>
             <div class="menu-sep"></div>

@@ -285,6 +285,12 @@ body {
   padding: 1px 8px;
   font-size: 11px;
   color: var(--text-dim);
+  cursor: pointer;
+}
+
+.tag:hover {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .card-pin {

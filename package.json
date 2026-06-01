@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Open replacement for Microsoft Edge Collections (MV3 browser extension).",
   "scripts": {
-    "test": "node tools/test_csv.mjs && node tools/test_export.mjs && node tools/test_store.mjs",
+    "test": "node tools/test_csv.mjs && node tools/test_export.mjs && node tools/test_store.mjs && node tools/test_render.mjs",
     "icons": "python tools/make_icons.py"
   }
 }

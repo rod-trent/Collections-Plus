@@ -23,6 +23,7 @@ import {
   STORAGE_KEY,
 } from '../lib/store.js';
 import { toCsv } from '../lib/export.js';
+import { toMarkdown, toHtml, toLinkList } from '../lib/render.js';
 import { fileToCover } from '../lib/image.js';
 import * as sync from '../lib/sync.js';
 
@@ -241,6 +242,15 @@ function renderList(data) {
       if (confirm(`Delete "${c.title}" and its ${c.items.length} item(s)?`)) {
         await removeCollection(c.id);
       }
+    });
+    // Click a tag chip to filter the list by it.
+    card.querySelectorAll('.tag').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        query = el.textContent.toLowerCase();
+        els.searchInput.value = el.textContent;
+        render();
+      });
     });
 
     wireCardDrag(card);
@@ -575,6 +585,40 @@ async function doExportCsv(collectionId) {
   toast('Exported to CSV');
 }
 
+/** Export all collections, or one, as Markdown or HTML. */
+async function doExportDoc(format, collectionId) {
+  const data = await getData();
+  const collections = collectionId
+    ? data.collections.filter((c) => c.id === collectionId)
+    : data.collections;
+  if (!collections.length) return toast('Nothing to export');
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const base = collectionId ? slugify(collections[0].title) : 'collections';
+  if (format === 'md') {
+    download(toMarkdown(collections), `${base}-${stamp}.md`, 'text/markdown;charset=utf-8');
+    toast('Exported Markdown');
+  } else {
+    download(toHtml(collections), `${base}-${stamp}.html`, 'text/html;charset=utf-8');
+    toast('Exported HTML');
+  }
+}
+
+/** Copy a collection's links to the clipboard as "Title — URL" lines. */
+async function doCopyLinks(collectionId) {
+  const data = await getData();
+  const c = data.collections.find((x) => x.id === collectionId);
+  if (!c) return;
+  const text = toLinkList(c);
+  if (!text) return toast('No links to copy');
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Links copied to clipboard');
+  } catch {
+    toast('Could not access the clipboard');
+  }
+}
+
 function pickFile(mode) {
   fileMode = mode;
   els.fileInput.value = '';
@@ -801,6 +845,8 @@ $('#overflow-menu').addEventListener('click', (e) => {
   $('#overflow-menu').hidden = true;
   if (action === 'export-json') doExport();
   if (action === 'export-csv') doExportCsv();
+  if (action === 'export-md') doExportDoc('md');
+  if (action === 'export-html') doExportDoc('html');
   if (action === 'import-json') pickFile('json');
   if (action === 'import-csv') pickFile('csv');
   if (action === 'sync-create') createSync();
@@ -861,6 +907,23 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'export-collection-csv') {
     await doExportCsv(openId);
+  }
+  if (action === 'export-collection-md') {
+    await doExportDoc('md', openId);
+  }
+  if (action === 'export-collection-html') {
+    await doExportDoc('html', openId);
+  }
+  if (action === 'copy-links') {
+    await doCopyLinks(openId);
+  }
+  if (action === 'edit-tags') {
+    const current = (c.tags || []).join(', ');
+    const input = prompt('Tags (comma-separated):', current);
+    if (input !== null) {
+      await setTags(openId, input.split(',').map((t) => t.trim()).filter(Boolean));
+      toast('Tags updated');
+    }
   }
   if (action === 'cover-upload') {
     pickFile('cover');

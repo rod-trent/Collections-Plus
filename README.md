@@ -57,6 +57,18 @@ Chromium browsers may work depending on their Side Panel API support.
 To update after pulling changes, click the **reload** ↻ button on the
 extension's card in `edge://extensions`.
 
+### Updating across devices
+
+An unpacked extension does **not** auto-update — each browser keeps running the
+code it last loaded until you hit **reload ↻** on its card. So whenever you pull
+new code (or apply a fix), **reload the extension on _every_ device**, not just
+one. This matters especially for sync: a device still running older code can not
+only miss changes but also **push** with the old logic, so reload all of your
+devices around the same time after an update. Reloading only reloads the *code* —
+your collections and the sync file are untouched. (Publishing to the Chrome Web
+Store / Edge Add-ons would enable background auto-updates; until then, reloading
+per device is just how unpacked extensions work.)
+
 ## Migrating from Edge Collections
 
 Before Collections is removed, open the Collections pane in Edge and click

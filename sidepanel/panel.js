@@ -22,7 +22,8 @@ import {
   importEdgeCsv,
   STORAGE_KEY,
 } from '../lib/store.js';
-import { toCsv } from '../lib/export.js';
+import { toCsv, toXlsxSheets } from '../lib/export.js';
+import { buildXlsx } from '../lib/xlsx.js';
 import { toMarkdown, toHtml, toLinkList } from '../lib/render.js';
 import { fileToCover } from '../lib/image.js';
 import * as sync from '../lib/sync.js';
@@ -585,6 +586,24 @@ async function doExportCsv(collectionId) {
   toast('Exported to CSV');
 }
 
+/** Export all collections, or one, as a real .xlsx workbook. */
+async function doExportXlsx(collectionId) {
+  const data = await getData();
+  const collections = collectionId
+    ? data.collections.filter((c) => c.id === collectionId)
+    : data.collections;
+  if (!collections.length) return toast('Nothing to export');
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const base = collectionId ? slugify(collections[0].title) : 'collections';
+  download(
+    buildXlsx(toXlsxSheets(collections)),
+    `${base}-${stamp}.xlsx`,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  toast('Exported Excel workbook');
+}
+
 /** Export all collections, or one, as Markdown or HTML. */
 async function doExportDoc(format, collectionId) {
   const data = await getData();
@@ -844,6 +863,7 @@ $('#overflow-menu').addEventListener('click', (e) => {
   if (!action) return;
   $('#overflow-menu').hidden = true;
   if (action === 'export-json') doExport();
+  if (action === 'export-xlsx') doExportXlsx();
   if (action === 'export-csv') doExportCsv();
   if (action === 'export-md') doExportDoc('md');
   if (action === 'export-html') doExportDoc('html');
@@ -904,6 +924,9 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'add-note') {
     await addItem(openId, { type: 'note', text: '' });
+  }
+  if (action === 'export-collection-xlsx') {
+    await doExportXlsx(openId);
   }
   if (action === 'export-collection-csv') {
     await doExportCsv(openId);

@@ -118,22 +118,44 @@ the extension just keeps that one file up to date.
 > ⋯ (top-right) → **Use existing sync file…** → open the *same*
 > `collections-sync.json` once your cloud has finished downloading it.
 
-The second step opens a normal **Open** dialog (not a save/overwrite prompt) and
-that device adopts the synced data, then asks for permission to write so its own
-future edits sync too. From then on:
+The second step opens a normal **Open** dialog (not a save/overwrite prompt),
+the device adopts the synced data, and it asks for permission to write so its own
+future edits sync too.
 
-- Local edits are written to the file automatically (a moment after you change
-  something).
-- The extension pulls newer changes when the panel opens or regains focus.
-- **Sync now** / **Pull from sync file** force a push / pull on demand.
+### How it stays in sync
 
-Reconciliation is **last-write-wins** based on the sync file's modification
-time as each device sees it locally (so it doesn't depend on your computers'
-clocks agreeing). An open panel checks for changes on focus and every ~20
-seconds. This is ideal for one person across several machines. If you edit on
-two devices while both are offline, the device that syncs its file *last* wins —
-so let the cloud catch up before editing elsewhere. For a guaranteed-complete
-snapshot, keep using **Export backup (JSON)**.
+Two simple operations run against that one file:
+
+- **Push** — when you change anything, a moment later the extension writes your
+  collections to the file. Your cloud client carries the file to your other
+  devices.
+- **Pull** — the extension reads the file back and adopts it if it changed.
+  An open panel checks **on focus, when it becomes visible again, and every ~20
+  seconds**, so changes from another device show up on their own. **Sync now**
+  and **Pull from sync file** force a push / pull immediately.
+
+"Did the file change?" is decided by the file's **modification time as this
+device sees it locally** — the timestamp your own filesystem records when the
+cloud client drops in a new copy. Crucially, this does **not** depend on your two
+computers' clocks agreeing, so a change made on one machine can't be mistaken for
+"older" and skipped on another. (Earlier builds compared a clock value embedded
+by the writing device, which could silently drop changes when clocks drifted —
+that's fixed.)
+
+### Conflicts & safety
+
+Reconciliation is **last-write-wins**: whichever device writes the file *last*
+is the version everyone converges on. That's exactly right for one person moving
+between a laptop and a desktop. It is **not** built for two people (or two
+offline devices) editing the *same* collection at once — if you edit on two
+devices while both are offline, the one whose file syncs last wins and the
+other's un-synced edits are overwritten. So let the cloud catch up before editing
+elsewhere, and keep **Export backup (JSON)** as a guaranteed-complete snapshot.
+
+When you connect a device to a file that already has data, it asks before doing
+anything destructive — load the file (replace this device's data) or overwrite
+the file with this device's data — so you can't accidentally clobber the good
+copy.
 
 > Requires a Chromium browser with the **File System Access API** (Chrome/Edge
 > have it). If it's unavailable, the sync menu says so and the rest of the

@@ -244,6 +244,17 @@ fixtures/            sample Edge CSV for testing the importer
   ```
   python tools/make_icons.py
   ```
+- Build a Chrome Web Store / Edge Add-ons upload ZIP (runtime files only):
+  ```
+  npm run package     # → dist/collections-plus-<version>.zip
+  ```
+
+## Publishing
+
+To submit to the Chrome Web Store or Edge Add-ons, see
+[docs/CHROME_WEB_STORE.md](docs/CHROME_WEB_STORE.md) for the packaging step,
+listing copy, and per-permission justifications. The extension's
+[privacy policy](PRIVACY.md) is local-first: nothing is collected or transmitted.
 
 ## License
 

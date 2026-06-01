@@ -5,3 +5,7 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+
+# Web Store packaging output
+dist/
+*.zip

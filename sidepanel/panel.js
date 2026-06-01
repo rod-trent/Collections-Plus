@@ -4,6 +4,9 @@ import {
   createCollection,
   renameCollection,
   removeCollection,
+  insertCollection,
+  insertItem,
+  ensureActiveCollection,
   setActive,
   setCover,
   setPinned,
@@ -85,11 +88,23 @@ function faviconFor(item) {
 }
 
 let toastTimer;
-function toast(msg) {
-  els.toast.textContent = msg;
+function toast(msg, action) {
+  els.toast.textContent = '';
+  els.toast.append(document.createTextNode(msg));
+  if (action) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      els.toast.hidden = true;
+      clearTimeout(toastTimer);
+      action.fn();
+    });
+    els.toast.append(btn);
+  }
   els.toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (els.toast.hidden = true), 2600);
+  toastTimer = setTimeout(() => (els.toast.hidden = true), action ? 6000 : 2600);
 }
 
 function openMenu(menu, open) {
@@ -245,9 +260,7 @@ function renderList(data) {
     });
     card.querySelector('.card-del').addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm(`Delete "${c.title}" and its ${c.items.length} item(s)?`)) {
-        await removeCollection(c.id);
-      }
+      await deleteCollectionWithUndo(c.id);
     });
     // Click a tag chip to filter the list by it.
     card.querySelectorAll('.tag').forEach((el) => {
@@ -411,7 +424,7 @@ function renderItem(collectionId, item) {
   `;
 
   row.querySelector('.item-del').addEventListener('click', () =>
-    removeItem(collectionId, item.id)
+    deleteItemWithUndo(collectionId, item.id)
   );
 
   row.querySelector('.item-check').addEventListener('change', (e) =>
@@ -521,6 +534,27 @@ async function open(id) {
 function back() {
   openId = null;
   render();
+}
+
+// ---- Delete with undo ------------------------------------------------------
+
+async function deleteCollectionWithUndo(id) {
+  const data = await getData();
+  const index = data.collections.findIndex((c) => c.id === id);
+  const col = data.collections[index];
+  if (!col) return;
+  await removeCollection(id);
+  toast(`Deleted "${col.title}"`, { label: 'Undo', fn: () => insertCollection(col, index) });
+}
+
+async function deleteItemWithUndo(collectionId, itemId) {
+  const data = await getData();
+  const c = data.collections.find((x) => x.id === collectionId);
+  const index = c ? c.items.findIndex((it) => it.id === itemId) : -1;
+  const item = index >= 0 ? c.items[index] : null;
+  if (!item) return;
+  await removeItem(collectionId, itemId);
+  toast('Item removed', { label: 'Undo', fn: () => insertItem(collectionId, item, index) });
 }
 
 // ---- Add current page ------------------------------------------------------
@@ -900,10 +934,16 @@ els.searchInput.addEventListener('input', () => {
   render();
 });
 
-async function updateCacheLabel() {
+async function updateSettingLabels() {
   const s = await getSettings();
-  const btn = $('#toggle-cache-btn');
-  if (btn) btn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
+  const cacheBtn = $('#toggle-cache-btn');
+  if (cacheBtn) cacheBtn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
+  const themeBtn = $('#toggle-theme-btn');
+  if (themeBtn) themeBtn.textContent = `Theme: ${s.theme === 'light' ? 'Light' : 'Dark'}`;
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
 }
 
 $('#overflow-btn').addEventListener('click', (e) => {
@@ -911,7 +951,7 @@ $('#overflow-btn').addEventListener('click', (e) => {
   const willOpen = $('#overflow-menu').hidden;
   if (willOpen) {
     refreshSyncMenu();
-    updateCacheLabel();
+    updateSettingLabels();
   }
   openMenu($('#overflow-menu'), willOpen);
 });
@@ -931,6 +971,12 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     const s = await getSettings();
     await setSettings({ cacheImages: !s.cacheImages });
     toast(`Offline image caching ${!s.cacheImages ? 'on' : 'off'}`);
+  }
+  if (action === 'toggle-theme') {
+    const s = await getSettings();
+    const theme = s.theme === 'light' ? 'dark' : 'light';
+    await setSettings({ theme });
+    applyTheme(theme);
   }
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();
@@ -1027,10 +1073,9 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
     toast(cached ? `Cached ${cached} image${cached === 1 ? '' : 's'}` : 'Nothing to cache');
   }
   if (action === 'delete-collection') {
-    if (confirm(`Delete "${c.title}" and its ${c.items.length} item(s)?`)) {
-      await removeCollection(openId);
-      back();
-    }
+    const id = openId;
+    back();
+    await deleteCollectionWithUndo(id);
   }
 });
 
@@ -1046,7 +1091,53 @@ chrome.storage.onChanged.addListener((changes, area) => {
   schedulePush();
 });
 
-// Initial paint, then reflect sync state and pull any newer remote data.
+// ---- Drag a link/image onto the panel to save it ---------------------------
+
+function externalDrag(e) {
+  // Ignore our own internal item/collection reorder drags.
+  if (dragId || cardDragId || !e.dataTransfer) return false;
+  return [...e.dataTransfer.types].some(
+    (t) => t === 'text/uri-list' || t === 'text/plain' || t === 'text/html'
+  );
+}
+
+document.addEventListener('dragover', (e) => {
+  if (!externalDrag(e)) return;
+  e.preventDefault();
+  document.body.classList.add('drag-over');
+});
+document.addEventListener('dragleave', (e) => {
+  if (e.relatedTarget === null) document.body.classList.remove('drag-over');
+});
+document.addEventListener('drop', async (e) => {
+  if (!externalDrag(e)) return;
+  e.preventDefault();
+  document.body.classList.remove('drag-over');
+  const dt = e.dataTransfer;
+  const target = openId || (await ensureActiveCollection()).id;
+
+  // An image drag exposes the <img> in text/html.
+  const html = dt.getData('text/html');
+  const imgMatch = html && html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (imgMatch && /^https?:/i.test(imgMatch[1])) {
+    await addItem(target, { type: 'image', src: imgMatch[1], srcPageUrl: '', alt: '' });
+    toast('Image saved');
+    return;
+  }
+
+  const raw = (dt.getData('text/uri-list') || dt.getData('text/plain') || '').trim();
+  const url = raw.split(/\s+/)[0];
+  if (!/^https?:\/\//i.test(url)) return;
+  if (await findPageByUrl(target, url)) {
+    toast('Already in this collection');
+    return;
+  }
+  await addItem(target, { type: 'page', url, title: url });
+  toast('Saved');
+});
+
+// Initial paint, then reflect sync state, theme, and pull any newer remote data.
+getSettings().then((s) => applyTheme(s.theme));
 render();
 refreshSyncMenu();
 autoPull();

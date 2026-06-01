@@ -13,6 +13,20 @@
   --shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
+:root[data-theme='light'] {
+  --bg: #f6f6f6;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #eaeaea;
+  --border: #d4d4d4;
+  --text: #1b1b1b;
+  --text-dim: #555555;
+  --text-faint: #888888;
+  --accent: #0f6cbd;
+  --accent-strong: #0f6cbd;
+  --danger: #c42b1c;
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -718,6 +732,39 @@ body {
     opacity: 0;
     transform: translate(-50%, 8px);
   }
+}
+
+.toast-action {
+  margin-left: 12px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.toast-action:hover {
+  text-decoration: underline;
+}
+
+/* Drag a link/image onto the panel to save it */
+body.drag-over::after {
+  content: 'Drop to save';
+  position: fixed;
+  inset: 8px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: rgba(76, 194, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+  pointer-events: none;
+  z-index: 60;
 }
 
 /* Scrollbar polish */

@@ -18,6 +18,10 @@ import {
   toggleDone,
   reorderItems,
   findPageByUrl,
+  getSettings,
+  setSettings,
+  cacheItemImage,
+  cacheCollectionImages,
   exportJSON,
   importJSON,
   importEdgeCsv,
@@ -548,13 +552,16 @@ async function addCurrentPage() {
       /* capture not permitted on some pages */
     }
   }
-  await addItem(openId, {
+  const out = await addItem(openId, {
     type: 'page',
     url: tab.url,
     title: (meta && meta.title) || tab.title || tab.url,
     favIconUrl: tab.favIconUrl || '',
     thumbnail,
   });
+  if (out?.item && (await getSettings()).cacheImages) {
+    await cacheItemImage(out.collection.id, out.item.id);
+  }
   toast('Page added');
 }
 
@@ -893,14 +900,23 @@ els.searchInput.addEventListener('input', () => {
   render();
 });
 
+async function updateCacheLabel() {
+  const s = await getSettings();
+  const btn = $('#toggle-cache-btn');
+  if (btn) btn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
+}
+
 $('#overflow-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   const willOpen = $('#overflow-menu').hidden;
-  if (willOpen) refreshSyncMenu();
+  if (willOpen) {
+    refreshSyncMenu();
+    updateCacheLabel();
+  }
   openMenu($('#overflow-menu'), willOpen);
 });
 
-$('#overflow-menu').addEventListener('click', (e) => {
+$('#overflow-menu').addEventListener('click', async (e) => {
   const action = e.target.dataset.action;
   if (!action) return;
   $('#overflow-menu').hidden = true;
@@ -911,6 +927,11 @@ $('#overflow-menu').addEventListener('click', (e) => {
   if (action === 'export-html') doExportDoc('html');
   if (action === 'import-json') pickFile('json');
   if (action === 'import-csv') pickFile('csv');
+  if (action === 'toggle-cache') {
+    const s = await getSettings();
+    await setSettings({ cacheImages: !s.cacheImages });
+    toast(`Offline image caching ${!s.cacheImages ? 'on' : 'off'}`);
+  }
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();
   if (action === 'sync-now') syncNow();
@@ -999,6 +1020,11 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   if (action === 'cover-remove') {
     await setCover(openId, null);
     toast('Cover removed');
+  }
+  if (action === 'cache-now') {
+    toast('Caching images…');
+    const { cached } = await cacheCollectionImages(openId);
+    toast(cached ? `Cached ${cached} image${cached === 1 ? '' : 's'}` : 'Nothing to cache');
   }
   if (action === 'delete-collection') {
     if (confirm(`Delete "${c.title}" and its ${c.items.length} item(s)?`)) {

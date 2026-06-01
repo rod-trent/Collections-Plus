@@ -9,9 +9,21 @@ import {
   createCollection,
   ensureActiveCollection,
   findPageByUrl,
+  getSettings,
+  cacheItemImage,
   STORAGE_KEY,
 } from './lib/store.js';
 import { srcToCover } from './lib/image.js';
+
+// If offline image caching is on, inline the freshly-saved item's image.
+async function maybeCache(out) {
+  if (!out?.item || !out?.collection) return;
+  try {
+    if ((await getSettings()).cacheImages) await cacheItemImage(out.collection.id, out.item.id);
+  } catch {
+    /* best effort */
+  }
+}
 
 // Open the side panel on action click (Edge + Chrome).
 chrome.sidePanel
@@ -135,13 +147,14 @@ chrome.commands?.onCommand.addListener(async (command) => {
   let thumbnail = meta.thumbnail || '';
   if (!thumbnail) thumbnail = await captureScreenshotThumb(tab.windowId);
 
-  await addItem(col.id, {
+  const out = await addItem(col.id, {
     type: 'page',
     url: tab.url,
     title: meta.title || tab.title || tab.url,
     favIconUrl: tab.favIconUrl || '',
     thumbnail,
   });
+  await maybeCache(out);
 });
 
 // ---- Click handling --------------------------------------------------------
@@ -173,12 +186,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   if (parsed.action === 'save-image') {
-    await addItem(collectionId, {
+    const out = await addItem(collectionId, {
       type: 'image',
       src: info.srcUrl,
       srcPageUrl: info.pageUrl || tab?.url || '',
       alt: '',
     });
+    await maybeCache(out);
     return;
   }
 
@@ -202,13 +216,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   // save-page (default)
   const meta = tab?.id != null ? await captureMeta(tab.id) : {};
-  await addItem(collectionId, {
+  const out = await addItem(collectionId, {
     type: 'page',
     url: tab?.url || info.pageUrl,
     title: meta.title || tab?.title || tab?.url || info.pageUrl,
     favIconUrl: tab?.favIconUrl || '',
     thumbnail: meta.thumbnail || '',
   });
+  await maybeCache(out);
 });
 
 // ---- Messages from the side panel -----------------------------------------

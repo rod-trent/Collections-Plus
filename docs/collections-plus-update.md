@@ -58,6 +58,7 @@ A collection is often secretly a list or a dataset. Now you can treat it like on
 
 - **Custom covers:** upload your own image or promote any saved thumbnail with **★**. A wall of well-chosen covers makes a big list actually scannable.
 - **Light or dark theme:** your call.
+- **Cleaner dialogs:** prompts and confirmations now show up as tidy in-panel dialogs that match the UI, instead of the browser's generic "the extension says…" pop-ups.
 
 ## Cross-device sync, without handing your data to anyone
 
@@ -76,6 +77,7 @@ And it's gotten smarter since launch:
 
 - A **conflict guard:** if a device has un-pushed edits when the file changes elsewhere, it won't silently overwrite your work. It keeps your changes and offers *"Use file instead."*
 - The menu shows **when you last synced**, and version history is your rollback net.
+- After a browser restart, the browser drops the file's write permission (a security rule), so sync **pauses** and offers a one-click **Resume** rather than failing quietly. Nothing is lost; your changes write out the moment you resume.
 
 The best part: **I never see your data, and neither does any server I run. There is no server I run.** The sync file lives in a folder you chose, touched only by a cloud client you already trust.
 

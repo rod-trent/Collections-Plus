@@ -210,6 +210,16 @@ elsewhere, it won't silently overwrite them; it keeps your changes and offers
 *"Use file instead."* The sync menu shows when you last synced, and a local
 **version history** (⋯ → *Version history…*) lets you roll back recent states.
 
+### Resuming after a browser restart
+
+Browsers don't keep the file's **write** permission across a restart or an
+extension reload (a security rule of the File System Access API). When that
+happens, Collections Plus pauses background saving instead of erroring: the sync
+menu shows **Sync paused**, and a toast offers **Resume**. Click **Resume**
+(or ⋯ → **Resume sync** / **Sync now**) once, approve the prompt, and your
+pending changes are written immediately and sync continues. Your data is never
+lost in the meantime; it's just held locally until you resume.
+
 > Requires a Chromium browser with the **File System Access API** (Chrome/Edge
 > have it). If it's unavailable, the sync menu says so and the rest of the
 > extension works unchanged.

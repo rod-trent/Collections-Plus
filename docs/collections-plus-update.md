@@ -87,7 +87,16 @@ None of this changes the core promise. Everything is stored locally in your brow
 
 ## How to get it
 
-It's free and open source (MIT). Load it as an unpacked extension:
+It's free and open source (MIT).
+
+**Chrome Web Store:** Collections Plus has been **submitted to the Chrome Web
+Store** and is in review. As soon as it's approved I'll drop the install link
+right here — one click, and it auto-updates from then on.
+
+<!-- TODO: replace with the Chrome Web Store listing URL once published -->
+_Store link: coming soon — pending review._
+
+**Right now**, you can load it as an unpacked extension:
 
 1. Open `edge://extensions` (or `chrome://extensions`).
 2. Turn on **Developer mode**.

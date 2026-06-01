@@ -68,7 +68,18 @@ the whole UI — its support varies:
 In short: **Chrome and Edge are the recommended, fully-tested targets.** Other
 Chromium browsers may work depending on their Side Panel API support.
 
-## Install (Load unpacked)
+## Install
+
+### From the Chrome Web Store
+
+Collections Plus has been **submitted to the Chrome Web Store** and is awaiting
+review. Once it's published, a one-click install link will appear here (and it
+will auto-update — no manual reloading).
+
+<!-- TODO: replace with the Chrome Web Store listing URL once published -->
+> 🛈 **Store listing:** _coming soon — pending review._
+
+### Load unpacked (available now)
 
 1. Open **`edge://extensions`** (or **`chrome://extensions`**).
 2. Turn on **Developer mode** (toggle, usually bottom-left or top-right).

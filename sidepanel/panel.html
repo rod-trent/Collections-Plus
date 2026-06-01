@@ -34,7 +34,23 @@
         </div>
       </header>
 
+      <div id="searchbar" class="searchbar" hidden>
+        <input
+          id="search-input"
+          type="search"
+          class="search-input"
+          placeholder="Search collections and items…"
+          aria-label="Search collections and items"
+        />
+      </div>
+
       <div id="collections" class="cards" role="list"></div>
+
+      <div id="list-no-results" class="empty" hidden>
+        <div class="empty-art">🔍</div>
+        <p class="empty-title">No matches</p>
+        <p class="empty-sub">Nothing matches your search.</p>
+      </div>
 
       <div id="list-empty" class="empty" hidden>
         <div class="empty-art">🗂️</div>

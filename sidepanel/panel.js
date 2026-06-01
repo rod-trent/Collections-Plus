@@ -6,10 +6,16 @@ import {
   removeCollection,
   setActive,
   setCover,
+  setPinned,
+  setTags,
   reorderCollections,
   addItem,
   updateItem,
   removeItem,
+  removeItems,
+  moveItems,
+  copyItems,
+  toggleDone,
   reorderItems,
   exportJSON,
   importJSON,
@@ -27,6 +33,9 @@ const els = {
   detailView: $('#detail-view'),
   collections: $('#collections'),
   listEmpty: $('#list-empty'),
+  listNoResults: $('#list-no-results'),
+  searchbar: $('#searchbar'),
+  searchInput: $('#search-input'),
   items: $('#items'),
   detailEmpty: $('#detail-empty'),
   detailTitle: $('#detail-title'),
@@ -40,6 +49,7 @@ const els = {
 // View state: which collection (if any) is open, and how the file input is used.
 let openId = null;
 let fileMode = null; // 'csv' | 'json' | 'cover'
+let query = ''; // current list-view search text (lower-cased)
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -98,24 +108,51 @@ async function render() {
   }
 }
 
+/** Does a collection match the current search query? (title, tags, item text) */
+function matchesQuery(c) {
+  if (!query) return true;
+  if (c.title.toLowerCase().includes(query)) return true;
+  if ((c.tags || []).some((t) => t.toLowerCase().includes(query))) return true;
+  return c.items.some((it) => {
+    const hay = [it.title, it.url, it.text, it.alt, it.note, it.srcPageUrl]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(query);
+  });
+}
+
 function renderList(data) {
   els.detailView.hidden = true;
   els.listView.hidden = false;
 
-  const { collections } = data;
-  els.listEmpty.hidden = collections.length > 0;
-  els.collections.hidden = collections.length === 0;
+  const all = data.collections;
+  els.searchbar.hidden = all.length === 0;
+  els.listEmpty.hidden = all.length > 0;
+
+  // Filter by search, then float pinned collections to the top (stable sort
+  // keeps the manual drag order within each group).
+  const filtered = all.filter(matchesQuery);
+  const visible = [...filtered].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  els.listNoResults.hidden = !(all.length > 0 && visible.length === 0);
+  els.collections.hidden = visible.length === 0;
   els.collections.innerHTML = '';
 
-  for (const c of collections) {
+  for (const c of visible) {
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'card' + (c.pinned ? ' pinned' : '');
     card.setAttribute('role', 'listitem');
     card.dataset.id = c.id;
 
     const coverInner = c.cover
       ? `<div class="card-cover" style="background-image:url('${encodeURI(c.cover)}')"></div>`
       : `<div class="card-cover">🗂️</div>`;
+    const tagsHtml = (c.tags || []).length
+      ? `<div class="card-tags">${c.tags
+          .map((t) => `<span class="tag">${escapeHtml(t)}</span>`)
+          .join('')}</div>`
+      : '';
 
     card.innerHTML = `
       <span class="card-handle" title="Drag to reorder">⠿</span>
@@ -123,14 +160,21 @@ function renderList(data) {
       <div class="card-body">
         <div class="card-title">${escapeHtml(c.title)}</div>
         <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}</div>
+        ${tagsHtml}
       </div>
+      <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
       <button class="card-del" title="Delete collection">🗑</button>
     `;
 
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-del') || e.target.closest('.card-handle')) return;
+      if (e.target.closest('.card-del') || e.target.closest('.card-pin') || e.target.closest('.card-handle'))
+        return;
       if (card.dataset.dragged) return; // a drag just finished; don't open
       open(c.id);
+    });
+    card.querySelector('.card-pin').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await setPinned(c.id, !c.pinned);
     });
     card.querySelector('.card-del').addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -215,9 +259,9 @@ function renderDetail(c) {
 
 function renderItem(collectionId, item) {
   const row = document.createElement('div');
-  row.className = 'item';
+  row.className = 'item' + (item.done ? ' done' : '');
   row.dataset.id = item.id;
-  row.draggable = true;
+  row.draggable = false; // drag starts from the handle only
 
   let bodyHtml = '';
   let thumbHtml = '';
@@ -260,6 +304,7 @@ function renderItem(collectionId, item) {
 
   row.innerHTML = `
     <span class="drag-handle" title="Drag to reorder">⠿</span>
+    <input type="checkbox" class="item-check" ${item.done ? 'checked' : ''} title="Mark done" />
     ${thumbHtml}
     <div class="item-body">${bodyHtml}</div>
     <div class="item-actions">
@@ -272,6 +317,10 @@ function renderItem(collectionId, item) {
     removeItem(collectionId, item.id)
   );
 
+  row.querySelector('.item-check').addEventListener('change', (e) =>
+    toggleDone(collectionId, item.id, e.target.checked)
+  );
+
   if (coverSrc) {
     row.querySelector('.item-cover-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -280,17 +329,20 @@ function renderItem(collectionId, item) {
     });
   }
 
+  // Drag starts only from the handle, so checkboxes, links and the note
+  // textarea stay interactive without kicking off a row drag.
+  row.querySelector('.drag-handle').addEventListener('mousedown', () => {
+    row.draggable = true;
+  });
+  row.addEventListener('mouseup', () => {
+    row.draggable = false;
+  });
+
   if (item.type === 'note') {
     const ta = row.querySelector('textarea');
     ta.addEventListener('change', () =>
       updateItem(collectionId, item.id, { text: ta.value })
     );
-    // Don't start a drag when interacting with the textarea.
-    ta.addEventListener('mousedown', (e) => e.stopPropagation());
-    row.draggable = false;
-    row.querySelector('.drag-handle').addEventListener('mousedown', () => {
-      row.draggable = true;
-    });
   }
 
   wireDrag(row, collectionId);
@@ -618,6 +670,11 @@ setInterval(autoPull, 20000);
 $('#new-collection-btn').addEventListener('click', async () => {
   const c = await createCollection('New collection');
   open(c.id);
+});
+
+els.searchInput.addEventListener('input', () => {
+  query = els.searchInput.value.trim().toLowerCase();
+  render();
 });
 
 $('#overflow-btn').addEventListener('click', (e) => {

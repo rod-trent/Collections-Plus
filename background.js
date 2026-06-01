@@ -7,8 +7,11 @@ import {
   getData,
   addItem,
   createCollection,
+  ensureActiveCollection,
+  findPageByUrl,
   STORAGE_KEY,
 } from './lib/store.js';
+import { srcToCover } from './lib/image.js';
 
 // Open the side panel on action click (Edge + Chrome).
 chrome.sidePanel
@@ -107,6 +110,39 @@ async function captureMeta(tabId) {
     return {};
   }
 }
+
+// Fallback thumbnail: a downscaled screenshot of the active (visible) tab.
+async function captureScreenshotThumb(windowId) {
+  try {
+    const shot = await chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 60 });
+    return shot ? await srcToCover(shot, 512) : '';
+  } catch {
+    return '';
+  }
+}
+
+// ---- Keyboard command: save the current page -------------------------------
+
+chrome.commands?.onCommand.addListener(async (command) => {
+  if (command !== 'save-current-page') return;
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab || !/^https?:/i.test(tab.url || '')) return;
+
+  const col = await ensureActiveCollection();
+  if (await findPageByUrl(col.id, tab.url)) return; // already saved — skip
+
+  const meta = tab.id != null ? await captureMeta(tab.id) : {};
+  let thumbnail = meta.thumbnail || '';
+  if (!thumbnail) thumbnail = await captureScreenshotThumb(tab.windowId);
+
+  await addItem(col.id, {
+    type: 'page',
+    url: tab.url,
+    title: meta.title || tab.title || tab.url,
+    favIconUrl: tab.favIconUrl || '',
+    thumbnail,
+  });
+});
 
 // ---- Click handling --------------------------------------------------------
 

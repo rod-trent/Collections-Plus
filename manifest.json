@@ -21,6 +21,14 @@
   "side_panel": {
     "default_path": "sidepanel/panel.html"
   },
+  "commands": {
+    "save-current-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S"
+      },
+      "description": "Save the current page to Collections Plus"
+    }
+  },
   "action": {
     "default_title": "Collections Plus",
     "default_icon": {

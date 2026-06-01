@@ -17,6 +17,7 @@ import {
   copyItems,
   toggleDone,
   reorderItems,
+  findPageByUrl,
   exportJSON,
   importJSON,
   importEdgeCsv,
@@ -25,7 +26,7 @@ import {
 import { toCsv, toXlsxSheets } from '../lib/export.js';
 import { buildXlsx } from '../lib/xlsx.js';
 import { toMarkdown, toHtml, toLinkList } from '../lib/render.js';
-import { fileToCover } from '../lib/image.js';
+import { fileToCover, srcToCover } from '../lib/image.js';
 import * as sync from '../lib/sync.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -526,20 +527,61 @@ async function addCurrentPage() {
     toast("Can't add this page (browser-internal).");
     return;
   }
+  // Skip if this page is already in the open collection.
+  if (openId && (await findPageByUrl(openId, tab.url))) {
+    toast('Already in this collection');
+    return;
+  }
   let meta = {};
   try {
     meta = await chrome.runtime.sendMessage({ type: 'captureMeta', tabId: tab.id });
   } catch {
     /* worker may not respond on restricted pages */
   }
+  let thumbnail = (meta && meta.thumbnail) || '';
+  if (!thumbnail) {
+    // No og:image — capture a local screenshot thumbnail of the visible tab.
+    try {
+      const shot = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 60 });
+      if (shot) thumbnail = await srcToCover(shot, 512);
+    } catch {
+      /* capture not permitted on some pages */
+    }
+  }
   await addItem(openId, {
     type: 'page',
     url: tab.url,
     title: (meta && meta.title) || tab.title || tab.url,
     favIconUrl: tab.favIconUrl || '',
-    thumbnail: (meta && meta.thumbnail) || '',
+    thumbnail,
   });
   toast('Page added');
+}
+
+/** Add every http(s) tab in the current window to the open collection. */
+async function addAllTabs() {
+  if (!openId) return;
+  const tabs = await chrome.tabs.query({ currentWindow: true });
+  const pages = tabs.filter((t) => /^https?:/i.test(t.url || ''));
+  if (!pages.length) return toast('No saveable tabs open');
+
+  const data = await getData();
+  const col = data.collections.find((c) => c.id === openId);
+  const existing = new Set((col?.items || []).filter((i) => i.type === 'page').map((i) => i.url));
+
+  let added = 0;
+  for (const t of pages) {
+    if (existing.has(t.url)) continue;
+    await addItem(openId, {
+      type: 'page',
+      url: t.url,
+      title: t.title || t.url,
+      favIconUrl: t.favIconUrl || '',
+    });
+    existing.add(t.url);
+    added++;
+  }
+  toast(added ? `Added ${added} tab${added === 1 ? '' : 's'}` : 'All tabs already saved');
 }
 
 // ---- Import / Export -------------------------------------------------------
@@ -924,6 +966,9 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'add-note') {
     await addItem(openId, { type: 'note', text: '' });
+  }
+  if (action === 'add-all-tabs') {
+    await addAllTabs();
   }
   if (action === 'export-collection-xlsx') {
     await doExportXlsx(openId);

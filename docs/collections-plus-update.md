@@ -53,8 +53,8 @@ Here's the trick. Instead of integrating with OneDrive *or* Google Drive *or* Dr
 
 Setting it up:
 
-1. On your first device: ⋯ → **Set up sync…** and save `collections-sync.json` inside your synced folder.
-2. On your second device: once the cloud has finished downloading that file, run **Set up sync…**, point it at the same file, and choose **load** when asked.
+1. On your first device: ⋯ → **Create sync file…** and save `collections-sync.json` inside your synced folder.
+2. On your second device: once the cloud has finished downloading that file, ⋯ → **Use existing sync file…** and open the same file. It loads the data and asks permission to write so this device's edits sync too.
 
 From then on it's hands‑off:
 

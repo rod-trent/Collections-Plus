@@ -458,21 +458,22 @@ function syncBtn(action) {
 }
 
 async function refreshSyncMenu() {
-  const setup = syncBtn('sync-setup');
+  const create = syncBtn('sync-create');
+  const openExisting = syncBtn('sync-open');
   const now = syncBtn('sync-now');
   const pull = syncBtn('sync-pull');
   const disc = syncBtn('sync-disconnect');
   const status = els.syncStatus;
 
   if (!sync.supported()) {
-    setup.hidden = now.hidden = pull.hidden = disc.hidden = true;
+    create.hidden = openExisting.hidden = now.hidden = pull.hidden = disc.hidden = true;
     status.hidden = false;
     status.textContent = 'Sync needs a Chromium browser with the File System Access API.';
     return;
   }
 
   const { connected, name } = await sync.status();
-  setup.hidden = connected;
+  create.hidden = openExisting.hidden = connected;
   now.hidden = pull.hidden = disc.hidden = !connected;
   status.hidden = !connected;
   if (connected) status.textContent = `Synced to ${name}`;
@@ -491,10 +492,12 @@ function schedulePush() {
   }, 1500);
 }
 
-async function setupSync() {
+// FIRST device — create the sync file and seed it with local data.
+async function createSync() {
   try {
-    const { name, existing } = await sync.connect();
+    const { name, existing } = await sync.createFile();
     if (existing) {
+      // The chosen file already has data — don't clobber it without asking.
       const useFile = confirm(
         `"${name}" already contains ${existing.collections} collection(s).\n\n` +
           'OK = load that file and replace your local data\n' +
@@ -517,6 +520,39 @@ async function setupSync() {
     if (err?.name === 'AbortError') return; // user dismissed the file picker
     console.error(err);
     toast('Could not set up sync');
+  }
+  refreshSyncMenu();
+}
+
+// OTHER devices — open the existing sync file and adopt its data.
+async function openSync() {
+  try {
+    const { name, existing } = await sync.openFile();
+    if (!existing) {
+      const proceed = confirm(
+        `"${name}" has no collections to load yet.\n\n` +
+          'OK = use it anyway and upload your current data\n' +
+          'Cancel = pick a different file'
+      );
+      if (!proceed) {
+        await sync.disconnect();
+        refreshSyncMenu();
+        return;
+      }
+      await sync.push({ interactive: true });
+      toast('Sync set up');
+    } else {
+      applyingRemote = true;
+      const res = await sync.pull({ interactive: true, force: true });
+      if (!res.applied) applyingRemote = false;
+      // Upgrade the read-only handle so future edits push automatically.
+      await sync.requestWriteAccess();
+      toast('Synced from file');
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError') return; // user dismissed the file picker
+    console.error(err);
+    toast('Could not connect to that file');
   }
   refreshSyncMenu();
 }
@@ -588,7 +624,8 @@ $('#overflow-menu').addEventListener('click', (e) => {
   if (action === 'export-csv') doExportCsv();
   if (action === 'import-json') pickFile('json');
   if (action === 'import-csv') pickFile('csv');
-  if (action === 'sync-setup') setupSync();
+  if (action === 'sync-create') createSync();
+  if (action === 'sync-open') openSync();
   if (action === 'sync-now') syncNow();
   if (action === 'sync-pull') syncPull();
   if (action === 'sync-disconnect') disconnectSync();

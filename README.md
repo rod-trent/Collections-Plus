@@ -108,14 +108,19 @@ place inside a folder your computer already keeps synced — OneDrive, Google
 Drive, Dropbox, iCloud Drive, etc. Your cloud client does the actual syncing;
 the extension just keeps that one file up to date.
 
-**Set it up:**
+**On your first device:**
 
-> ⋯ (top-right) → **Set up sync…** → save/choose `collections-sync.json` inside
+> ⋯ (top-right) → **Create sync file…** → save `collections-sync.json` inside
 > your synced folder.
 
-On a second device, run **Set up sync…** and point it at the *same* file once
-your cloud has finished downloading it; choose **load** when asked, and that
-device adopts the synced data. From then on:
+**On every other device:**
+
+> ⋯ (top-right) → **Use existing sync file…** → open the *same*
+> `collections-sync.json` once your cloud has finished downloading it.
+
+The second step opens a normal **Open** dialog (not a save/overwrite prompt) and
+that device adopts the synced data, then asks for permission to write so its own
+future edits sync too. From then on:
 
 - Local edits are written to the file automatically (a moment after you change
   something).

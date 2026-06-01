@@ -701,8 +701,10 @@ body {
 }
 
 .move-go {
-  flex: 1;
-  min-width: 0; /* allow the name to shrink + ellipsis instead of overflowing */
+  /* flex-basis:0 (a length) makes the row ignore the inherited width:100% from
+     `.menu button`, so the name grows to fill instead of collapsing to "Te". */
+  flex: 1 1 0;
+  min-width: 0; /* allow ellipsis instead of overflow */
   text-align: left;
   background: none;
   border: none;
@@ -721,7 +723,10 @@ body {
 }
 
 .move-copy {
-  flex: 0 0 auto;
+  /* Fixed-length flex-basis overrides the inherited width:100% so the copy
+     icon can't claim the whole row and squash the name. */
+  flex: 0 0 34px;
+  text-align: center;
   background: none;
   border: none;
   color: var(--text-faint);

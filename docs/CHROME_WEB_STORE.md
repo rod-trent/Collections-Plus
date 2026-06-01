@@ -86,15 +86,26 @@ tests, fixtures, docs, or dev files. Upload that ZIP in the Developer Dashboard.
   - Not used/transferred for purposes unrelated to the single purpose.
   - Not used/transferred to determine creditworthiness or for lending.
 
-## 4. Graphics to prepare (not in the repo — create before submitting)
+## 4. Graphics — ready in `store-assets/`
 
-- **Store icon:** 128×128 PNG — already shipped (`icons/icon128.png`).
-- **Screenshots:** 1280×800 (or 640×400), 1–5 images. Suggested shots:
-  1. The collection list with folders, pins, and covers.
-  2. A collection with checkboxes and custom fields.
-  3. The Excel/CSV/Markdown export menu.
-  4. The sync menu ("Synced to … · just now").
-- **Small promo tile (optional):** 440×280 PNG.
+Generate (or regenerate) them with:
+
+```
+npm run images          # → store-assets/*.png
+```
+
+| File | Size | Use |
+|---|---|---|
+| `icons/icon128.png` | 128×128 | Store icon (already shipped) |
+| `store-assets/screenshot-1-list.png` | 1280×800 | Screenshot — list, folders, pins, covers |
+| `store-assets/screenshot-2-checklist.png` | 1280×800 | Screenshot — checklist + custom fields |
+| `store-assets/screenshot-3-export.png` | 1280×800 | Screenshot — export menu |
+| `store-assets/promo-small-440x280.png` | 440×280 | Small promo tile (optional) |
+| `store-assets/promo-marquee-1400x560.png` | 1400×560 | Marquee promo (optional) |
+
+These are faithful **UI mockups** rendered from the real theme palette — fine to
+publish as-is. If you'd rather use live captures, take them from the running side
+panel at 1280×800 and drop them in over the generated files.
 
 ## 5. Pre-submit checklist
 

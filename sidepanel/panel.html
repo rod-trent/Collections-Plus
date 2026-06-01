@@ -28,6 +28,7 @@
               <div class="menu-sep"></div>
               <button data-action="toggle-cache" id="toggle-cache-btn">Cache images offline: Off</button>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
+              <button data-action="history">Version history…</button>
               <div class="menu-sep"></div>
               <button data-action="sync-create" hidden>Create sync file…</button>
               <button data-action="sync-open" hidden>Use existing sync file…</button>
@@ -124,6 +125,9 @@
 
     <!-- Floating menu for moving/copying an item to another collection -->
     <div id="move-menu" class="menu floating" hidden></div>
+
+    <!-- Floating menu listing version-history snapshots -->
+    <div id="history-menu" class="menu floating" hidden></div>
 
     <div id="toast" class="toast" hidden></div>
 

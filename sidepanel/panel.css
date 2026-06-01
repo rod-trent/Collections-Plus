@@ -658,6 +658,25 @@ body {
   color: var(--accent);
 }
 
+.hist-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 7px 8px;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hist-row:hover {
+  background: var(--bg-elev-2);
+}
+
 .item-del {
   background: none;
   border: none;

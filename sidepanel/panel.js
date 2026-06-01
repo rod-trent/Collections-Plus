@@ -25,6 +25,9 @@ import {
   setSettings,
   cacheItemImage,
   cacheCollectionImages,
+  getHistory,
+  snapshotHistory,
+  restoreHistory,
   exportJSON,
   importJSON,
   importEdgeCsv,
@@ -175,6 +178,50 @@ moveMenu.addEventListener('click', async (e) => {
 document.addEventListener('click', (e) => {
   if (!moveMenu.hidden && !moveMenu.contains(e.target) && !e.target.closest('.item-move-btn')) {
     moveMenu.hidden = true;
+  }
+});
+
+// ---- Version history -------------------------------------------------------
+const historyMenu = $('#history-menu');
+
+async function openHistoryMenu() {
+  const hist = await getHistory();
+  if (!hist.length) return toast('No history yet — it builds up as you edit');
+  historyMenu.innerHTML =
+    `<div class="menu-note">Restore a snapshot</div>` +
+    hist
+      .map(
+        (h) =>
+          `<button class="hist-row" data-at="${h.at}">${relativeTime(h.at)} — ${h.collections} collection${
+            h.collections === 1 ? '' : 's'
+          }, ${h.items} item${h.items === 1 ? '' : 's'}</button>`
+      )
+      .join('');
+  const r = $('#overflow-btn').getBoundingClientRect();
+  historyMenu.hidden = false;
+  const mw = historyMenu.offsetWidth || 240;
+  historyMenu.style.left = `${Math.max(8, r.right - mw)}px`;
+  historyMenu.style.top = `${r.bottom + 4}px`;
+}
+
+historyMenu.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-at]');
+  if (!btn) return;
+  historyMenu.hidden = true;
+  if (!confirm('Restore this snapshot? Your current data is snapshotted first, so you can roll back.'))
+    return;
+  await snapshotHistory(0); // force-capture current state before overwriting
+  await restoreHistory(Number(btn.dataset.at));
+  toast('Snapshot restored');
+});
+
+document.addEventListener('click', (e) => {
+  if (
+    !historyMenu.hidden &&
+    !historyMenu.contains(e.target) &&
+    e.target.dataset.action !== 'history'
+  ) {
+    historyMenu.hidden = true;
   }
 });
 
@@ -781,20 +828,41 @@ async function refreshSyncMenu() {
     return;
   }
 
-  const { connected, name } = await sync.status();
+  const { connected, name, lastSyncAt } = await sync.status();
   create.hidden = openExisting.hidden = connected;
   now.hidden = pull.hidden = disc.hidden = !connected;
   status.hidden = !connected;
-  if (connected) status.textContent = `Synced to ${name}`;
+  if (connected) {
+    const when = lastSyncAt ? ` · ${relativeTime(lastSyncAt)}` : '';
+    status.textContent = `Synced to ${name}${when}`;
+  }
 }
+
+/** "just now" / "5m ago" / "3h ago" / "2d ago". */
+function relativeTime(ms) {
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 45) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
+let pendingPush = false; // local edits not yet written to the sync file
 
 // Debounced background write after local edits.
 function schedulePush() {
+  pendingPush = true;
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(async () => {
     pushTimer = null;
     try {
-      if ((await sync.status()).connected) await sync.push();
+      if ((await sync.status()).connected) {
+        await sync.push();
+        pendingPush = false;
+        conflictNotified = false;
+      }
     } catch (err) {
       console.warn('Background sync push failed', err);
     }
@@ -895,6 +963,8 @@ async function disconnectSync() {
   refreshSyncMenu();
 }
 
+let conflictNotified = false;
+
 // Best-effort pull on startup and when the panel regains focus (no prompt).
 async function autoPull() {
   try {
@@ -902,6 +972,34 @@ async function autoPull() {
     // Only engage the remote-apply guard when there's actually a new version,
     // so frequent polling can't suppress a concurrent local edit's push.
     if (!(await sync.hasRemoteChange())) return;
+
+    // Conflict: this device has un-pushed edits AND the file changed elsewhere.
+    // Don't silently overwrite local edits — keep ours and offer to use the file.
+    if (pendingPush) {
+      if (!conflictNotified) {
+        conflictNotified = true;
+        toast('Sync conflict — keeping your changes.', {
+          label: 'Use file instead',
+          fn: async () => {
+            if (pushTimer) {
+              clearTimeout(pushTimer);
+              pushTimer = null;
+            }
+            try {
+              applyingRemote = true;
+              const r = await sync.pull({ interactive: true, force: true });
+              if (!r.applied) applyingRemote = false;
+              pendingPush = false;
+              conflictNotified = false;
+            } catch {
+              applyingRemote = false;
+            }
+          },
+        });
+      }
+      return;
+    }
+
     applyingRemote = true;
     const res = await sync.pull({ interactive: false });
     if (!res.applied) applyingRemote = false;
@@ -978,6 +1076,7 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     await setSettings({ theme });
     applyTheme(theme);
   }
+  if (action === 'history') openHistoryMenu();
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();
   if (action === 'sync-now') syncNow();
@@ -1088,6 +1187,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     applyingRemote = false; // this write came from a pull — don't echo it back
     return;
   }
+  snapshotHistory(); // throttled rollback snapshot of local edits
   schedulePush();
 });
 

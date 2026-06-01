@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Collections",
+  "name": "Collections Plus",
   "version": "1.0.0",
   "description": "Save pages, images and notes into organized collections — an open replacement for the retired Microsoft Edge Collections.",
   "permissions": [
@@ -22,7 +22,7 @@
     "default_path": "sidepanel/panel.html"
   },
   "action": {
-    "default_title": "Collections",
+    "default_title": "Collections Plus",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

@@ -19,9 +19,9 @@ chrome.sidePanel
 
 // Parent menu items keyed by the context they apply to.
 const PARENTS = [
-  { id: 'save-page', title: 'Save page to Collections', contexts: ['page'] },
-  { id: 'save-link', title: 'Save link to Collections', contexts: ['link'] },
-  { id: 'save-image', title: 'Save image to Collections', contexts: ['image'] },
+  { id: 'save-page', title: 'Save page to Collections Plus', contexts: ['page'] },
+  { id: 'save-link', title: 'Save link to Collections Plus', contexts: ['link'] },
+  { id: 'save-image', title: 'Save image to Collections Plus', contexts: ['image'] },
   { id: 'save-note', title: 'Save selection as note', contexts: ['selection'] },
 ];
 

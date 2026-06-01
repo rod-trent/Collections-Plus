@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Collections</title>
+    <title>Collections Plus</title>
     <link rel="stylesheet" href="panel.css" />
   </head>
   <body>
     <!-- ===== List view ===== -->
     <section id="list-view" class="view">
       <header class="topbar">
-        <h1 class="brand">Collections</h1>
+        <h1 class="brand">Collections Plus</h1>
         <div class="topbar-actions">
           <button id="new-collection-btn" class="btn primary" title="New collection">
             ＋ New
@@ -18,9 +18,16 @@
           <div class="menu-wrap">
             <button id="overflow-btn" class="btn icon" title="More" aria-haspopup="true">⋯</button>
             <div id="overflow-menu" class="menu" hidden>
+              <button data-action="export-csv">Export to Excel (CSV)</button>
+              <button data-action="export-json">Export backup (JSON)</button>
               <button data-action="import-csv">Import Edge CSV…</button>
               <button data-action="import-json">Import backup (JSON)…</button>
-              <button data-action="export-json">Export backup (JSON)</button>
+              <div class="menu-sep"></div>
+              <button data-action="sync-setup">Set up sync…</button>
+              <button data-action="sync-now" hidden>Sync now</button>
+              <button data-action="sync-pull" hidden>Pull from sync file</button>
+              <button data-action="sync-disconnect" class="danger" hidden>Disconnect sync</button>
+              <div id="sync-status" class="menu-note" hidden></div>
             </div>
           </div>
         </div>
@@ -51,12 +58,22 @@
           <div id="detail-overflow-menu" class="menu" hidden>
             <button data-action="open-all">Open all pages</button>
             <button data-action="add-note">Add a note</button>
+            <button data-action="export-collection-csv">Export to Excel (CSV)</button>
+            <div class="menu-sep"></div>
+            <button data-action="cover-upload">Change cover…</button>
+            <button data-action="cover-remove">Remove cover</button>
+            <div class="menu-sep"></div>
             <button data-action="delete-collection" class="danger">Delete collection</button>
           </div>
         </div>
       </header>
 
       <div class="detail-toolbar">
+        <div class="cover-control">
+          <div id="detail-cover" class="cover-preview" title="Collection cover">🗂️</div>
+          <button id="cover-change-btn" class="btn">Change cover…</button>
+          <button id="cover-remove-btn" class="btn icon" title="Remove cover" hidden>✕</button>
+        </div>
         <button id="add-current-btn" class="btn primary wide">＋ Add current page</button>
       </div>
 

@@ -5,6 +5,8 @@ import {
   renameCollection,
   removeCollection,
   setActive,
+  setCover,
+  reorderCollections,
   addItem,
   updateItem,
   removeItem,
@@ -14,6 +16,9 @@ import {
   importEdgeCsv,
   STORAGE_KEY,
 } from '../lib/store.js';
+import { toCsv } from '../lib/export.js';
+import { fileToCover } from '../lib/image.js';
+import * as sync from '../lib/sync.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -25,13 +30,16 @@ const els = {
   items: $('#items'),
   detailEmpty: $('#detail-empty'),
   detailTitle: $('#detail-title'),
+  detailCover: $('#detail-cover'),
+  coverRemoveBtn: $('#cover-remove-btn'),
+  syncStatus: $('#sync-status'),
   fileInput: $('#file-input'),
   toast: $('#toast'),
 };
 
 // View state: which collection (if any) is open, and how the file input is used.
 let openId = null;
-let fileMode = null; // 'csv' | 'json'
+let fileMode = null; // 'csv' | 'json' | 'cover'
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -110,6 +118,7 @@ function renderList(data) {
       : `<div class="card-cover">🗂️</div>`;
 
     card.innerHTML = `
+      <span class="card-handle" title="Drag to reorder">⠿</span>
       ${coverInner}
       <div class="card-body">
         <div class="card-title">${escapeHtml(c.title)}</div>
@@ -119,7 +128,8 @@ function renderList(data) {
     `;
 
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.card-del')) return;
+      if (e.target.closest('.card-del') || e.target.closest('.card-handle')) return;
+      if (card.dataset.dragged) return; // a drag just finished; don't open
       open(c.id);
     });
     card.querySelector('.card-del').addEventListener('click', async (e) => {
@@ -129,8 +139,55 @@ function renderList(data) {
       }
     });
 
+    wireCardDrag(card);
     els.collections.appendChild(card);
   }
+}
+
+// ---- Drag & drop reorder (collection list) ---------------------------------
+
+let cardDragId = null;
+
+function wireCardDrag(card) {
+  // Only allow dragging from the handle, so clicking the card still opens it.
+  const handle = card.querySelector('.card-handle');
+  handle.addEventListener('mousedown', () => {
+    card.draggable = true;
+  });
+  card.addEventListener('mouseup', () => {
+    card.draggable = false;
+  });
+
+  card.addEventListener('dragstart', (e) => {
+    cardDragId = card.dataset.id;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => {
+    cardDragId = null;
+    card.draggable = false;
+    card.classList.remove('dragging');
+    document.querySelectorAll('.card.drop-target').forEach((el) =>
+      el.classList.remove('drop-target')
+    );
+    // Suppress the click that browsers may synthesize right after a drag.
+    card.dataset.dragged = '1';
+    setTimeout(() => delete card.dataset.dragged, 0);
+  });
+  card.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (card.dataset.id !== cardDragId) card.classList.add('drop-target');
+  });
+  card.addEventListener('dragleave', () => card.classList.remove('drop-target'));
+  card.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    card.classList.remove('drop-target');
+    if (!cardDragId || cardDragId === card.dataset.id) return;
+    const dragged = els.collections.querySelector(`[data-id="${cardDragId}"]`);
+    els.collections.insertBefore(dragged, card);
+    const order = [...els.collections.children].map((el) => el.dataset.id);
+    await reorderCollections(order);
+  });
 }
 
 function renderDetail(c) {
@@ -138,6 +195,15 @@ function renderDetail(c) {
   els.detailView.hidden = false;
 
   els.detailTitle.value = c.title;
+  if (c.cover) {
+    els.detailCover.style.backgroundImage = `url('${encodeURI(c.cover)}')`;
+    els.detailCover.textContent = '';
+    els.coverRemoveBtn.hidden = false;
+  } else {
+    els.detailCover.style.backgroundImage = '';
+    els.detailCover.textContent = '🗂️';
+    els.coverRemoveBtn.hidden = true;
+  }
   els.detailEmpty.hidden = c.items.length > 0;
   els.items.hidden = c.items.length === 0;
   els.items.innerHTML = '';
@@ -185,16 +251,34 @@ function renderItem(collectionId, item) {
       <div class="item-url">${escapeHtml(hostOf(item.url))}</div>`;
   }
 
+  // Page thumbnails and images can be promoted to the collection cover.
+  const coverSrc =
+    item.type === 'image' ? item.src : item.type === 'page' ? item.thumbnail : '';
+  const coverBtnHtml = coverSrc
+    ? `<button class="item-cover-btn" title="Use as collection cover">★</button>`
+    : '';
+
   row.innerHTML = `
     <span class="drag-handle" title="Drag to reorder">⠿</span>
     ${thumbHtml}
     <div class="item-body">${bodyHtml}</div>
-    <button class="item-del" title="Remove">✕</button>
+    <div class="item-actions">
+      ${coverBtnHtml}
+      <button class="item-del" title="Remove">✕</button>
+    </div>
   `;
 
   row.querySelector('.item-del').addEventListener('click', () =>
     removeItem(collectionId, item.id)
   );
+
+  if (coverSrc) {
+    row.querySelector('.item-cover-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await setCover(collectionId, coverSrc);
+      toast('Cover updated');
+    });
+  }
 
   if (item.type === 'note') {
     const ta = row.querySelector('textarea');
@@ -286,45 +370,200 @@ async function addCurrentPage() {
 
 // ---- Import / Export -------------------------------------------------------
 
-async function doExport() {
-  const json = await exportJSON();
-  const blob = new Blob([json], { type: 'application/json' });
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const stamp = new Date().toISOString().slice(0, 10);
   a.href = url;
-  a.download = `collections-backup-${stamp}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function slugify(s) {
+  return (
+    (s || 'collections')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'collections'
+  );
+}
+
+async function doExport() {
+  const json = await exportJSON();
+  const stamp = new Date().toISOString().slice(0, 10);
+  download(json, `collections-backup-${stamp}.json`, 'application/json');
   toast('Backup exported');
+}
+
+/** Export all collections, or a single one if collectionId is given, to CSV. */
+async function doExportCsv(collectionId) {
+  const data = await getData();
+  const collections = collectionId
+    ? data.collections.filter((c) => c.id === collectionId)
+    : data.collections;
+  if (!collections.length) return toast('Nothing to export');
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const base = collectionId ? slugify(collections[0].title) : 'collections';
+  // ﻿ BOM is already included by toCsv; declare charset for good measure.
+  download(toCsv(collections), `${base}-${stamp}.csv`, 'text/csv;charset=utf-8');
+  toast('Exported to CSV');
 }
 
 function pickFile(mode) {
   fileMode = mode;
   els.fileInput.value = '';
-  els.fileInput.accept = mode === 'csv' ? '.csv,text/csv' : '.json,application/json';
+  if (mode === 'csv') els.fileInput.accept = '.csv,text/csv';
+  else if (mode === 'cover') els.fileInput.accept = 'image/*';
+  else els.fileInput.accept = '.json,application/json';
   els.fileInput.click();
 }
 
 els.fileInput.addEventListener('change', async () => {
   const file = els.fileInput.files[0];
   if (!file) return;
-  const text = await file.text();
   try {
+    if (fileMode === 'cover') {
+      if (!openId) return;
+      const dataUrl = await fileToCover(file);
+      await setCover(openId, dataUrl);
+      toast('Cover updated');
+      return;
+    }
+    const text = await file.text();
     if (fileMode === 'csv') {
       const stats = await importEdgeCsv(text);
       toast(`Imported ${stats.pages} page(s) into ${stats.collections} collection(s)`);
     } else {
       const replace =
-        confirm('Replace all current data with this backup?\n\nOK = replace, Cancel = merge') ;
+        confirm('Replace all current data with this backup?\n\nOK = replace, Cancel = merge');
       await importJSON(text, replace ? 'replace' : 'merge');
       toast('Backup imported');
     }
   } catch (err) {
     console.error(err);
-    toast('Import failed — is the file valid?');
+    toast(fileMode === 'cover' ? "Couldn't read that image" : 'Import failed — is the file valid?');
   }
 });
+
+// ---- Sync -------------------------------------------------------------------
+
+let applyingRemote = false; // true while a pull writes data — skip the echo push
+let pushTimer = null;
+
+function syncBtn(action) {
+  return document.querySelector(`#overflow-menu [data-action="${action}"]`);
+}
+
+async function refreshSyncMenu() {
+  const setup = syncBtn('sync-setup');
+  const now = syncBtn('sync-now');
+  const pull = syncBtn('sync-pull');
+  const disc = syncBtn('sync-disconnect');
+  const status = els.syncStatus;
+
+  if (!sync.supported()) {
+    setup.hidden = now.hidden = pull.hidden = disc.hidden = true;
+    status.hidden = false;
+    status.textContent = 'Sync needs a Chromium browser with the File System Access API.';
+    return;
+  }
+
+  const { connected, name } = await sync.status();
+  setup.hidden = connected;
+  now.hidden = pull.hidden = disc.hidden = !connected;
+  status.hidden = !connected;
+  if (connected) status.textContent = `Synced to ${name}`;
+}
+
+// Debounced background write after local edits.
+function schedulePush() {
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(async () => {
+    pushTimer = null;
+    try {
+      if ((await sync.status()).connected) await sync.push();
+    } catch (err) {
+      console.warn('Background sync push failed', err);
+    }
+  }, 1500);
+}
+
+async function setupSync() {
+  try {
+    const { name, existing } = await sync.connect();
+    if (existing) {
+      const useFile = confirm(
+        `"${name}" already contains ${existing.collections} collection(s).\n\n` +
+          'OK = load that file and replace your local data\n' +
+          'Cancel = overwrite the file with your current data'
+      );
+      if (useFile) {
+        applyingRemote = true;
+        const res = await sync.pull({ interactive: true, force: true });
+        if (!res.applied) applyingRemote = false;
+        toast('Synced from file');
+      } else {
+        await sync.push({ interactive: true });
+        toast('Sync set up');
+      }
+    } else {
+      await sync.push({ interactive: true });
+      toast('Sync set up');
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError') return; // user dismissed the file picker
+    console.error(err);
+    toast('Could not set up sync');
+  }
+  refreshSyncMenu();
+}
+
+async function syncNow() {
+  try {
+    await sync.push({ interactive: true });
+    toast('Synced');
+  } catch (err) {
+    console.error(err);
+    toast('Sync failed');
+  }
+}
+
+async function syncPull() {
+  try {
+    applyingRemote = true;
+    const res = await sync.pull({ interactive: true, force: true });
+    if (!res.applied) applyingRemote = false;
+    toast(res.applied ? 'Pulled latest from sync file' : 'Already up to date');
+  } catch (err) {
+    applyingRemote = false;
+    console.error(err);
+    toast('Pull failed');
+  }
+}
+
+async function disconnectSync() {
+  await sync.disconnect();
+  toast('Sync disconnected');
+  refreshSyncMenu();
+}
+
+// Best-effort pull on startup and when the panel regains focus (no prompt).
+async function autoPull() {
+  try {
+    if (!(await sync.status()).connected) return;
+    applyingRemote = true;
+    const res = await sync.pull({ interactive: false });
+    if (!res.applied) applyingRemote = false;
+  } catch (err) {
+    applyingRemote = false;
+    console.warn('Auto pull failed', err);
+  }
+}
+
+window.addEventListener('focus', autoPull);
 
 // ---- Event wiring ----------------------------------------------------------
 
@@ -336,7 +575,9 @@ $('#new-collection-btn').addEventListener('click', async () => {
 
 $('#overflow-btn').addEventListener('click', (e) => {
   e.stopPropagation();
-  openMenu($('#overflow-menu'), $('#overflow-menu').hidden);
+  const willOpen = $('#overflow-menu').hidden;
+  if (willOpen) refreshSyncMenu();
+  openMenu($('#overflow-menu'), willOpen);
 });
 
 $('#overflow-menu').addEventListener('click', (e) => {
@@ -344,8 +585,13 @@ $('#overflow-menu').addEventListener('click', (e) => {
   if (!action) return;
   $('#overflow-menu').hidden = true;
   if (action === 'export-json') doExport();
+  if (action === 'export-csv') doExportCsv();
   if (action === 'import-json') pickFile('json');
   if (action === 'import-csv') pickFile('csv');
+  if (action === 'sync-setup') setupSync();
+  if (action === 'sync-now') syncNow();
+  if (action === 'sync-pull') syncPull();
+  if (action === 'sync-disconnect') disconnectSync();
 });
 
 els.listEmpty.addEventListener('click', async (e) => {
@@ -360,6 +606,16 @@ els.listEmpty.addEventListener('click', async (e) => {
 // Detail view
 $('#back-btn').addEventListener('click', back);
 $('#add-current-btn').addEventListener('click', addCurrentPage);
+
+$('#cover-change-btn').addEventListener('click', () => {
+  if (openId) pickFile('cover');
+});
+els.coverRemoveBtn.addEventListener('click', async () => {
+  if (openId) {
+    await setCover(openId, null);
+    toast('Cover removed');
+  }
+});
 
 els.detailTitle.addEventListener('change', () => {
   if (openId) renameCollection(openId, els.detailTitle.value);
@@ -387,6 +643,16 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   if (action === 'add-note') {
     await addItem(openId, { type: 'note', text: '' });
   }
+  if (action === 'export-collection-csv') {
+    await doExportCsv(openId);
+  }
+  if (action === 'cover-upload') {
+    pickFile('cover');
+  }
+  if (action === 'cover-remove') {
+    await setCover(openId, null);
+    toast('Cover removed');
+  }
   if (action === 'delete-collection') {
     if (confirm(`Delete "${c.title}" and its ${c.items.length} item(s)?`)) {
       await removeCollection(openId);
@@ -395,10 +661,19 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
 });
 
-// Re-render whenever the data changes (from this panel or the service worker).
+// Re-render whenever the data changes (from this panel or the service worker),
+// and mirror the change to the sync file unless the change *came from* a pull.
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[STORAGE_KEY]) render();
+  if (area !== 'local' || !changes[STORAGE_KEY]) return;
+  render();
+  if (applyingRemote) {
+    applyingRemote = false; // this write came from a pull — don't echo it back
+    return;
+  }
+  schedulePush();
 });
 
-// Initial paint.
+// Initial paint, then reflect sync state and pull any newer remote data.
 render();
+refreshSyncMenu();
+autoPull();

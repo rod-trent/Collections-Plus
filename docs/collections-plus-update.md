@@ -120,4 +120,4 @@ If something here would make your day better, or you want a feature I haven't bu
 
 Edge Collections is going away. Yours doesn't have to.
 
-*Collections Plus is open source on GitHub. Fork it, file issues, send ideas.*
+*Collections Plus is [open source on GitHub](https://github.com/rod-trent/Collections-Plus). Fork it, file issues, send ideas.*

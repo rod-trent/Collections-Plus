@@ -82,10 +82,12 @@ it auto-updates, with no manual reloading.
 
 ### Load unpacked (available now)
 
-1. Open **`edge://extensions`** (or **`chrome://extensions`**).
-2. Turn on **Developer mode** (toggle, usually bottom-left or top-right).
-3. Click **Load unpacked** and select this folder (`C:\Code\Collections`).
-4. Pin the **Collections Plus** icon to the toolbar and click it to open the panel.
+1. Clone or download the repo from
+   <https://github.com/rod-trent/Collections-Plus>.
+2. Open **`edge://extensions`** (or **`chrome://extensions`**).
+3. Turn on **Developer mode** (toggle, usually bottom-left or top-right).
+4. Click **Load unpacked** and select the project folder you just cloned.
+5. Pin the **Collections Plus** icon to the toolbar and click it to open the panel.
 
 To update after pulling changes, click the **reload** ↻ button on the
 extension's card in `edge://extensions`.

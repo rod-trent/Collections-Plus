@@ -72,12 +72,10 @@ Chromium browsers may work depending on their Side Panel API support.
 
 ### From the Chrome Web Store
 
-Collections Plus has been **submitted to the Chrome Web Store** and is awaiting
-review. Once it's published, a one-click install link will appear here (and it
-will auto-update, with no manual reloading).
+Collections Plus is **live on the Chrome Web Store**. Install it in one click and
+it auto-updates, with no manual reloading.
 
-<!-- TODO: replace with the Chrome Web Store listing URL once published -->
-> 🛈 **Store listing:** _coming soon (pending review)._
+> 🛈 **[Install Collections Plus from the Chrome Web Store →](https://chromewebstore.google.com/detail/collections-plus/eekpoobgfoollcmobjeeahonpbjjghia)**
 
 ### Load unpacked (available now)
 
@@ -287,4 +285,4 @@ listing copy and per-permission justifications, live in
 
 - Bulk multi-select of items (move/copy/delete several at once).
 - Full-text search ranking and per-collection search.
-- Publishing to the Chrome Web Store / Edge Add-ons for background auto-updates.
+- An Edge Add-ons listing (already live on the Chrome Web Store).

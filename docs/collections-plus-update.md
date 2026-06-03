@@ -91,14 +91,12 @@ None of this changes the core promise. Everything is stored locally in your brow
 
 It's free and open source (MIT).
 
-**Chrome Web Store:** Collections Plus has been **submitted to the Chrome Web
-Store** and is in review. As soon as it's approved I'll drop the install link
-right here. One click, and it auto-updates from then on.
+**Chrome Web Store:** Collections Plus is **live**. One click, and it
+auto-updates from then on.
 
-<!-- TODO: replace with the Chrome Web Store listing URL once published -->
-_Store link: coming soon (pending review)._
+**[Install Collections Plus from the Chrome Web Store →](https://chromewebstore.google.com/detail/collections-plus/eekpoobgfoollcmobjeeahonpbjjghia)**
 
-**Right now**, you can load it as an unpacked extension:
+**Prefer to load it yourself?** You can still load it as an unpacked extension:
 
 1. Open `edge://extensions` (or `chrome://extensions`).
 2. Turn on **Developer mode**.
@@ -112,7 +110,7 @@ Migrating from Edge is one click: export your Collections data in Edge, then in 
 ## What's next
 
 - **Bulk multi-select:** move, copy, or delete several items at once.
-- Eventually, a **Web Store / Add-ons** listing so updates land automatically.
+- An **Edge Add-ons** listing too (it's already live on the Chrome Web Store).
 
 If something here would make your day better, or you want a feature I haven't built, tell me. I build the things people actually ask for.
 

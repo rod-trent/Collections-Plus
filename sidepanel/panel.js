@@ -373,6 +373,7 @@ document.addEventListener('click', (e) => {
 
 async function render() {
   const data = await getData();
+  updateBinBadges(data);
   if (binMode) {
     renderBin(data);
     return;
@@ -1437,12 +1438,18 @@ async function updateSettingLabels() {
   if (cacheBtn) cacheBtn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
   const themeBtn = $('#toggle-theme-btn');
   if (themeBtn) themeBtn.textContent = `Theme: ${s.theme === 'light' ? 'Light' : 'Dark'}`;
-  const data = await getData();
-  const archiveBtn = $('#open-archive-btn');
-  const trashBtn = $('#open-trash-btn');
-  const n = (arr) => ((arr || []).length ? ` (${arr.length})` : '');
-  if (archiveBtn) archiveBtn.textContent = `Archive${n(data.archive)}`;
-  if (trashBtn) trashBtn.textContent = `Trash${n(data.trash)}`;
+}
+
+/** Refresh the little count badges on the topbar Archive/Trash buttons. */
+function updateBinBadges(data) {
+  const set = (sel, count) => {
+    const el = $(sel);
+    if (!el) return;
+    el.hidden = !count;
+    el.textContent = count > 99 ? '99+' : String(count);
+  };
+  set('#archive-badge', (data.archive || []).length);
+  set('#trash-badge', (data.trash || []).length);
 }
 
 function applyTheme(theme) {
@@ -1482,8 +1489,6 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     applyTheme(theme);
   }
   if (action === 'history') openHistoryMenu();
-  if (action === 'archive') openBin('archive');
-  if (action === 'trash') openBin('trash');
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();
   if (action === 'sync-resume') resumeSync();
@@ -1502,6 +1507,8 @@ els.listEmpty.addEventListener('click', async (e) => {
 });
 
 // Trash / Archive view
+$('#open-archive-btn').addEventListener('click', () => openBin('archive'));
+$('#open-trash-btn').addEventListener('click', () => openBin('trash'));
 $('#bin-back-btn').addEventListener('click', back);
 els.emptyTrashBtn.addEventListener('click', async () => {
   const data = await getData();

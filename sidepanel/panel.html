@@ -16,6 +16,12 @@
             ＋ New
           </button>
           <button id="new-folder-btn" class="btn" title="New folder">＋📁</button>
+          <button id="open-archive-btn" class="btn icon badge-host" title="Archive" aria-label="Archive">
+            📦<span id="archive-badge" class="top-badge" hidden></span>
+          </button>
+          <button id="open-trash-btn" class="btn icon badge-host" title="Trash" aria-label="Trash">
+            🗑<span id="trash-badge" class="top-badge" hidden></span>
+          </button>
           <div class="menu-wrap">
             <button id="overflow-btn" class="btn icon" title="More" aria-haspopup="true">⋯</button>
             <div id="overflow-menu" class="menu" hidden>
@@ -30,9 +36,6 @@
               <button data-action="toggle-cache" id="toggle-cache-btn">Cache images offline: Off</button>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
               <button data-action="history">Version history…</button>
-              <div class="menu-sep"></div>
-              <button data-action="archive" id="open-archive-btn">Archive</button>
-              <button data-action="trash" id="open-trash-btn">Trash</button>
               <div class="menu-sep"></div>
               <button data-action="sync-create" hidden>Create sync file…</button>
               <button data-action="sync-open" hidden>Use existing sync file…</button>

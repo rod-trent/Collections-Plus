@@ -308,7 +308,8 @@ body {
 }
 
 .card-pin,
-.card-folder {
+.card-folder,
+.card-archive {
   align-self: center;
   background: none;
   border: none;
@@ -322,12 +323,14 @@ body {
 
 .card.pinned .card-pin,
 .card:hover .card-pin,
-.card:hover .card-folder {
+.card:hover .card-folder,
+.card:hover .card-archive {
   opacity: 1;
 }
 
 .card-pin:hover,
-.card-folder:hover {
+.card-folder:hover,
+.card-archive:hover {
   background: var(--bg-elev-2);
 }
 
@@ -424,6 +427,35 @@ body {
 .card-del:hover {
   background: var(--bg-elev-2);
   color: var(--danger);
+}
+
+/* ---- Trash / Archive view ---- */
+.bin-note {
+  margin: 0;
+  padding: 10px 14px 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.bin-row {
+  cursor: default;
+  align-items: center;
+}
+
+.bin-row:hover {
+  border-color: var(--border);
+}
+
+.bin-row .bin-restore {
+  align-self: center;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+/* Action buttons stay visible in the bin (no hover-to-reveal). */
+.bin-row .card-del {
+  opacity: 1;
 }
 
 /* ---- Detail view ---- */

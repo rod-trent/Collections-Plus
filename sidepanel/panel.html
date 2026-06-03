@@ -31,6 +31,9 @@
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
               <button data-action="history">Version history…</button>
               <div class="menu-sep"></div>
+              <button data-action="archive" id="open-archive-btn">Archive</button>
+              <button data-action="trash" id="open-trash-btn">Trash</button>
+              <div class="menu-sep"></div>
               <button data-action="sync-create" hidden>Create sync file…</button>
               <button data-action="sync-open" hidden>Use existing sync file…</button>
               <button data-action="sync-resume" hidden>Resume sync (grant write access)</button>
@@ -97,7 +100,8 @@
             <button data-action="cover-remove">Remove cover</button>
             <button data-action="cache-now">Cache images now</button>
             <div class="menu-sep"></div>
-            <button data-action="delete-collection" class="danger">Delete collection</button>
+            <button data-action="archive-collection">Archive collection</button>
+            <button data-action="delete-collection" class="danger">Move to Trash</button>
           </div>
         </div>
       </header>
@@ -119,6 +123,29 @@
         <p class="empty-sub">
           Add the current page, right-click a link/image on any site, or add a note.
         </p>
+      </div>
+    </section>
+
+    <!-- ===== Trash / Archive view ===== -->
+    <section id="bin-view" class="view" hidden>
+      <header class="topbar">
+        <button id="bin-back-btn" class="btn icon" title="Back">‹</button>
+        <h1 id="bin-title" class="brand">Trash</h1>
+        <div class="topbar-actions">
+          <button id="empty-trash-btn" class="btn danger" title="Permanently delete everything in the Trash" hidden>
+            Empty Trash
+          </button>
+        </div>
+      </header>
+
+      <p id="bin-note" class="bin-note" hidden></p>
+
+      <div id="bin-list" class="cards" role="list"></div>
+
+      <div id="bin-empty" class="empty" hidden>
+        <div class="empty-art">🗑️</div>
+        <p class="empty-title">Nothing here</p>
+        <p class="empty-sub" id="bin-empty-sub"></p>
       </div>
     </section>
 

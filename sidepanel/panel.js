@@ -3,8 +3,6 @@ import {
   getData,
   createCollection,
   renameCollection,
-  removeCollection,
-  insertCollection,
   insertItem,
   ensureActiveCollection,
   setActive,
@@ -14,8 +12,15 @@ import {
   setParent,
   createFolder,
   renameFolder,
-  removeFolder,
   toggleFolder,
+  archiveCollection,
+  unarchiveCollection,
+  trashCollection,
+  trashFolder,
+  restoreFromTrash,
+  deleteTrashEntry,
+  emptyTrash,
+  purgeExpiredTrash,
   reorderCollections,
   addItem,
   updateItem,
@@ -62,10 +67,18 @@ const els = {
   syncStatus: $('#sync-status'),
   fileInput: $('#file-input'),
   toast: $('#toast'),
+  binView: $('#bin-view'),
+  binTitle: $('#bin-title'),
+  binNote: $('#bin-note'),
+  binList: $('#bin-list'),
+  binEmpty: $('#bin-empty'),
+  binEmptySub: $('#bin-empty-sub'),
+  emptyTrashBtn: $('#empty-trash-btn'),
 };
 
 // View state: which collection (if any) is open, and how the file input is used.
 let openId = null;
+let binMode = null; // 'trash' | 'archive' | null — which holding area is open
 let fileMode = null; // 'csv' | 'json' | 'cover'
 let query = ''; // current list-view search text (lower-cased)
 
@@ -360,6 +373,11 @@ document.addEventListener('click', (e) => {
 
 async function render() {
   const data = await getData();
+  if (binMode) {
+    renderBin(data);
+    return;
+  }
+  els.binView.hidden = true;
   if (openId && data.collections.some((c) => c.id === openId)) {
     renderDetail(data.collections.find((c) => c.id === openId));
   } else {
@@ -409,8 +427,9 @@ function buildCard(c) {
       ${tagsHtml}
     </div>
     <button class="card-folder" title="Move to folder">📁</button>
+    <button class="card-archive" title="Archive collection">📦</button>
     <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
-    <button class="card-del" title="Delete collection">🗑</button>
+    <button class="card-del" title="Move to Trash">🗑</button>
   `;
 
   card.addEventListener('click', (e) => {
@@ -418,11 +437,16 @@ function buildCard(c) {
       e.target.closest('.card-del') ||
       e.target.closest('.card-pin') ||
       e.target.closest('.card-folder') ||
+      e.target.closest('.card-archive') ||
       e.target.closest('.card-handle')
     )
       return;
     if (card.dataset.dragged) return; // a drag just finished; don't open
     open(c.id);
+  });
+  card.querySelector('.card-archive').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await archiveCollectionWithUndo(c.id);
   });
   card.querySelector('.card-pin').addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -459,7 +483,7 @@ function buildFolderHeader(f, count) {
     <span class="folder-name">📁 ${escapeHtml(f.name)}</span>
     <span class="folder-count">${count}</span>
     <button class="folder-rename" title="Rename folder">✎</button>
-    <button class="folder-del" title="Delete folder">🗑</button>
+    <button class="folder-del" title="Move folder to Trash">🗑</button>
   `;
   const toggle = () => toggleFolder(f.id);
   el.querySelector('.folder-toggle').addEventListener('click', toggle);
@@ -471,8 +495,12 @@ function buildFolderHeader(f, count) {
   });
   el.querySelector('.folder-del').addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (await showConfirm(`Delete folder "${f.name}"? Its collections move back to the top level.`, { okLabel: 'Delete', danger: true })) {
-      await removeFolder(f.id);
+    const entryId = await trashFolder(f.id);
+    if (entryId) {
+      toast(`Folder "${f.name}" moved to Trash`, {
+        label: 'Undo',
+        fn: () => restoreFromTrash(entryId),
+      });
     }
   });
   return el;
@@ -507,6 +535,109 @@ function renderList(data) {
     els.collections.appendChild(buildFolderHeader(f, kids.length));
     if (!f.collapsed) for (const c of kids) els.collections.appendChild(buildCard(c));
   }
+}
+
+// ---- Trash / Archive view --------------------------------------------------
+
+function renderBin(data) {
+  els.listView.hidden = true;
+  els.detailView.hidden = true;
+  els.binView.hidden = false;
+
+  const isTrash = binMode === 'trash';
+  // Normalize archive collections into the same {kind, …} shape trash uses.
+  const entries = isTrash
+    ? data.trash || []
+    : (data.archive || []).map((c) => ({
+        id: c.id,
+        kind: 'collection',
+        archivedAt: c.archivedAt,
+        collection: c,
+      }));
+
+  els.binTitle.textContent = isTrash ? 'Trash' : 'Archive';
+  els.emptyTrashBtn.hidden = !(isTrash && entries.length);
+
+  els.binNote.textContent = isTrash
+    ? 'Items are permanently deleted 30 days after they’re trashed.'
+    : 'Archived collections stay out of your main list until you restore them.';
+  els.binNote.hidden = entries.length === 0;
+
+  els.binEmpty.hidden = entries.length > 0;
+  els.binEmptySub.textContent = isTrash
+    ? 'Deleted collections and folders will appear here.'
+    : 'Collections you archive will appear here.';
+  els.binList.hidden = entries.length === 0;
+  els.binList.innerHTML = '';
+  for (const e of entries) els.binList.appendChild(buildBinRow(e, isTrash));
+}
+
+function buildBinRow(entry, isTrash) {
+  const row = document.createElement('div');
+  row.className = 'card bin-row';
+  const isFolder = entry.kind === 'folder';
+  const obj = isFolder ? entry.folder : entry.collection;
+  const title = isFolder ? obj.name : obj.title;
+  const when = isTrash ? entry.deletedAt : entry.archivedAt;
+
+  let cover;
+  if (isFolder) cover = `<div class="card-cover">📁</div>`;
+  else if (obj.cover)
+    cover = `<div class="card-cover" style="background-image:url('${encodeURI(obj.cover)}')"></div>`;
+  else cover = `<div class="card-cover">🗂️</div>`;
+
+  const count = isFolder
+    ? `${(entry.childIds || []).length} collection${(entry.childIds || []).length === 1 ? '' : 's'}`
+    : `${obj.items.length} item${obj.items.length === 1 ? '' : 's'}`;
+  const meta = `${count} · ${isTrash ? 'deleted' : 'archived'} ${relativeTime(when)}`;
+
+  row.innerHTML = `
+    ${cover}
+    <div class="card-body">
+      <div class="card-title">${escapeHtml(title)}</div>
+      <div class="card-meta">${escapeHtml(meta)}</div>
+    </div>
+    <button class="btn bin-restore">Restore</button>
+    <button class="card-del bin-delete" title="${
+      isTrash ? 'Delete permanently' : 'Move to Trash'
+    }">${isTrash ? '✕' : '🗑'}</button>
+  `;
+
+  row.querySelector('.bin-restore').addEventListener('click', async () => {
+    if (isTrash) {
+      await restoreFromTrash(entry.id);
+      toast(`${isFolder ? 'Folder' : 'Collection'} restored`);
+    } else {
+      await unarchiveCollection(obj.id);
+      toast(`"${title}" restored`);
+    }
+  });
+
+  row.querySelector('.bin-delete').addEventListener('click', async () => {
+    if (isTrash) {
+      if (
+        await showConfirm(`Permanently delete "${title}"? This can’t be undone.`, {
+          okLabel: 'Delete',
+          danger: true,
+        })
+      ) {
+        await deleteTrashEntry(entry.id);
+        toast('Permanently deleted');
+      }
+    } else {
+      // Archive → Trash: surface it briefly, then soft-delete it.
+      await unarchiveCollection(obj.id);
+      const entryId = await trashCollection(obj.id);
+      if (entryId) {
+        toast(`"${title}" moved to Trash`, {
+          label: 'Undo',
+          fn: () => restoreFromTrash(entryId),
+        });
+      }
+    }
+  });
+
+  return row;
 }
 
 // ---- Drag & drop reorder (collection list) ---------------------------------
@@ -758,6 +889,7 @@ function wireDrag(row, collectionId) {
 // ---- Navigation ------------------------------------------------------------
 
 async function open(id) {
+  binMode = null;
   openId = id;
   await setActive(id);
   render();
@@ -765,18 +897,39 @@ async function open(id) {
 
 function back() {
   openId = null;
+  binMode = null;
   render();
 }
 
-// ---- Delete with undo ------------------------------------------------------
+function openBin(mode) {
+  binMode = mode;
+  openId = null;
+  render();
+}
+
+// ---- Delete / archive with undo --------------------------------------------
 
 async function deleteCollectionWithUndo(id) {
   const data = await getData();
-  const index = data.collections.findIndex((c) => c.id === id);
-  const col = data.collections[index];
+  const col = data.collections.find((c) => c.id === id);
   if (!col) return;
-  await removeCollection(id);
-  toast(`Deleted "${col.title}"`, { label: 'Undo', fn: () => insertCollection(col, index) });
+  const entryId = await trashCollection(id);
+  if (!entryId) return;
+  toast(`"${col.title}" moved to Trash`, {
+    label: 'Undo',
+    fn: () => restoreFromTrash(entryId),
+  });
+}
+
+async function archiveCollectionWithUndo(id) {
+  const data = await getData();
+  const col = data.collections.find((c) => c.id === id);
+  if (!col) return;
+  await archiveCollection(id);
+  toast(`"${col.title}" archived`, {
+    label: 'Undo',
+    fn: () => unarchiveCollection(id),
+  });
 }
 
 async function deleteItemWithUndo(collectionId, itemId) {
@@ -1284,6 +1437,12 @@ async function updateSettingLabels() {
   if (cacheBtn) cacheBtn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
   const themeBtn = $('#toggle-theme-btn');
   if (themeBtn) themeBtn.textContent = `Theme: ${s.theme === 'light' ? 'Light' : 'Dark'}`;
+  const data = await getData();
+  const archiveBtn = $('#open-archive-btn');
+  const trashBtn = $('#open-trash-btn');
+  const n = (arr) => ((arr || []).length ? ` (${arr.length})` : '');
+  if (archiveBtn) archiveBtn.textContent = `Archive${n(data.archive)}`;
+  if (trashBtn) trashBtn.textContent = `Trash${n(data.trash)}`;
 }
 
 function applyTheme(theme) {
@@ -1323,6 +1482,8 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     applyTheme(theme);
   }
   if (action === 'history') openHistoryMenu();
+  if (action === 'archive') openBin('archive');
+  if (action === 'trash') openBin('trash');
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();
   if (action === 'sync-resume') resumeSync();
@@ -1338,6 +1499,23 @@ els.listEmpty.addEventListener('click', async (e) => {
     open(c.id);
   }
   if (action === 'import-csv') pickFile('csv');
+});
+
+// Trash / Archive view
+$('#bin-back-btn').addEventListener('click', back);
+els.emptyTrashBtn.addEventListener('click', async () => {
+  const data = await getData();
+  const n = (data.trash || []).length;
+  if (!n) return;
+  if (
+    await showConfirm(
+      `Permanently delete all ${n} item${n === 1 ? '' : 's'} in the Trash? This can’t be undone.`,
+      { okLabel: 'Empty Trash', danger: true }
+    )
+  ) {
+    await emptyTrash();
+    toast('Trash emptied');
+  }
 });
 
 // Detail view
@@ -1418,6 +1596,11 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
     const { cached } = await cacheCollectionImages(openId);
     toast(cached ? `Cached ${cached} image${cached === 1 ? '' : 's'}` : 'Nothing to cache');
   }
+  if (action === 'archive-collection') {
+    const id = openId;
+    back();
+    await archiveCollectionWithUndo(id);
+  }
   if (action === 'delete-collection') {
     const id = openId;
     back();
@@ -1486,6 +1669,8 @@ document.addEventListener('drop', async (e) => {
 // Initial paint, then reflect sync state, theme, and pull any newer remote data.
 getSettings().then((s) => applyTheme(s.theme));
 render();
+// Drop any trashed items past the 30-day retention window (best-effort).
+purgeExpiredTrash().catch(() => {});
 // If connected but write access lapsed (e.g. after a reload), mark sync paused
 // up front so the menu shows Resume instead of failing the first push.
 sync.status().then(async ({ connected }) => {

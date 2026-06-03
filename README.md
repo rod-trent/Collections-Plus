@@ -31,6 +31,9 @@ step. Your data stays in your browser.
 - **Checkboxes** turn any collection into a checklist; **custom fields**
   (price, qty, SKU…) add structured data that flows into exports.
 - **Move or copy** items between collections; **undo** deletes.
+- **Trash & Archive:** deleting a collection or folder moves it to the **Trash**
+  (restorable, and auto-emptied after 30 days), and you can **Archive** old
+  collections to keep your main list uncluttered. Both are in the ⋯ menu.
 - **Custom covers:** upload an image or promote a saved thumbnail with ★.
 - **Light / dark theme**.
 

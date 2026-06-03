@@ -47,7 +47,8 @@ console.log('migrate (v1 → v2 backfill):');
   };
   const data = await store.getData();
   const c = data.collections[0];
-  assert(data.version === 2, 'bumps version to 2');
+  assert(data.version === 3, 'bumps version to 3');
+  assert(Array.isArray(data.archive) && Array.isArray(data.trash), 'backfills archive + trash arrays');
   assert(c.pinned === false && Array.isArray(c.tags) && c.parentId === null, 'collection gets pinned/tags/parentId');
   assert(c.items[0].done === false && typeof c.items[0].fields === 'object', 'page item gets done/fields');
 }
@@ -162,6 +163,88 @@ console.log('\nhistory:');
   await store.restoreHistory(hist[0].at);
   const data = await store.getData();
   assert(data.collections.length === 1, 'restore brings back the snapshot state');
+}
+
+console.log('\narchive / unarchive:');
+{
+  reset();
+  const a = await store.createCollection('Keep');
+  const b = await store.createCollection('Stash');
+  await store.archiveCollection(b.id);
+  let data = await store.getData();
+  assert(data.collections.length === 1 && data.collections[0].id === a.id, 'archived collection leaves the active list');
+  assert(data.archive.length === 1 && data.archive[0].id === b.id && data.archive[0].archivedAt, 'archive holds it with a timestamp');
+
+  await store.unarchiveCollection(b.id);
+  data = await store.getData();
+  assert(data.archive.length === 0, 'unarchive empties the archive entry');
+  assert(data.collections.some((c) => c.id === b.id), 'unarchived collection returns to the active list');
+  assert(data.collections.find((c) => c.id === b.id).parentId === null, 'restored collection lands at top level');
+}
+
+console.log('\ntrash collection + restore:');
+{
+  reset();
+  const a = await store.createCollection('First');
+  const b = await store.createCollection('Second'); // unshift → index 0
+  const entryId = await store.trashCollection(a.id);
+  let data = await store.getData();
+  assert(data.collections.length === 1 && !data.collections.some((c) => c.id === a.id), 'trashed collection leaves the active list');
+  assert(data.trash.length === 1 && data.trash[0].kind === 'collection', 'trash holds a collection entry');
+
+  await store.restoreFromTrash(entryId);
+  data = await store.getData();
+  assert(data.trash.length === 0, 'restore removes the trash entry');
+  assert(data.collections.some((c) => c.id === a.id), 'restored collection is back in the active list');
+}
+
+console.log('\ntrash folder + restore re-adopts children:');
+{
+  reset();
+  const c = await store.createCollection('Child');
+  const folder = await store.createFolder('Work');
+  await store.setParent(c.id, folder.id);
+  const entryId = await store.trashFolder(folder.id);
+  let data = await store.getData();
+  assert(data.folders.length === 0, 'folder removed from the active list');
+  assert(data.collections[0].parentId === null, 'child collection falls back to top level');
+  assert(data.trash.length === 1 && data.trash[0].kind === 'folder' && data.trash[0].childIds.includes(c.id), 'trash entry remembers its children');
+
+  await store.restoreFromTrash(entryId);
+  data = await store.getData();
+  assert(data.folders.length === 1 && data.folders[0].id === folder.id, 'folder restored');
+  assert(data.collections[0].parentId === folder.id, 'child re-adopted into the restored folder');
+}
+
+console.log('\nempty trash / delete entry / auto-purge:');
+{
+  reset();
+  const a = await store.createCollection('A');
+  const b = await store.createCollection('B');
+  const idA = await store.trashCollection(a.id);
+  await store.trashCollection(b.id);
+  await store.deleteTrashEntry(idA);
+  let data = await store.getData();
+  assert(data.trash.length === 1, 'deleteTrashEntry removes just the one entry');
+  await store.emptyTrash();
+  data = await store.getData();
+  assert(data.trash.length === 0, 'emptyTrash clears everything');
+
+  // Seed a 40-day-old trash entry directly; migrate should drop it on read.
+  const old = Date.now() - 40 * 24 * 60 * 60 * 1000;
+  mem.collectionsData = {
+    version: 3,
+    activeCollectionId: null,
+    collections: [],
+    folders: [],
+    archive: [],
+    trash: [
+      { id: 't-old', kind: 'collection', deletedAt: old, origIndex: 0, collection: { id: 'x', title: 'Old', items: [] } },
+      { id: 't-new', kind: 'collection', deletedAt: Date.now(), origIndex: 0, collection: { id: 'y', title: 'New', items: [] } },
+    ],
+  };
+  data = await store.getData();
+  assert(data.trash.length === 1 && data.trash[0].id === 't-new', 'entries older than 30 days are purged on read');
 }
 
 console.log('');

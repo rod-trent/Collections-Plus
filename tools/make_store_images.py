@@ -7,6 +7,7 @@ from sidepanel/panel.css) onto branded canvases:
   store-assets/screenshot-1-list.png      1280x800
   store-assets/screenshot-2-checklist.png 1280x800
   store-assets/screenshot-3-export.png     1280x800
+  store-assets/screenshot-4-trash.png      1280x800
   store-assets/promo-small-440x280.png     440x280
   store-assets/promo-marquee-1400x560.png  1400x560
 
@@ -30,6 +31,7 @@ DIM = (176, 176, 176)
 FAINT = (138, 138, 138)
 ACCENT = (76, 194, 255)
 ACCENT_STRONG = (15, 108, 189)
+DANGER = (255, 107, 107)
 WHITE = (255, 255, 255)
 COVER_HUES = [(38, 70, 110), (60, 48, 92), (33, 88, 80), (110, 70, 38)]
 
@@ -244,6 +246,54 @@ def draw_detail(pen, x, y, w, menu=False):
             ry += 30
 
 
+def draw_trash(pen, x, y, w):
+    pad = 16
+    cx = x + pad
+    cw = w - pad * 2
+    # topbar: back, title, Empty Trash
+    pen.text(cx, y + 14, "‹", font(22), DIM)
+    pen.text(cx + 26, y + 17, "Trash", font(17, "sb"), TEXT)
+    bw = 96
+    pen.rrect(cx + cw - bw, y + 14, cx + cw, y + 38, 6, outline=BORDER, width=1)
+    pen.text(cx + cw - bw + 11, y + 20, "Empty Trash", font(12, "sb"), DANGER)
+
+    # explanatory note
+    ny = y + 52
+    pen.text(cx, ny, "Items are deleted for good 30 days", font(12), DIM)
+    pen.text(cx, ny + 18, "after they're trashed.", font(12), DIM)
+
+    def bin_row(yy, title, meta, hue=None, folder=False):
+        ch = 70
+        pen.rrect(cx, yy, cx + cw, yy + ch, 8, fill=ELEV, outline=BORDER, width=1)
+        if folder:
+            fx = cx + 14
+            fy = yy + 18
+            pen.rrect(fx, fy + 8, fx + 44, fy + 34, 3, fill=ACCENT_STRONG)  # body
+            pen.rrect(fx, fy, fx + 22, fy + 12, 2, fill=ACCENT_STRONG)      # tab
+        else:
+            cover(pen, cx + 14, yy + 13, 44, hue)
+        tx = cx + 70
+        pen.text(tx, yy + 16, title, font(14, "sb"), TEXT)
+        pen.text(tx, yy + 38, meta, font(12), FAINT)
+        # Restore pill + ✕ delete-forever
+        bw2 = 62
+        rx = cx + cw - 28 - bw2
+        pen.rrect(rx, yy + ch / 2 - 13, rx + bw2, yy + ch / 2 + 13, 6,
+                  fill=ELEV2, outline=BORDER, width=1)
+        pen.text(rx + 10, yy + ch / 2 - 7, "Restore", font(12, "sb"), TEXT)
+        # ✕ (delete forever) drawn as crossed lines — the glyph isn't in Segoe UI
+        ex, ey, es = cx + cw - 16, yy + ch / 2, 5
+        pen.line(ex - es, ey - es, ex + es, ey + es, FAINT, 2)
+        pen.line(ex - es, ey + es, ex + es, ey - es, FAINT, 2)
+        return yy + ch + 10
+
+    yy = ny + 44
+    yy = bin_row(yy, "Old receipts", "6 items · deleted 2d ago", COVER_HUES[3])
+    yy = bin_row(yy, "Q2 research", "2 collections · deleted 5d ago", folder=True)
+    yy = bin_row(yy, "Holiday gift ideas", "9 items · deleted 1w ago", COVER_HUES[1])
+    yy = bin_row(yy, "Bookmarks dump", "21 items · deleted 3w ago", COVER_HUES[2])
+
+
 # ---- Canvas composition ----------------------------------------------------
 
 def screenshot(path, headline, sub, draw_panel):
@@ -336,6 +386,10 @@ def main():
                "Export to Excel,\nMarkdown & more",
                "Real .xlsx with clickable links, plus\nCSV, Markdown, HTML, and JSON.",
                lambda p, x, y, w: draw_detail(p, x, y, w, menu=True))
+    screenshot(os.path.join(OUT, "screenshot-4-trash.png"),
+               "Nothing's gone\nuntil you say so",
+               "Deletes land in a recoverable Trash;\narchive old collections to declutter.",
+               draw_trash)
     promo_small(os.path.join(OUT, "promo-small-440x280.png"))
     marquee(os.path.join(OUT, "promo-marquee-1400x560.png"))
 

@@ -139,6 +139,27 @@ change it:
   the cover.
 - ⋯ → **Remove cover** clears it back to the default.
 
+### Trash & Archive
+
+Two holding areas keep your main list tidy without losing anything. Both are
+reachable from the **📦 Archive** and **🗑 Trash** icons at the top of the panel
+(each shows a small count badge when it has something in it).
+
+- **Trash** is for things you've deleted. The 🗑 button on a collection card —
+  or **⋯ → Move to Trash** inside a collection, or 🗑 on a folder header — moves
+  it to the Trash instead of deleting it outright, with an **Undo** toast. From
+  the Trash view you can **Restore** any entry, **delete one permanently**, or
+  **Empty Trash**. Anything left in the Trash is permanently removed
+  **30 days** after it was deleted.
+- **Archive** is for collections you want out of the way but intact. The 📦
+  button on a card (or **⋯ → Archive collection**) moves a collection to the
+  Archive; nothing there is ever auto-deleted. **Restore** brings it back to the
+  top of your list.
+- Deleting a folder sends it to the Trash too, and **restoring it re-adopts its
+  original collections** (which fall back to the top level while it's trashed).
+- Both Trash and Archive **sync across devices** and are included in JSON
+  backups, just like your collections.
+
 ### Export to Excel (CSV)
 
 - ⋯ (top-right) → **Export to Excel (CSV)** exports *every* collection.

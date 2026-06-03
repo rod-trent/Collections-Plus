@@ -1,6 +1,6 @@
-title: Collections Plus 1.1: It Grew Into a Power Tool (and Still Keeps Your Data on Your Machine)
+title: Collections Plus 1.2: It Grew Into a Power Tool (and Still Keeps Your Data on Your Machine)
 
-subtitle: My open replacement for the retiring Microsoft Edge Collections now has folders, search, checklists, real Excel export, offline image caching, cross-device sync, and a lot more.
+subtitle: My open replacement for the retiring Microsoft Edge Collections now has folders, search, checklists, real Excel export, offline image caching, cross-device sync, a recoverable Trash and Archive, and a lot more.
 
 ---
 
@@ -51,8 +51,12 @@ A collection is often secretly a list or a dataset. Now you can treat it like on
 
 - **Offline image caching** (optional): turn it on and saved images are downscaled and stored *inside* the extension, so they survive the original page going offline. This was the one genuinely fragile thing in the old version; now it's a switch.
 - **Undo:** deleted a collection or item by mistake? The toast has an **Undo** button.
+- **Trash, not gone:** deleting a collection or folder now sends it to a **🗑 Trash** at the top of the panel instead of vaporizing it. Restore anything, delete one for good, or empty the whole bin — and whatever you leave behind is purged automatically after 30 days. (Restore a trashed folder and it even re-adopts the collections it used to hold.)
+- **Archive the clutter:** got collections you don't need underfoot but don't want to delete? **📦 Archive** tucks them out of your main list, fully intact, until you restore them. Nothing in the Archive is ever auto-deleted.
 - **Version history:** Collections Plus quietly keeps recent snapshots you can roll back to from ⋯ → *Version history…*.
 - **JSON backup:** a complete, high-fidelity export whenever you want one.
+
+Trash and Archive ride along with cross-device sync and JSON backups, so they're consistent everywhere your collections are.
 
 ## A couple of nice touches
 

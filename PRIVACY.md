@@ -68,4 +68,4 @@ Any changes will be published in this file in the project's public repository.
 ## Contact
 
 Questions? Open an issue at
-<https://github.com/rod-trent/Collections/issues>.
+<https://github.com/rod-trent/Collections-Plus/issues>.

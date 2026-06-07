@@ -1,6 +1,6 @@
-title: Collections Plus 1.2: It Grew Into a Power Tool (and Still Keeps Your Data on Your Machine)
+title: Collections Plus 1.3: One Click Opens the Whole Collection (and Still Keeps Your Data on Your Machine)
 
-subtitle: My open replacement for the retiring Microsoft Edge Collections now has folders, search, checklists, real Excel export, offline image caching, cross-device sync, a recoverable Trash and Archive, and a lot more.
+subtitle: My open replacement for the retiring Microsoft Edge Collections now opens an entire collection in one click — straight into a named browser tab group — on top of folders, search, checklists, real Excel export, offline image caching, cross-device sync, and a recoverable Trash and Archive.
 
 ---
 
@@ -8,7 +8,18 @@ If you've been following along, you know the backstory: Microsoft is **retiring 
 
 That project is **Collections Plus**, a small, local-first browser extension for Chrome and Edge. No account. No server. No build step. Your data lives in your browser, full stop.
 
-The first release covered the basics plus Excel export, custom covers, and cross-device sync. Since then it's grown into something genuinely more capable than the thing it replaces. Here's the whole tour.
+The first release covered the basics plus Excel export, custom covers, and cross-device sync. Since then it's grown into something genuinely more capable than the thing it replaces — and the newest release finally nails the one thing a collection is *for*: opening it. Here's the whole tour.
+
+## Open a whole collection in one click
+
+A collection exists to be opened. In 1.3 that's a single click.
+
+- Every collection card now has a **▶ Open all pages** button. Click it and every saved page in that collection opens at once — no opening the collection, no hunting through a menu first.
+- Better yet, those pages open **grouped into a browser tab group named after the collection** — exactly like the old Edge Collections did. Your "Trip Planning" collection becomes a tidy, collapsible "Trip Planning" tab group, tucked together and out of the way until you need it.
+
+It's the shortest possible path from "I saved these for later" to "later is now."
+
+And while I was in there, the cards got cleaner. Long collection names now **wrap and show in full** instead of being chopped off with an ellipsis, the per-card buttons stay out of sight until you hover (so the name gets the whole width), and the panel header carries the Collections Plus icon and never clips its title.
 
 ## Find and organize anything
 

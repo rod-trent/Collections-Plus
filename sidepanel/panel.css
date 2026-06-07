@@ -72,6 +72,14 @@ body {
   z-index: 5;
 }
 
+/* Extension icon shown next to the title for branding. */
+.brand-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+}
+
 /* The title is never clipped: it keeps its full width and the action buttons
    wrap to a second row when the panel is too narrow to fit everything. */
 .brand {
@@ -236,7 +244,7 @@ body {
 .card {
   display: flex;
   align-items: stretch;
-  gap: 12px;
+  gap: 8px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -302,9 +310,10 @@ body {
 .card-title {
   font-weight: 600;
   font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Show the full collection name — wrap to as many lines as needed rather
+     than clipping with an ellipsis. Break at spaces; only split a single
+     over-long word (e.g. a URL) when it can't fit on its own line. */
+  overflow-wrap: break-word;
 }
 
 .card-meta {

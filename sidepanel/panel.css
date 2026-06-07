@@ -35,10 +35,10 @@ html,
 body {
   margin: 0;
   height: 100%;
-  /* Keep the panel from opening/resizing so narrow that the title and header
-     actions get clipped. Chrome remembers the user's dragged width, but won't
-     go below this. */
-  min-width: 360px;
+  /* Gentle floor so the panel never opens absurdly narrow. Above this, Chrome
+     remembers whatever width the user drags the panel to. The header itself
+     wraps (see .topbar) so the title stays fully readable at any width. */
+  min-width: 300px;
 }
 
 body {
@@ -62,6 +62,7 @@ body {
 .topbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
@@ -71,14 +72,13 @@ body {
   z-index: 5;
 }
 
+/* The title is never clipped: it keeps its full width and the action buttons
+   wrap to a second row when the panel is too narrow to fit everything. */
 .brand {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 1 1 auto;
   white-space: nowrap;
 }
 

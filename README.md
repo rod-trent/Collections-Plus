@@ -24,6 +24,10 @@ step. Your data stays in your browser.
 
 **Organizing**
 
+- **Open a whole collection in one click:** the **▶** button on a collection
+  card opens every saved page at once, gathered into a named browser **tab
+  group** (the collection's name — the old Edge Collections behavior). Also
+  available via ⋯ → *Open all pages* inside a collection.
 - Free-form **notes**; **drag-and-drop reorder** of both items and collections.
 - **Search** across every collection (titles, URLs, notes, tags).
 - **Folders** to group collections, **pin** favorites to the top, and **tags**

@@ -35,6 +35,10 @@ html,
 body {
   margin: 0;
   height: 100%;
+  /* Keep the panel from opening/resizing so narrow that the title and header
+     actions get clipped. Chrome remembers the user's dragged width, but won't
+     go below this. */
+  min-width: 360px;
 }
 
 body {
@@ -68,7 +72,7 @@ body {
 }
 
 .brand {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   margin: 0;
   flex: 1;
@@ -352,7 +356,8 @@ body {
 .card.pinned .card-pin,
 .card:hover .card-pin,
 .card:hover .card-folder,
-.card:hover .card-archive {
+.card:hover .card-archive,
+.card:hover .card-open {
   opacity: 1;
 }
 
@@ -362,8 +367,8 @@ body {
   background: var(--bg-elev-2);
 }
 
-/* Primary day-to-day action — always visible, unlike the hover-only admin
-   buttons above. */
+/* Open all pages — accent-colored to read as the primary action, but
+   hover-only like the other card buttons. */
 .card-open {
   align-self: center;
   background: none;
@@ -373,12 +378,11 @@ body {
   font-size: 13px;
   padding: 6px;
   border-radius: 5px;
-  opacity: 0.85;
+  opacity: 0;
   transition: opacity 0.12s ease, background 0.12s ease;
 }
 
 .card-open:hover {
-  opacity: 1;
   background: var(--bg-elev-2);
 }
 

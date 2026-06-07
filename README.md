@@ -128,10 +128,29 @@ complete backup.
 
 ## Organizing & exporting
 
+### Open all pages (tab groups)
+
+A collection exists to be opened, so opening one is a single click. Each
+collection card has a **▶** button (it appears when you hover the card) that
+opens **every saved page** in that collection at once. The same action lives
+inside a collection at ⋯ → **Open all pages**.
+
+The opened pages are gathered into a **browser tab group named after the
+collection** — the old Edge Collections behavior — so a whole project opens
+together and stays collapsible and out of the way. If you open a large
+collection (more than 8 pages), it asks for confirmation first. Tab grouping
+needs a Chromium browser with the Tab Groups API (Chrome/Edge have it); where
+it's unavailable, the pages still open as ordinary tabs.
+
 ### Reorder collections and items
 
 Drag the **⠿ handle** on a collection card to reorder your list, and the handle
 on an item to reorder it within a collection. The new order is saved instantly.
+
+Each card's actions (**▶** open, **📁** move to folder, **📦** archive,
+**📍** pin, **🗑** trash) stay hidden until you hover the card, so long
+collection names get the full width and wrap in full instead of being clipped.
+Pinned collections show a small **📌** badge at rest.
 
 ### Custom covers
 

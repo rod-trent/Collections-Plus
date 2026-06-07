@@ -242,6 +242,7 @@ body {
 }
 
 .card {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 8px;
@@ -348,6 +349,41 @@ body {
   color: var(--text);
 }
 
+/* Action buttons live in a hover-only overlay (.card-actions) anchored to the
+   card's right edge, so they no longer reserve horizontal space — the title
+   gets the full card width. A gradient backdrop blends them over the card. */
+.card-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px 0 28px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: linear-gradient(to right, transparent, var(--bg-elev) 32%);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.card:hover .card-actions {
+  opacity: 1;
+}
+
+/* Small "pinned" indicator shown at rest (the pin button is inside the
+   hover-only overlay above). */
+.card-pin-badge {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  z-index: 1;
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .card-pin,
 .card-folder,
 .card-archive {
@@ -358,16 +394,6 @@ body {
   font-size: 14px;
   padding: 6px;
   border-radius: 5px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.card.pinned .card-pin,
-.card:hover .card-pin,
-.card:hover .card-folder,
-.card:hover .card-archive,
-.card:hover .card-open {
-  opacity: 1;
 }
 
 .card-pin:hover,
@@ -376,8 +402,7 @@ body {
   background: var(--bg-elev-2);
 }
 
-/* Open all pages — accent-colored to read as the primary action, but
-   hover-only like the other card buttons. */
+/* Open all pages — accent-colored to read as the primary action. */
 .card-open {
   align-self: center;
   background: none;
@@ -387,8 +412,7 @@ body {
   font-size: 13px;
   padding: 6px;
   border-radius: 5px;
-  opacity: 0;
-  transition: opacity 0.12s ease, background 0.12s ease;
+  transition: background 0.12s ease;
 }
 
 .card-open:hover {
@@ -477,12 +501,6 @@ body {
   font-size: 16px;
   padding: 6px;
   border-radius: 5px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.card:hover .card-del {
-  opacity: 1;
 }
 
 .card-del:hover {

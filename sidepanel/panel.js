@@ -457,6 +457,12 @@ function buildCard(c) {
         .join('')}</div>`
     : '';
 
+  // Pinned state is shown as a small badge at rest (the pin button itself lives
+  // in the hover-only actions overlay, which is hidden until you hover).
+  const pinBadge = c.pinned
+    ? `<span class="card-pin-badge" title="Pinned" aria-hidden="true">📌</span>`
+    : '';
+
   card.innerHTML = `
     <span class="card-handle" title="Drag to reorder">⠿</span>
     ${coverInner}
@@ -465,11 +471,14 @@ function buildCard(c) {
       <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}</div>
       ${tagsHtml}
     </div>
-    <button class="card-open" title="Open all pages">▶</button>
-    <button class="card-folder" title="Move to folder">📁</button>
-    <button class="card-archive" title="Archive collection">📦</button>
-    <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
-    <button class="card-del" title="Move to Trash">🗑</button>
+    ${pinBadge}
+    <div class="card-actions">
+      <button class="card-open" title="Open all pages">▶</button>
+      <button class="card-folder" title="Move to folder">📁</button>
+      <button class="card-archive" title="Archive collection">📦</button>
+      <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
+      <button class="card-del" title="Move to Trash">🗑</button>
+    </div>
   `;
 
   card.addEventListener('click', (e) => {

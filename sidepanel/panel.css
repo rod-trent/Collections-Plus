@@ -362,6 +362,26 @@ body {
   background: var(--bg-elev-2);
 }
 
+/* Primary day-to-day action — always visible, unlike the hover-only admin
+   buttons above. */
+.card-open {
+  align-self: center;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px;
+  border-radius: 5px;
+  opacity: 0.85;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+
+.card-open:hover {
+  opacity: 1;
+  background: var(--bg-elev-2);
+}
+
 /* ---- Folders ---- */
 .folder-header {
   display: flex;

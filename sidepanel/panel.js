@@ -404,6 +404,44 @@ function matchesQuery(c) {
 const pinnedFirst = (arr) =>
   [...arr].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
+// Open every page in a collection in new background tabs, grouped under a
+// tab group named after the collection (like the old Edge Collections).
+async function openAllPages(c) {
+  const pages = c.items.filter((i) => i.type === 'page');
+  if (!pages.length) {
+    toast('No pages to open');
+    return;
+  }
+  if (
+    pages.length > 8 &&
+    !(await showConfirm(`Open all ${pages.length} pages in new tabs?`, { okLabel: 'Open all' }))
+  )
+    return;
+
+  const tabIds = [];
+  for (const p of pages) {
+    try {
+      const tab = await chrome.tabs.create({ url: p.url, active: false });
+      if (tab?.id != null) tabIds.push(tab.id);
+    } catch (e) {
+      /* skip a page that fails to open; keep going with the rest */
+    }
+  }
+
+  // Group the freshly opened tabs and label the group with the collection name.
+  // Falls back gracefully if the Tab Groups API is unavailable.
+  try {
+    if (tabIds.length && chrome.tabs.group) {
+      const groupId = await chrome.tabs.group({ tabIds });
+      if (chrome.tabGroups?.update) {
+        await chrome.tabGroups.update(groupId, { title: c.title });
+      }
+    }
+  } catch (e) {
+    /* grouping unsupported or failed — the tabs are still open */
+  }
+}
+
 function buildCard(c) {
   const card = document.createElement('div');
   card.className = 'card' + (c.pinned ? ' pinned' : '');
@@ -427,6 +465,7 @@ function buildCard(c) {
       <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}</div>
       ${tagsHtml}
     </div>
+    <button class="card-open" title="Open all pages">▶</button>
     <button class="card-folder" title="Move to folder">📁</button>
     <button class="card-archive" title="Archive collection">📦</button>
     <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
@@ -439,11 +478,16 @@ function buildCard(c) {
       e.target.closest('.card-pin') ||
       e.target.closest('.card-folder') ||
       e.target.closest('.card-archive') ||
+      e.target.closest('.card-open') ||
       e.target.closest('.card-handle')
     )
       return;
     if (card.dataset.dragged) return; // a drag just finished; don't open
     open(c.id);
+  });
+  card.querySelector('.card-open').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await openAllPages(c);
   });
   card.querySelector('.card-archive').addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -1557,10 +1601,7 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   if (!c) return;
 
   if (action === 'open-all') {
-    const pages = c.items.filter((i) => i.type === 'page');
-    if (!pages.length) return toast('No pages to open');
-    if (pages.length > 8 && !(await showConfirm(`Open all ${pages.length} pages in new tabs?`, { okLabel: 'Open all' }))) return;
-    pages.forEach((p) => chrome.tabs.create({ url: p.url, active: false }));
+    await openAllPages(c);
   }
   if (action === 'add-note') {
     await addItem(openId, { type: 'note', text: '' });

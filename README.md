@@ -317,15 +317,6 @@ fixtures/            sample Edge CSV for testing the importer
   npm run package     # → dist/collections-plus-<version>.zip
   ```
 
-## Publishing
-
-To submit to the Chrome Web Store or Edge Add-ons, run `npm run package` to build
-the upload ZIP and `npm run images` to generate the listing graphics into
-`store-assets/`. The extension's [privacy policy](PRIVACY.md) is local-first:
-nothing is collected or transmitted. (The local-only submission notes, with
-listing copy and per-permission justifications, live in
-`docs/CHROME_WEB_STORE.md`, which is gitignored.)
-
 ## License
 
 [MIT](LICENSE) © Rod Trent. Use it, fork it, improve it.

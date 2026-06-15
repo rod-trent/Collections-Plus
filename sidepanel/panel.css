@@ -671,6 +671,15 @@ body {
   overflow: hidden;
 }
 
+/* Favicon fallback (no captured thumbnail). The source icon is low-res, so we
+   cap it well under the 64px box to stay crisp while still reading clearly —
+   much larger than the old 18px. */
+.item-favicon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
 .item-body {
   flex: 1;
   min-width: 0;

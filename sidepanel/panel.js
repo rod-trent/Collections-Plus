@@ -792,7 +792,7 @@ function renderItem(collectionId, item) {
     thumbHtml = item.thumbnail
       ? `<div class="item-thumb" style="background-image:url('${encodeURI(item.thumbnail)}')"></div>`
       : `<div class="item-thumb">${
-          fav ? `<img src="${encodeURI(fav)}" width="18" height="18" alt="" />` : '🔗'
+          fav ? `<img class="item-favicon" src="${encodeURI(fav)}" alt="" />` : '🔗'
         }</div>`;
     bodyHtml = `
       <div class="item-title"><a href="${encodeURI(

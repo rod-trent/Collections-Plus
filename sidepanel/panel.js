@@ -829,8 +829,10 @@ function renderItem(collectionId, item) {
 
   row.innerHTML = `
     <span class="drag-handle" title="Drag to reorder">⠿</span>
-    <input type="checkbox" class="item-check" ${item.done ? 'checked' : ''} title="Mark done" />
-    ${thumbHtml}
+    <div class="item-media">
+      ${thumbHtml}
+      <input type="checkbox" class="item-check" ${item.done ? 'checked' : ''} title="Mark done" />
+    </div>
     <div class="item-body">${bodyHtml}${fieldsHtml}</div>
     <div class="item-actions">
       ${coverBtnHtml}

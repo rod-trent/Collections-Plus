@@ -48,6 +48,14 @@ import { buildXlsx } from '../lib/xlsx.js';
 import { toMarkdown, toHtml, toLinkList } from '../lib/render.js';
 import { fileToCover, srcToCover } from '../lib/image.js';
 import * as sync from '../lib/sync.js';
+import {
+  AI_PROVIDERS,
+  getAiConfig,
+  setAiConfig,
+  isConfigured,
+  buildSystemPrompt,
+  chat as aiChat,
+} from '../lib/ai.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -60,6 +68,9 @@ const els = {
   searchbar: $('#searchbar'),
   searchInput: $('#search-input'),
   items: $('#items'),
+  itemFilterbar: $('#item-filterbar'),
+  itemFilterInput: $('#item-filter-input'),
+  detailNoResults: $('#detail-no-results'),
   detailEmpty: $('#detail-empty'),
   detailTitle: $('#detail-title'),
   detailCover: $('#detail-cover'),
@@ -74,6 +85,25 @@ const els = {
   binEmpty: $('#bin-empty'),
   binEmptySub: $('#bin-empty-sub'),
   emptyTrashBtn: $('#empty-trash-btn'),
+  // AI settings
+  settingsView: $('#settings-view'),
+  aiProvider: $('#ai-provider'),
+  aiBaseUrl: $('#ai-base-url'),
+  aiModel: $('#ai-model'),
+  aiKey: $('#ai-key'),
+  aiKeyField: $('#ai-key-field'),
+  aiAuth: $('#ai-auth'),
+  aiAuthField: $('#ai-auth-field'),
+  aiStatus: $('#ai-status'),
+  // AI chat
+  chatView: $('#chat-view'),
+  chatTitle: $('#chat-title'),
+  chatScope: $('#chat-scope'),
+  chatMessages: $('#chat-messages'),
+  chatUnconfigured: $('#chat-unconfigured'),
+  chatForm: $('#chat-form'),
+  chatText: $('#chat-text'),
+  chatSend: $('#chat-send'),
 };
 
 // View state: which collection (if any) is open, and how the file input is used.
@@ -81,6 +111,11 @@ let openId = null;
 let binMode = null; // 'trash' | 'archive' | null — which holding area is open
 let fileMode = null; // 'csv' | 'json' | 'cover'
 let query = ''; // current list-view search text (lower-cased)
+let itemFilter = ''; // current in-collection item filter (lower-cased)
+let aiMode = null; // 'settings' | 'chat' | null
+let chatScope = { type: 'all' }; // { type:'all' } | { type:'collection', id }
+let chatHistory = []; // [{ role:'user'|'assistant'|'error', content }]
+let chatBusy = false;
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -374,6 +409,19 @@ document.addEventListener('click', (e) => {
 async function render() {
   const data = await getData();
   updateBinBadges(data);
+  if (aiMode === 'settings') {
+    showOnly(els.settingsView);
+    renderSettings();
+    return;
+  }
+  if (aiMode === 'chat') {
+    showOnly(els.chatView);
+    await refreshAiConfigCache();
+    renderChat(data);
+    return;
+  }
+  els.settingsView.hidden = true;
+  els.chatView.hidden = true;
   if (binMode) {
     renderBin(data);
     return;
@@ -387,18 +435,38 @@ async function render() {
   }
 }
 
+/** Human-readable name for an item, used in match previews. */
+function itemDisplayName(it) {
+  if (it.type === 'note') return (it.text || '').trim().slice(0, 80) || 'Note';
+  if (it.type === 'image') return it.alt || 'Image';
+  return it.title || it.url || 'Untitled';
+}
+
+/** Lower-cased searchable text for one item (title, url, note, custom fields…). */
+function itemHaystack(it) {
+  const fieldText =
+    it.fields && typeof it.fields === 'object'
+      ? Object.entries(it.fields)
+          .map(([k, v]) => `${k} ${v}`)
+          .join(' ')
+      : '';
+  return [it.title, it.url, it.text, it.alt, it.note, it.srcPageUrl, fieldText]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+/** Items in a collection that match a (lower-cased) query string. */
+function matchingItems(c, q) {
+  return (c.items || []).filter((it) => itemHaystack(it).includes(q));
+}
+
 /** Does a collection match the current search query? (title, tags, item text) */
 function matchesQuery(c) {
   if (!query) return true;
-  if (c.title.toLowerCase().includes(query)) return true;
+  if ((c.title || '').toLowerCase().includes(query)) return true;
   if ((c.tags || []).some((t) => t.toLowerCase().includes(query))) return true;
-  return c.items.some((it) => {
-    const hay = [it.title, it.url, it.text, it.alt, it.note, it.srcPageUrl]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-    return hay.includes(query);
-  });
+  return matchingItems(c, query).length > 0;
 }
 
 const pinnedFirst = (arr) =>
@@ -463,12 +531,27 @@ function buildCard(c) {
     ? `<span class="card-pin-badge" title="Pinned" aria-hidden="true">📌</span>`
     : '';
 
+  // While searching, preview which items inside this collection matched, so the
+  // result is obviously useful (and confirms the search reached item contents).
+  let matchHtml = '';
+  if (query) {
+    const m = matchingItems(c, query);
+    if (m.length) {
+      const shown = m.slice(0, 3).map((it) => escapeHtml(itemDisplayName(it)));
+      const extra = m.length > 3 ? ` +${m.length - 3} more` : '';
+      matchHtml = `<div class="card-matches" title="Items matching your search">↳ ${shown.join(
+        ' · '
+      )}${extra}</div>`;
+    }
+  }
+
   card.innerHTML = `
     <span class="card-handle" title="Drag to reorder">⠿</span>
     ${coverInner}
     <div class="card-body">
       <div class="card-title">${escapeHtml(c.title)}</div>
       <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}</div>
+      ${matchHtml}
       ${tagsHtml}
     </div>
     ${pinBadge}
@@ -754,11 +837,18 @@ function renderDetail(c) {
     els.detailCover.textContent = '🗂️';
     els.coverRemoveBtn.hidden = true;
   }
+  // Show the item filter only once a collection has enough items to warrant it.
+  els.itemFilterbar.hidden = c.items.length < 2;
+  if (els.itemFilterbar.hidden) itemFilter = '';
+
+  const visible = itemFilter ? matchingItems(c, itemFilter) : c.items;
+
   els.detailEmpty.hidden = c.items.length > 0;
-  els.items.hidden = c.items.length === 0;
+  els.detailNoResults.hidden = !(c.items.length > 0 && itemFilter && visible.length === 0);
+  els.items.hidden = visible.length === 0;
   els.items.innerHTML = '';
 
-  for (const item of c.items) {
+  for (const item of visible) {
     els.items.appendChild(renderItem(c.id, item));
   }
 }
@@ -947,11 +1037,19 @@ function wireDrag(row, collectionId) {
 async function open(id) {
   binMode = null;
   openId = id;
+  itemFilter = '';
+  if (els.itemFilterInput) els.itemFilterInput.value = '';
   await setActive(id);
   render();
 }
 
 function back() {
+  // From an AI view, go back to wherever the user was (a collection or the list).
+  if (aiMode) {
+    aiMode = null;
+    render();
+    return;
+  }
   openId = null;
   binMode = null;
   render();
@@ -960,7 +1058,222 @@ function back() {
 function openBin(mode) {
   binMode = mode;
   openId = null;
+  aiMode = null;
   render();
+}
+
+// ---- AI: settings + chat ---------------------------------------------------
+
+/** Hide every top-level view, then reveal just `view`. */
+function showOnly(view) {
+  for (const v of [els.listView, els.detailView, els.binView, els.settingsView, els.chatView]) {
+    if (v) v.hidden = v !== view;
+  }
+}
+
+function openSettings() {
+  aiMode = 'settings';
+  render();
+}
+
+function openChat(scope) {
+  aiMode = 'chat';
+  // Reset the conversation whenever the scope changes; keep it otherwise.
+  if (!scope || scope.type !== chatScope.type || scope.id !== chatScope.id) {
+    chatHistory = [];
+  }
+  chatScope = scope || { type: 'all' };
+  render();
+}
+
+let aiStatusTimer;
+function aiStatus(msg, kind = 'info') {
+  els.aiStatus.textContent = msg;
+  els.aiStatus.className = `settings-status ${kind}`;
+  els.aiStatus.hidden = !msg;
+}
+
+// Populate the provider <select> once.
+function ensureProviderOptions() {
+  if (els.aiProvider.options.length) return;
+  for (const [key, p] of Object.entries(AI_PROVIDERS)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = p.label;
+    els.aiProvider.appendChild(opt);
+  }
+}
+
+// Show the auth-scheme picker only for OpenAI-compatible providers (where it
+// varies — Azure uses an api-key header, others use a bearer token).
+function refreshAuthVisibility() {
+  const preset = AI_PROVIDERS[els.aiProvider.value] || {};
+  els.aiAuthField.hidden = preset.kind !== 'openai';
+  els.aiKeyField.hidden = !!preset.noKey;
+}
+
+async function renderSettings() {
+  ensureProviderOptions();
+  const cfg = await getAiConfig();
+  const preset = AI_PROVIDERS[cfg.provider] || AI_PROVIDERS.anthropic;
+  els.aiProvider.value = cfg.provider;
+  els.aiBaseUrl.value = cfg.baseUrl || '';
+  els.aiBaseUrl.placeholder = preset.baseHint || preset.baseUrl || '';
+  els.aiModel.value = cfg.model || '';
+  els.aiModel.placeholder = preset.model || '';
+  els.aiKey.value = cfg.apiKey || '';
+  els.aiKey.placeholder = preset.keyHint || '';
+  els.aiAuth.value = cfg.auth || preset.auth || 'bearer';
+  refreshAuthVisibility();
+  aiStatus('');
+}
+
+// When the provider changes, swap in that preset's defaults so the user starts
+// from a working base URL / model instead of stale values from another provider.
+function onProviderChange() {
+  const preset = AI_PROVIDERS[els.aiProvider.value] || {};
+  els.aiBaseUrl.value = preset.baseUrl || '';
+  els.aiBaseUrl.placeholder = preset.baseHint || preset.baseUrl || '';
+  els.aiModel.value = preset.model || '';
+  els.aiModel.placeholder = preset.model || '';
+  els.aiKey.placeholder = preset.keyHint || '';
+  els.aiAuth.value = preset.auth || 'bearer';
+  refreshAuthVisibility();
+}
+
+function collectAiConfigFromForm() {
+  return {
+    provider: els.aiProvider.value,
+    baseUrl: els.aiBaseUrl.value.trim(),
+    model: els.aiModel.value.trim(),
+    apiKey: els.aiKey.value.trim(),
+    auth: els.aiAuth.value,
+  };
+}
+
+async function saveAiSettings() {
+  await setAiConfig(collectAiConfigFromForm());
+  aiStatus('Saved.', 'ok');
+  toast('AI settings saved');
+}
+
+async function testAiConnection() {
+  const cfg = collectAiConfigFromForm();
+  if (!isConfigured(cfg)) {
+    aiStatus('Fill in the base URL, model and API key first.', 'error');
+    return;
+  }
+  await setAiConfig(cfg); // persist what we're testing
+  aiStatus('Testing…', 'info');
+  try {
+    const reply = await aiChat({
+      config: cfg,
+      system: 'You are a connection test. Reply with the single word: OK.',
+      messages: [{ role: 'user', content: 'Reply with OK.' }],
+    });
+    aiStatus(`Connection OK — model replied: ${reply.trim().slice(0, 60)}`, 'ok');
+  } catch (err) {
+    aiStatus(err.message || 'Connection failed.', 'error');
+  }
+}
+
+async function clearAiKey() {
+  els.aiKey.value = '';
+  await setAiConfig({ apiKey: '' });
+  aiStatus('API key cleared.', 'ok');
+}
+
+function chatScopeLabel(data) {
+  if (chatScope.type === 'collection') {
+    const c = data.collections.find((x) => x.id === chatScope.id);
+    return c ? c.title : 'collection';
+  }
+  return 'all collections';
+}
+
+function renderChat(data) {
+  const configured = isConfigured(lastAiConfig); // lastAiConfig refreshed by render()
+  const scopeName = chatScopeLabel(data);
+  els.chatTitle.textContent =
+    chatScope.type === 'collection' ? 'Chat · ' + scopeName : 'AI Chat';
+  els.chatScope.textContent = `Context: ${scopeName}`;
+
+  els.chatUnconfigured.hidden = configured;
+  els.chatForm.hidden = !configured;
+  els.chatMessages.hidden = !configured;
+
+  els.chatMessages.innerHTML = '';
+  if (!chatHistory.length && configured) {
+    const hint = document.createElement('div');
+    hint.className = 'chat-hint';
+    hint.textContent =
+      'Ask anything about your saved items — summaries, reports, comparisons, “what did I save about X?”';
+    els.chatMessages.appendChild(hint);
+  }
+  for (const m of chatHistory) {
+    const row = document.createElement('div');
+    row.className = `chat-msg chat-${m.role}`;
+    row.textContent = m.content;
+    els.chatMessages.appendChild(row);
+  }
+  if (chatBusy) {
+    const row = document.createElement('div');
+    row.className = 'chat-msg chat-assistant chat-pending';
+    row.textContent = 'Thinking…';
+    els.chatMessages.appendChild(row);
+  }
+  els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+  els.chatSend.disabled = chatBusy;
+}
+
+// Cached config so renderChat (sync) can reflect configured-state; refreshed
+// before every chat render and after settings changes.
+let lastAiConfig = {};
+async function refreshAiConfigCache() {
+  lastAiConfig = await getAiConfig();
+}
+
+async function sendChatMessage() {
+  const text = els.chatText.value.trim();
+  if (!text || chatBusy) return;
+  const cfg = await getAiConfig();
+  if (!isConfigured(cfg)) {
+    openSettings();
+    return;
+  }
+
+  const data = await getData();
+  const collections =
+    chatScope.type === 'collection'
+      ? data.collections.filter((c) => c.id === chatScope.id)
+      : data.collections;
+  if (!collections.length) {
+    toast('No collection data to chat about');
+    return;
+  }
+  const system = buildSystemPrompt(collections, { scopeLabel: chatScopeLabel(data) });
+
+  chatHistory.push({ role: 'user', content: text });
+  els.chatText.value = '';
+  chatBusy = true;
+  renderChat(data);
+
+  try {
+    const reply = await aiChat({
+      config: cfg,
+      system,
+      // Only forward real turns (skip any prior error rows) as conversation.
+      messages: chatHistory
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({ role: m.role, content: m.content })),
+    });
+    chatHistory.push({ role: 'assistant', content: reply });
+  } catch (err) {
+    chatHistory.push({ role: 'error', content: err.message || 'The AI request failed.' });
+  } finally {
+    chatBusy = false;
+    renderChat(await getData());
+  }
 }
 
 // ---- Delete / archive with undo --------------------------------------------
@@ -1482,6 +1795,11 @@ els.searchInput.addEventListener('input', () => {
   render();
 });
 
+els.itemFilterInput.addEventListener('input', () => {
+  itemFilter = els.itemFilterInput.value.trim().toLowerCase();
+  render();
+});
+
 $('#new-folder-btn').addEventListener('click', async () => {
   const name = ((await showPrompt('New folder name:')) || '').trim();
   if (name) await createFolder(name);
@@ -1544,6 +1862,8 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     applyTheme(theme);
   }
   if (action === 'history') openHistoryMenu();
+  if (action === 'ai-chat') openChat({ type: 'all' });
+  if (action === 'ai-settings') openSettings();
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();
   if (action === 'sync-resume') resumeSync();
@@ -1565,6 +1885,33 @@ els.listEmpty.addEventListener('click', async (e) => {
 $('#open-archive-btn').addEventListener('click', () => openBin('archive'));
 $('#open-trash-btn').addEventListener('click', () => openBin('trash'));
 $('#bin-back-btn').addEventListener('click', back);
+
+// AI settings view
+$('#settings-back-btn').addEventListener('click', back);
+els.aiProvider.addEventListener('change', onProviderChange);
+$('#ai-save-btn').addEventListener('click', saveAiSettings);
+$('#ai-test-btn').addEventListener('click', testAiConnection);
+$('#ai-clear-btn').addEventListener('click', clearAiKey);
+
+// AI chat view
+$('#chat-back-btn').addEventListener('click', back);
+$('#chat-settings-btn').addEventListener('click', openSettings);
+$('#chat-go-settings').addEventListener('click', openSettings);
+$('#chat-clear-btn').addEventListener('click', () => {
+  chatHistory = [];
+  render();
+});
+els.chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  sendChatMessage();
+});
+// Enter sends; Shift+Enter inserts a newline.
+els.chatText.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+});
 els.emptyTrashBtn.addEventListener('click', async () => {
   const data = await getData();
   const n = (data.trash || []).length;
@@ -1634,6 +1981,9 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'copy-links') {
     await doCopyLinks(openId);
+  }
+  if (action === 'chat-collection') {
+    openChat({ type: 'collection', id: openId });
   }
   if (action === 'edit-tags') {
     const current = (c.tags || []).join(', ');

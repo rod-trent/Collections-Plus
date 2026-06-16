@@ -34,6 +34,9 @@
               <button data-action="import-csv">Import Edge CSV…</button>
               <button data-action="import-json">Import backup (JSON)…</button>
               <div class="menu-sep"></div>
+              <button data-action="ai-chat">Chat with collections (AI)…</button>
+              <button data-action="ai-settings">AI settings…</button>
+              <div class="menu-sep"></div>
               <button data-action="toggle-cache" id="toggle-cache-btn">Cache images offline: Off</button>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
               <button data-action="history">Version history…</button>
@@ -93,6 +96,8 @@
             <button data-action="add-note">Add a note</button>
             <button data-action="add-all-tabs">Add all open tabs</button>
             <div class="menu-sep"></div>
+            <button data-action="chat-collection">Chat about this collection (AI)…</button>
+            <div class="menu-sep"></div>
             <button data-action="export-collection-xlsx">Export to Excel (.xlsx)</button>
             <button data-action="export-collection-csv">Export as CSV</button>
             <button data-action="export-collection-md">Export as Markdown</button>
@@ -119,7 +124,23 @@
         <button id="add-current-btn" class="btn primary wide">＋ Add current page</button>
       </div>
 
+      <div id="item-filterbar" class="searchbar" hidden>
+        <input
+          id="item-filter-input"
+          type="search"
+          class="search-input"
+          placeholder="Filter items in this collection…"
+          aria-label="Filter items in this collection"
+        />
+      </div>
+
       <div id="items" class="items" role="list"></div>
+
+      <div id="detail-no-results" class="empty" hidden>
+        <div class="empty-art">🔍</div>
+        <p class="empty-title">No matching items</p>
+        <p class="empty-sub">Nothing in this collection matches your filter.</p>
+      </div>
 
       <div id="detail-empty" class="empty" hidden>
         <div class="empty-art">📑</div>
@@ -151,6 +172,86 @@
         <p class="empty-title">Nothing here</p>
         <p class="empty-sub" id="bin-empty-sub"></p>
       </div>
+    </section>
+
+    <!-- ===== AI settings view ===== -->
+    <section id="settings-view" class="view" hidden>
+      <header class="topbar">
+        <button id="settings-back-btn" class="btn icon" title="Back">‹</button>
+        <h1 class="brand">AI settings</h1>
+      </header>
+
+      <div class="settings-form">
+        <p class="settings-note">
+          Connect a generative-AI provider to chat with your collections. Your key
+          is stored locally in this browser only — it is never synced or exported.
+        </p>
+
+        <label class="field">
+          <span class="field-label">Provider</span>
+          <select id="ai-provider" class="settings-input"></select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">API base URL</span>
+          <input id="ai-base-url" class="settings-input" type="url" autocomplete="off" spellcheck="false" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Model</span>
+          <input id="ai-model" class="settings-input" type="text" autocomplete="off" spellcheck="false" />
+        </label>
+
+        <label class="field" id="ai-key-field">
+          <span class="field-label">API key</span>
+          <input id="ai-key" class="settings-input" type="password" autocomplete="off" spellcheck="false" />
+        </label>
+
+        <label class="field" id="ai-auth-field" hidden>
+          <span class="field-label">Authentication</span>
+          <select id="ai-auth" class="settings-input">
+            <option value="bearer">Bearer token (Authorization header)</option>
+            <option value="api-key">API key header (Azure-style)</option>
+          </select>
+        </label>
+
+        <div class="settings-actions">
+          <button id="ai-save-btn" class="btn primary">Save</button>
+          <button id="ai-test-btn" class="btn">Test connection</button>
+          <button id="ai-clear-btn" class="btn danger">Clear key</button>
+        </div>
+        <div id="ai-status" class="settings-status" hidden></div>
+      </div>
+    </section>
+
+    <!-- ===== AI chat view ===== -->
+    <section id="chat-view" class="view" hidden>
+      <header class="topbar">
+        <button id="chat-back-btn" class="btn icon" title="Back">‹</button>
+        <h1 id="chat-title" class="brand">AI Chat</h1>
+        <div class="topbar-actions">
+          <button id="chat-settings-btn" class="btn icon" title="AI settings">⚙</button>
+          <button id="chat-clear-btn" class="btn icon" title="Clear conversation">🧹</button>
+        </div>
+      </header>
+
+      <div id="chat-scope" class="chat-scope"></div>
+
+      <div id="chat-messages" class="chat-messages"></div>
+
+      <div id="chat-unconfigured" class="empty" hidden>
+        <div class="empty-art">🤖</div>
+        <p class="empty-title">No AI provider yet</p>
+        <p class="empty-sub">Add a provider and API key to start chatting with your collections.</p>
+        <div class="empty-actions">
+          <button class="btn primary" id="chat-go-settings">Open AI settings</button>
+        </div>
+      </div>
+
+      <form id="chat-form" class="chat-input">
+        <textarea id="chat-text" rows="2" placeholder="Ask about your collections… (e.g. “summarize this”)"></textarea>
+        <button id="chat-send" class="btn primary" type="submit">Send</button>
+      </form>
     </section>
 
     <!-- Hidden file input reused for both JSON and CSV imports -->

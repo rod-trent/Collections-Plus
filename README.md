@@ -29,7 +29,9 @@ step. Your data stays in your browser.
   group** (the collection's name — the old Edge Collections behavior). Also
   available via ⋯ → *Open all pages* inside a collection.
 - Free-form **notes**; **drag-and-drop reorder** of both items and collections.
-- **Search** across every collection (titles, URLs, notes, tags).
+- **Search** across every collection (titles, URLs, notes, tags, and custom
+  fields); results show which items matched, and an open collection gets its own
+  **filter box** to narrow its items instantly.
 - **Folders** to group collections, **pin** favorites to the top, and **tags**
   (click a tag to filter).
 - **Checkboxes** turn any collection into a checklist; **custom fields**
@@ -55,6 +57,19 @@ step. Your data stays in your browser.
 - **Optional offline image caching** so saved images survive link rot.
 - **Optional cross-device sync** through a single file you keep in any
   cloud-synced folder (see [Syncing across devices](#syncing-across-devices)).
+
+**Ask your collections (optional AI)**
+
+- **Chat with your saved data.** Connect **your own** generative-AI key and ask
+  for summaries, reports, comparisons, or "what did I save about X?" — answered
+  from the collections you saved.
+- **Bring any provider:** Claude (Anthropic), OpenAI, Grok (xAI), Gemini
+  (Google), Azure AI Foundry, or a local **Ollama** model. Scope the chat to a
+  single collection or all of them.
+- **Your key stays local** (`chrome.storage.local`), is **never synced or
+  exported**, and the whole feature is **off until you set it up**. See
+  [Ask your collections](#ask-your-collections-ai) and the
+  [Privacy Policy](PRIVACY.md).
 
 ## Browser support
 
@@ -196,6 +211,49 @@ with columns **Collection, Type, Title, URL, Note, Added**. It's a UTF-8 CSV
 shopping lists, research sources, or anything you want to sort, filter, or total
 in a spreadsheet.
 
+## Ask your collections (AI)
+
+Collections Plus can chat with your saved data using a generative-AI provider
+**you** bring. It's optional, **off until you set it up**, and uses **your own
+API key** — there's no shared service and no developer-run backend.
+
+**Set it up:**
+
+> ⋯ (top-right) → **AI settings…** → pick a provider, paste your API key, and
+> (optionally) adjust the base URL or model → **Save**. Use **Test connection**
+> to confirm it works.
+
+Supported providers (pick whichever you already have):
+
+| Provider | Notes |
+|---|---|
+| **Claude (Anthropic)** | Defaults to a current Claude model. |
+| **OpenAI** | Standard `chat/completions` API. |
+| **Grok (xAI)** | OpenAI-compatible. |
+| **Gemini (Google)** | Google Generative Language API. |
+| **Azure AI Foundry** | Set your resource base URL; uses an `api-key` header. |
+| **Ollama (local)** | Runs against `http://localhost:11434` — no key needed. |
+| **Other (OpenAI-compatible)** | Any endpoint that speaks the OpenAI chat API. |
+
+**Chat:**
+
+> ⋯ → **Chat with collections (AI)…** for all collections, or inside a
+> collection ⋯ → **Chat about this collection (AI)…** to scope the context to
+> just that one.
+
+When you send a message, the extension builds a snapshot of the in-scope
+collection(s) — titles, URLs, notes, tags and custom fields — and sends it,
+along with your message, **straight from your browser to the provider you
+chose**. Ask for summaries, reports, comparisons, or to find what you saved.
+Replies are rendered as formatted text.
+
+**What stays private:** your **API key is stored locally** and is **never synced
+and never written into exports or backups**. The developer never sees your key,
+your messages, or your collections. The data you send goes to your selected AI
+provider and is handled under **that provider's** privacy policy and terms —
+review them before enabling this. Nothing is sent anywhere until you actively
+send a chat message. Full details in the [Privacy Policy](PRIVACY.md).
+
 ## Syncing across devices
 
 Sync is **optional and provider-agnostic**: there's no account and no API keys.
@@ -279,8 +337,11 @@ Nothing is sent to us or any server; the optional sync file lives in a folder
 thumbnails are stored as references to their original URLs (not copied), so they
 display as long as the source stays online; **uploaded covers**, **captured
 screenshots**, and **cached images** are downscaled and stored inline so they
-always render. Offline image caching and cross-device sync are both **off until
-you turn them on**.
+always render. Offline image caching, cross-device sync, and the AI chat are all
+**off until you turn them on**. The AI chat is the only feature that can send your
+collection contents off-device, and only to the provider whose key **you**
+entered — your key is stored locally and never synced or exported. See the
+[Privacy Policy](PRIVACY.md) for the full breakdown.
 
 ## Project layout
 
@@ -292,6 +353,7 @@ lib/store.js         data layer (chrome.storage.local), schema, settings, histor
 lib/csv.js           tolerant CSV parser + Edge-export mapper (pure, testable)
 lib/export.js        collections → CSV + .xlsx sheet structures (pure, testable)
 lib/render.js        collections → Markdown / HTML / link list (pure, testable)
+lib/ai.js            generative-AI provider adapters + context builder (pure parts testable)
 lib/xlsx.js          dependency-free .xlsx writer (pure, testable)
 lib/image.js         downscale a file/URL/screenshot into a small data URL
 lib/sync.js          optional synced-file sync (File System Access API)
@@ -324,5 +386,6 @@ fixtures/            sample Edge CSV for testing the importer
 ## Roadmap ideas
 
 - Bulk multi-select of items (move/copy/delete several at once).
-- Full-text search ranking and per-collection search.
+- Full-text search ranking.
+- Streaming AI replies and saving a chat result straight into a collection.
 - An Edge Add-ons listing (already live on the Chrome Web Store).

@@ -3,6 +3,18 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 1.5.0
+
+Two big additions. **Search got smarter:** it now looks inside custom fields too,
+each result shows which items matched, and opening a collection gives you a new
+filter box to narrow down its items instantly. **And Collections Plus can now
+chat with your collections** — connect your own generative-AI key (Claude,
+OpenAI, Grok, Gemini, Azure AI Foundry, or a local Ollama model) and ask for
+summaries, reports, or "what did I save about X?" across all your collections or
+just one. Your API key is stored locally and never synced; the chat is entirely
+optional and off until you set it up. Replies come back as cleanly formatted
+text. As always — keep the feedback coming!
+
 ## 1.4.0
 
 Item thumbnails are now much larger — matched to the size of the collection

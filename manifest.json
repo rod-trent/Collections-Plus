@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Collections Plus",
-  "version": "1.4.0",
-  "description": "Save pages, images and notes into organized collections — an open replacement for the retired Microsoft Edge Collections.",
+  "version": "1.5.0",
+  "description": "Save pages, images & notes into organized collections — now with smarter search and an optional AI chat over your data.",
   "minimum_chrome_version": "114",
   "homepage_url": "https://github.com/rod-trent/Collections-Plus",
   "permissions": [

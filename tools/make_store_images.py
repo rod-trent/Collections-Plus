@@ -8,6 +8,7 @@ from sidepanel/panel.css) onto branded canvases:
   store-assets/screenshot-2-checklist.png 1280x800
   store-assets/screenshot-3-export.png     1280x800
   store-assets/screenshot-4-trash.png      1280x800
+  store-assets/screenshot-5-ai.png         1280x800
   store-assets/promo-small-440x280.png     440x280
   store-assets/promo-marquee-1400x560.png  1400x560
 
@@ -294,6 +295,71 @@ def draw_trash(pen, x, y, w):
     yy = bin_row(yy, "Bookmarks dump", "21 items · deleted 3w ago", COVER_HUES[2])
 
 
+def draw_chat(pen, x, y, w):
+    """AI chat over collections: scope, a question bubble, a formatted reply."""
+    pad = 16
+    cx = x + pad
+    cw = w - pad * 2
+    PH = 700  # this mockup is only used in the 700px-tall screenshot canvas
+
+    # header: back, title
+    pen.text(cx, y + 14, "‹", font(22), DIM)
+    pen.text(cx + 26, y + 17, "AI Chat", font(17, "sb"), TEXT)
+
+    # context/scope line with a divider under it
+    sy = y + 50
+    pen.text(cx, sy, "Context: all collections", font(12), DIM)
+    pen.line(cx, sy + 22, cx + cw, sy + 22, BORDER, 1)
+
+    line_h = 19
+    msg_top = sy + 42
+
+    # user bubble (right-aligned, accent fill)
+    u_lines = ["Summarize my Trip to Japan", "collection and suggest a next step."]
+    uw = max(pen.textlen(l, font(13)) for l in u_lines) + 24
+    ux1 = cx + cw
+    ux0 = ux1 - uw
+    uh = 10 * 2 + len(u_lines) * line_h
+    pen.rrect(ux0, msg_top, ux1, msg_top + uh, 12, fill=ACCENT_STRONG)
+    ty = msg_top + 10
+    for l in u_lines:
+        pen.text(ux0 + 12, ty, l, font(13), WHITE)
+        ty += line_h
+
+    # assistant bubble (left-aligned, formatted "report")
+    ay0 = msg_top + uh + 14
+    a_lines = [
+        ("Trip to Japan — summary", "h"),
+        ("You've saved 5 items:", ""),
+        ("•  Standing desk — model X  ($549)", "li"),
+        ("•  Best ramen in Osaka", "li"),
+        ("•  JR Pass reminder (note)", "li"),
+        ("•  Tokyo neighborhood guide", "li"),
+        ("", ""),
+        ("Next step: buy the JR Pass before you", ""),
+        ("fly — it must be purchased abroad.", ""),
+    ]
+    aw = cw - 36
+    ah = 12 * 2 + len(a_lines) * line_h
+    pen.rrect(cx, ay0, cx + aw, ay0 + ah, 12, fill=ELEV, outline=BORDER, width=1)
+    ty = ay0 + 12
+    for txt, kind in a_lines:
+        if kind == "h":
+            pen.text(cx + 12, ty, txt, font(14, "sb"), TEXT)
+        elif kind == "li":
+            pen.text(cx + 12, ty, txt, font(13), DIM)
+        else:
+            pen.text(cx + 12, ty, txt, font(13), TEXT)
+        ty += line_h
+
+    # input bar pinned near the bottom: textarea + Send
+    iy0 = y + PH - 56
+    pen.rrect(cx, iy0, cx + cw - 66, iy0 + 36, 8, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + 10, iy0 + 10, "Ask about your collections…", font(12), FAINT)
+    pen.rrect(cx + cw - 56, iy0, cx + cw, iy0 + 36, 8, fill=ACCENT_STRONG)
+    pen.text(cx + cw - 28, iy0 + 10, "Send", font(12, "sb"), WHITE, anchor="ma")
+
+
 # ---- Canvas composition ----------------------------------------------------
 
 def screenshot(path, headline, sub, draw_panel):
@@ -390,6 +456,10 @@ def main():
                "Nothing's gone\nuntil you say so",
                "Deletes land in a recoverable Trash;\narchive old collections to declutter.",
                draw_trash)
+    screenshot(os.path.join(OUT, "screenshot-5-ai.png"),
+               "Chat with your\nsaved collections",
+               "Bring your own AI key and ask for\nsummaries, reports, or what you saved.",
+               draw_chat)
     promo_small(os.path.join(OUT, "promo-small-440x280.png"))
     marquee(os.path.join(OUT, "promo-marquee-1400x560.png"))
 

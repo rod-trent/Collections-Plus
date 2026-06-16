@@ -1191,6 +1191,106 @@ function chatScopeLabel(data) {
   return 'all collections';
 }
 
+/**
+ * Minimal, dependency-free Markdown → HTML for chat replies. Escapes all HTML
+ * first (so model output can never inject markup), then converts a safe subset:
+ * fenced/inline code, headings, bold/italic, links (http(s)/mailto only),
+ * ordered/unordered lists, blockquotes, horizontal rules and paragraphs.
+ */
+function renderMarkdown(src) {
+  const lines = escapeHtml(String(src).replace(/\r\n?/g, '\n')).split('\n');
+  const out = [];
+  let i = 0;
+
+  const inline = (s) => {
+    // Split out inline-code spans and format only the non-code segments, so a
+    // code span is never altered and no placeholder tokens are needed.
+    return s
+      .split(/(`[^`]+`)/)
+      .map((part) => {
+        if (part.length > 1 && part.startsWith('`') && part.endsWith('`')) {
+          return `<code>${part.slice(1, -1)}</code>`;
+        }
+        return part
+          .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, url) =>
+            /^(https?:|mailto:)/i.test(url)
+              ? `<a href="${url}" target="_blank" rel="noreferrer">${t}</a>`
+              : m
+          )
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+          .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+          .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>');
+      })
+      .join('');
+  };
+
+  const isBlockStart = (l) =>
+    /^```/.test(l) ||
+    /^(#{1,6})\s+/.test(l) ||
+    /^\s*[-*+]\s+/.test(l) ||
+    /^\s*\d+\.\s+/.test(l) ||
+    /^\s*&gt;\s?/.test(l) ||
+    /^\s*([-*_])\1{2,}\s*$/.test(l) ||
+    /^\s*$/.test(l);
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (/^```/.test(line)) {
+      const buf = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++; // closing fence
+      out.push(`<pre><code>${buf.join('\n')}</code></pre>`);
+      continue;
+    }
+    if (/^\s*$/.test(line)) {
+      i++;
+      continue;
+    }
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    if (h) {
+      const level = Math.min(h[1].length + 2, 6); // headings start at h3 in-panel
+      out.push(`<h${level}>${inline(h[2].trim())}</h${level}>`);
+      i++;
+      continue;
+    }
+    if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+      out.push('<hr>');
+      i++;
+      continue;
+    }
+    if (/^\s*&gt;\s?/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s*&gt;\s?/.test(lines[i]))
+        buf.push(lines[i++].replace(/^\s*&gt;\s?/, ''));
+      out.push(`<blockquote>${inline(buf.join(' '))}</blockquote>`);
+      continue;
+    }
+    if (/^\s*[-*+]\s+/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i]))
+        buf.push(`<li>${inline(lines[i++].replace(/^\s*[-*+]\s+/, ''))}</li>`);
+      out.push(`<ul>${buf.join('')}</ul>`);
+      continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i]))
+        buf.push(`<li>${inline(lines[i++].replace(/^\s*\d+\.\s+/, ''))}</li>`);
+      out.push(`<ol>${buf.join('')}</ol>`);
+      continue;
+    }
+    // Paragraph: gather consecutive plain lines.
+    const buf = [];
+    while (i < lines.length && !isBlockStart(lines[i])) buf.push(lines[i++]);
+    out.push(`<p>${inline(buf.join('<br>'))}</p>`);
+  }
+
+  return out.join('\n');
+}
+
 function renderChat(data) {
   const configured = isConfigured(lastAiConfig); // lastAiConfig refreshed by render()
   const scopeName = chatScopeLabel(data);
@@ -1213,7 +1313,13 @@ function renderChat(data) {
   for (const m of chatHistory) {
     const row = document.createElement('div');
     row.className = `chat-msg chat-${m.role}`;
-    row.textContent = m.content;
+    // Render the model's markdown to formatted HTML; keep user/error text plain.
+    if (m.role === 'assistant') {
+      row.classList.add('md');
+      row.innerHTML = renderMarkdown(m.content);
+    } else {
+      row.textContent = m.content;
+    }
     els.chatMessages.appendChild(row);
   }
   if (chatBusy) {

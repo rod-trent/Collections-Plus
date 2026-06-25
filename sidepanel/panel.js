@@ -2767,20 +2767,32 @@ function openSubmenu(name, trigger) {
   if (name === 'sync') refreshSyncMenu();
 
   menu.hidden = false; // unhide to measure
-  const overflow = $('#overflow-menu').getBoundingClientRect();
+  const overflowEl = $('#overflow-menu');
+  const overflow = overflowEl.getBoundingClientRect();
   const t = trigger.getBoundingClientRect();
-  const mw = menu.offsetWidth || 220;
-  const mh = menu.offsetHeight || 0;
 
-  // Prefer flying out to the left of the overflow menu; fall back to the right;
-  // always clamp inside the viewport (the side panel is narrow).
-  let left = overflow.left - mw - 2;
-  if (left < 8) left = overflow.right + 2;
-  left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
-  let top = t.top;
-  if (top + mh > window.innerHeight - 8) top = Math.max(8, window.innerHeight - mh - 8);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
+  // Position from the element's *rendered* size (getBoundingClientRect is
+  // reliable where offsetWidth can read stale). Prefer flying out to the left
+  // of the menu, fall back to the right, and always clamp inside the viewport.
+  const place = () => {
+    const rect = menu.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    let left = overflow.left - w - 2;
+    if (left < 8) left = overflow.right + 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    let top = t.top;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - h - 8);
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  };
+  place();
+  place(); // second pass settles position once the final width is known
+
+  // If the flyout still covers the menu (no room beside it in a narrow panel),
+  // hide the menu so it reads as a clean drill-in instead of overlapping text.
+  const r = menu.getBoundingClientRect();
+  overflowEl.hidden = r.right > overflow.left + 1 && r.left < overflow.right - 1;
 }
 
 $('#overflow-btn').addEventListener('click', (e) => {
@@ -2804,12 +2816,6 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   if (!action) return;
   closeOverflow();
   await runMenuAction(action);
-});
-
-// Hover a different category to switch submenus (desktop menu feel).
-$('#overflow-menu').addEventListener('mouseover', (e) => {
-  const trigger = e.target.closest('.submenu-trigger');
-  if (trigger) openSubmenu(trigger.dataset.submenu, trigger);
 });
 
 // Clicks inside a submenu run the action and close everything.

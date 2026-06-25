@@ -5,6 +5,13 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Search by meaning, not just keywords.** Type a query and hit the new **✨**
+button in the search bar to run an **AI search** across everything you've saved —
+it finds items by what they're *about*, so "where to eat on my trip" can surface
+a saved ramen guide even without a word in common. Results list the matching
+items with a one-line reason and a jump to their collection. Uses your
+configured AI provider; the instant keyword search is unchanged.
+
 **Let the AI do the busywork.** If you've connected an AI provider, three new
 helpers put it to work on your collections (all in a collection's ⋯ menu, plus
 the snapshot reader): **Summarize (AI)** turns a saved page snapshot into a 1–2

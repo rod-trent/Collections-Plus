@@ -63,6 +63,7 @@ import {
   parseTagList,
   organizeQuestion,
 } from '../lib/ai-organize.js';
+import { buildCatalog, searchRequest, parseSearchResults } from '../lib/semantic.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -1804,6 +1805,100 @@ async function organizeCollection(collectionId) {
   els.chatText.value = organizeQuestion();
   sendChatMessage();
 }
+
+// ---- AI semantic search ----------------------------------------------------
+
+let aiSearchBusy = false;
+
+function closeAiSearch() {
+  $('#aisearch-overlay').hidden = true;
+}
+
+/** Render the AI-search result rows into the overlay. */
+function renderAiSearchResults(results, entriesByN, data, query) {
+  const body = $('#aisearch-body');
+  body.innerHTML = '';
+  if (!results.length) {
+    body.innerHTML = `<p class="aisearch-empty">No semantically relevant items found.</p>`;
+    return;
+  }
+  for (const r of results) {
+    const ref = entriesByN.get(r.n);
+    const c = data.collections.find((x) => x.id === ref.collectionId);
+    const item = c?.items.find((it) => it.id === ref.itemId);
+    if (!item) continue;
+
+    const isLink = item.type === 'page' || item.type === 'image';
+    const url = item.type === 'image' ? item.srcPageUrl || item.src : item.url;
+    const title =
+      item.type === 'note'
+        ? (item.text || 'Note').replace(/\s+/g, ' ').trim().slice(0, 80)
+        : item.title || item.alt || url || 'Untitled';
+
+    const row = document.createElement('div');
+    row.className = 'aisearch-result';
+    row.innerHTML = `
+      <div class="aisearch-result-main">
+        ${
+          isLink
+            ? `<a class="aisearch-result-title" href="${encodeURI(url || '')}" target="_blank" rel="noreferrer">${escapeHtml(title)}</a>`
+            : `<span class="aisearch-result-title">${escapeHtml(title)}</span>`
+        }
+        ${r.why ? `<span class="aisearch-why">${escapeHtml(r.why)}</span>` : ''}
+      </div>
+      <button class="aisearch-goto" title="Open this collection">in “${escapeHtml(c.title || 'Untitled')}” ›</button>`;
+    row.querySelector('.aisearch-goto').addEventListener('click', () => {
+      closeAiSearch();
+      open(ref.collectionId);
+    });
+    body.append(row);
+  }
+}
+
+/** Run an AI semantic search over all collections for the current query. */
+async function aiSemanticSearch() {
+  if (aiSearchBusy) return;
+  const q = els.searchInput.value.trim();
+  if (!q) return toast('Type something to search for first');
+  const cfg = await requireAi();
+  if (!cfg) return;
+
+  const data = await getData();
+  const { entries, text, truncated } = buildCatalog(data.collections);
+  if (!entries.length) return toast('Nothing saved to search yet');
+
+  aiSearchBusy = true;
+  $('#aisearch-title').textContent = `AI search`;
+  $('#aisearch-meta').textContent = `Searching ${entries.length} item${entries.length === 1 ? '' : 's'} for “${q}”…`;
+  $('#aisearch-body').innerHTML = `<p class="aisearch-empty">Thinking…</p>`;
+  $('#aisearch-overlay').hidden = false;
+
+  try {
+    const { system, messages } = searchRequest(q, text);
+    const reply = await aiChat({ config: cfg, system, messages });
+    const validNs = new Set(entries.map((e) => e.n));
+    const results = parseSearchResults(reply, validNs);
+    const entriesByN = new Map(entries.map((e) => [e.n, e]));
+    $('#aisearch-meta').textContent =
+      `${results.length} result${results.length === 1 ? '' : 's'} for “${q}”` +
+      (truncated ? ' (searched the first 250 items)' : '');
+    renderAiSearchResults(results, entriesByN, data, q);
+  } catch (err) {
+    $('#aisearch-meta').textContent = `“${q}”`;
+    $('#aisearch-body').innerHTML = `<p class="aisearch-empty">${escapeHtml(err.message || 'Search failed')}</p>`;
+  } finally {
+    aiSearchBusy = false;
+  }
+}
+
+$('#ai-search-btn').addEventListener('click', aiSemanticSearch);
+$('#aisearch-close').addEventListener('click', closeAiSearch);
+$('#aisearch-overlay').addEventListener('click', (e) => {
+  if (e.target === $('#aisearch-overlay')) closeAiSearch();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('#aisearch-overlay').hidden) closeAiSearch();
+});
 
 /** Copy a collection's links to the clipboard as "Title — URL" lines. */
 async function doCopyLinks(collectionId) {

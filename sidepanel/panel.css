@@ -214,16 +214,24 @@ body {
 /* ---- Search ---- */
 .searchbar {
   padding: 10px 12px 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 .search-input {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
   font: inherit;
   padding: 7px 10px;
+}
+
+#ai-search-btn {
+  flex: 0 0 auto;
 }
 
 .search-input:focus {
@@ -858,6 +866,77 @@ body {
 
 .snapshot-actions .btn {
   text-decoration: none;
+}
+
+/* AI semantic-search results overlay */
+.aisearch-modal {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(80vh, 640px);
+}
+
+.aisearch-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+.aisearch-empty {
+  color: var(--text-faint);
+  padding: 14px 2px;
+}
+
+.aisearch-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.aisearch-result-main {
+  min-width: 0;
+}
+
+.aisearch-result-title {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+a.aisearch-result-title:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.aisearch-why {
+  display: block;
+  color: var(--text-faint);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.aisearch-goto {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aisearch-goto:hover {
+  text-decoration: underline;
 }
 
 /* ---- Custom item fields ---- */

@@ -79,6 +79,9 @@ step. Your data stays in your browser.
   snapshot into a TL;DR note, **Suggest tags (AI)** for a collection (you approve
   what's added), or **Organize this collection (AI)** for grouping, duplicate and
   title suggestions.
+- **AI search (✨):** find items by *meaning* across everything you've saved —
+  not just keyword matches — with a one-line reason and a jump to each item's
+  collection. The instant keyword search stays available alongside it.
 - **Your key stays local** (`chrome.storage.local`), is **never synced or
   exported**, and the whole feature is **off until you set it up**. See
   [Ask your collections](#ask-your-collections-ai) and the

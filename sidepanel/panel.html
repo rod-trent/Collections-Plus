@@ -63,6 +63,7 @@
           placeholder="Search collections and items…"
           aria-label="Search collections and items"
         />
+        <button id="ai-search-btn" class="btn icon" title="AI search — find items by meaning" aria-label="AI search">✨</button>
       </div>
 
       <div id="collections" class="cards" role="list"></div>
@@ -271,6 +272,18 @@
 
     <!-- Floating menu to assign a collection to a folder -->
     <div id="folder-menu" class="menu floating" hidden></div>
+
+    <!-- AI semantic search results -->
+    <div id="aisearch-overlay" class="modal-overlay" hidden>
+      <div class="modal aisearch-modal" role="dialog" aria-modal="true" aria-label="AI search results">
+        <div class="snapshot-head">
+          <div class="snapshot-title" id="aisearch-title">AI search</div>
+          <button id="aisearch-close" class="btn icon" title="Close">✕</button>
+        </div>
+        <div class="snapshot-meta" id="aisearch-meta"></div>
+        <div class="aisearch-body" id="aisearch-body"></div>
+      </div>
+    </div>
 
     <!-- Readable snapshot reader (link-rot resilience) -->
     <div id="snapshot-overlay" class="modal-overlay" hidden>

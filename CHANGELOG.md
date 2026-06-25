@@ -5,6 +5,10 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Address-bar search.** Type **`col`** then a space in the browser's address bar
+and search your saved pages without opening the panel — pick a result to jump
+straight to it. A fast way to re-find that thing you saved.
+
 **Weekly digest (AI).** One click (⋯ → **Weekly digest (AI)…**) recaps
 everything you saved in the last 7 days — a friendly, grouped summary with a
 one-line note per item — rendered right in the chat so you can ask follow-ups.

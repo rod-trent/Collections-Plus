@@ -55,6 +55,8 @@ step. Your data stays in your browser.
   OS / Chrome light-dark setting and switches live (e.g. at sunrise/sunset).
 - **Command palette (`Ctrl+K` / `⌘K`):** jump to any collection or run any
   command from one keyboard-driven, fuzzy-filtered list.
+- **Address-bar search:** type `col` + space in the browser's address bar to
+  search your saved pages and jump straight to one.
 
 **Exporting & backup**
 

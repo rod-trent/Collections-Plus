@@ -26,6 +26,9 @@
   "side_panel": {
     "default_path": "sidepanel/panel.html"
   },
+  "omnibox": {
+    "keyword": "col"
+  },
   "commands": {
     "save-current-page": {
       "suggested_key": {

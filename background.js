@@ -17,6 +17,7 @@ import {
 import { srcToCover } from './lib/image.js';
 import { classifyStatus } from './lib/linkcheck.js';
 import { matchRule } from './lib/rules.js';
+import { searchEntries } from './lib/omnibox.js';
 
 // If offline image caching is on, inline the freshly-saved item's image.
 async function maybeCache(out) {
@@ -360,6 +361,42 @@ chrome.alarms?.onAlarm.addListener(async (alarm) => {
   const stale = collectTargets(data, { staleBefore: Date.now() - RECHECK_AFTER_MS });
   stale.sort((a, b) => a.at - b.at); // oldest (or never-checked) first
   if (stale.length) await probeTargets(stale.slice(0, MAX_PER_RUN));
+});
+
+// ---- Omnibox: address-bar search ("col <query>") ---------------------------
+
+function escapeXml(s = '') {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c])
+  );
+}
+
+chrome.omnibox?.setDefaultSuggestion({
+  description: 'Search your collections — type to find a saved page',
+});
+
+chrome.omnibox?.onInputChanged.addListener(async (text, suggest) => {
+  const data = await getData();
+  suggest(
+    searchEntries(data.collections, text).map((e) => ({
+      content: e.url,
+      description: `${escapeXml(e.title)} <dim>— ${escapeXml(e.collection)}</dim>`,
+    }))
+  );
+});
+
+chrome.omnibox?.onInputEntered.addListener(async (text, disposition) => {
+  let url = text;
+  if (!/^https?:\/\//i.test(url)) {
+    // The user hit Enter on free text rather than picking a suggestion — open
+    // the best match.
+    const data = await getData();
+    const [first] = searchEntries(data.collections, text, { max: 1 });
+    if (!first) return;
+    url = first.url;
+  }
+  if (disposition === 'currentTab') chrome.tabs.update({ url });
+  else chrome.tabs.create({ url, active: disposition === 'newForegroundTab' });
 });
 
 // ---- Messages from the side panel -----------------------------------------

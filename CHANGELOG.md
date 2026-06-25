@@ -5,6 +5,12 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Sort & compact view.** Sort the items in a collection by **Newest**,
+**Oldest** or **A–Z** (or keep your **Manual** drag order), and sort the
+collection list by **Newest** or **A–Z**. A new compact-density toggle tightens
+the item list when you want to see more at once. Sorting is display-only — it
+never disturbs your saved order — and your choices are remembered.
+
 **Auto-file rules.** Set up rules (⋯ → **Auto-file rules…**) so quick-saves land
 in the right place automatically: when you press **Ctrl+Shift+S**, the first
 matching rule files the page into its collection — match by **domain**, **URL

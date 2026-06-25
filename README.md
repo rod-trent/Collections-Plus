@@ -38,6 +38,9 @@ step. Your data stays in your browser.
   **filter box** to narrow its items instantly.
 - **Folders** to group collections, **pin** favorites to the top, and **tags**
   (click a tag to filter).
+- **Sort & compact view:** sort items (Newest / Oldest / A–Z) and collections
+  (Newest / A–Z), or keep your manual drag order; a compact toggle fits more on
+  screen. Sorting is display-only and your choice is remembered.
 - **Checkboxes** turn any collection into a checklist; **custom fields**
   (price, qty, SKU…) add structured data that flows into exports.
 - **Move or copy** items between collections; **undo** deletes.

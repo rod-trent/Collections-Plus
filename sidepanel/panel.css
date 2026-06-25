@@ -234,6 +234,46 @@ body {
   flex: 0 0 auto;
 }
 
+.view-sort {
+  flex: 0 0 auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 4px;
+}
+
+.view-sort:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Hide drag handles while a non-manual sort is active (drag would be a no-op). */
+.items.no-drag .drag-handle,
+.cards.no-drag .card-handle {
+  visibility: hidden;
+}
+
+/* Compact item density: smaller thumbnails, tighter rows. */
+.items.compact .item {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.items.compact .item-thumb,
+.items.compact .item-media {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+
+.items.compact .item-fields,
+.items.compact .item-snapshot-view {
+  display: none;
+}
+
 .search-input:focus {
   outline: none;
   border-color: var(--accent);

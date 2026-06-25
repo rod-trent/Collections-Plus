@@ -48,6 +48,7 @@ import {
   STORAGE_KEY,
 } from '../lib/store.js';
 import { ruleLabel } from '../lib/rules.js';
+import { sortItems, sortCollections } from '../lib/sortview.js';
 import { toCsv, toXlsxSheets } from '../lib/export.js';
 import { buildXlsx } from '../lib/xlsx.js';
 import { toMarkdown, toHtml, toLinkList, toShareableHtml } from '../lib/render.js';
@@ -125,6 +126,8 @@ let binMode = null; // 'trash' | 'archive' | null — which holding area is open
 let fileMode = null; // 'csv' | 'json' | 'cover'
 let query = ''; // current list-view search text (lower-cased)
 let itemFilter = ''; // current in-collection item filter (lower-cased)
+// Display-only view preferences (mirrored from settings; never reorder data).
+let viewPrefs = { itemSort: 'manual', itemDensity: 'comfortable', collectionSort: 'manual' };
 let aiMode = null; // 'settings' | 'chat' | null
 let chatScope = { type: 'all' }; // { type:'all' } | { type:'collection', id }
 let chatHistory = []; // [{ role:'user'|'assistant'|'error', content }]
@@ -772,20 +775,24 @@ function renderList(data) {
   const filtered = all.filter(matchesQuery);
   els.listNoResults.hidden = !(all.length > 0 && filtered.length === 0);
   els.collections.hidden = filtered.length === 0;
+  els.collections.classList.toggle('no-drag', viewPrefs.collectionSort !== 'manual');
   els.collections.innerHTML = '';
+  syncViewControls();
+
+  const arrange = (list) => pinnedFirst(sortCollections(list, viewPrefs.collectionSort));
 
   // While searching, show a flat list (no folder grouping).
   if (query) {
-    for (const c of pinnedFirst(filtered)) els.collections.appendChild(buildCard(c));
+    for (const c of arrange(filtered)) els.collections.appendChild(buildCard(c));
     return;
   }
 
   // Top-level collections first, then each folder with its collections.
-  for (const c of pinnedFirst(filtered.filter((c) => !c.parentId))) {
+  for (const c of arrange(filtered.filter((c) => !c.parentId))) {
     els.collections.appendChild(buildCard(c));
   }
   for (const f of folders) {
-    const kids = pinnedFirst(filtered.filter((c) => c.parentId === f.id));
+    const kids = arrange(filtered.filter((c) => c.parentId === f.id));
     els.collections.appendChild(buildFolderHeader(f, kids.length));
     if (!f.collapsed) for (const c of kids) els.collections.appendChild(buildCard(c));
   }
@@ -1005,16 +1012,31 @@ function renderDetail(c) {
   els.itemFilterbar.hidden = c.items.length < 2;
   if (els.itemFilterbar.hidden) itemFilter = '';
 
-  const visible = itemFilter ? matchingItems(c, itemFilter) : c.items;
+  const matched = itemFilter ? matchingItems(c, itemFilter) : c.items;
+  const visible = sortItems(matched, viewPrefs.itemSort);
 
   els.detailEmpty.hidden = c.items.length > 0;
   els.detailNoResults.hidden = !(c.items.length > 0 && itemFilter && visible.length === 0);
   els.items.hidden = visible.length === 0;
+  // Compact density + drag-disabled (when a non-manual sort is active).
+  els.items.classList.toggle('compact', viewPrefs.itemDensity === 'compact');
+  els.items.classList.toggle('no-drag', viewPrefs.itemSort !== 'manual');
   els.items.innerHTML = '';
 
+  syncViewControls();
   for (const item of visible) {
     els.items.appendChild(renderItem(c.id, item));
   }
+}
+
+/** Reflect the current view prefs onto the toolbar controls. */
+function syncViewControls() {
+  const is = $('#item-sort');
+  if (is) is.value = viewPrefs.itemSort;
+  const dens = $('#item-density-btn');
+  if (dens) dens.textContent = viewPrefs.itemDensity === 'compact' ? '▤' : '▥';
+  const cs = $('#collection-sort');
+  if (cs) cs.value = viewPrefs.collectionSort;
 }
 
 function renderItem(collectionId, item) {
@@ -2550,6 +2572,18 @@ els.searchInput.addEventListener('input', () => {
   render();
 });
 
+// View controls: update the cached pref, persist it, and re-render.
+async function setViewPref(patch) {
+  viewPrefs = { ...viewPrefs, ...patch };
+  render();
+  await setSettings(patch);
+}
+$('#collection-sort').addEventListener('change', (e) => setViewPref({ collectionSort: e.target.value }));
+$('#item-sort').addEventListener('change', (e) => setViewPref({ itemSort: e.target.value }));
+$('#item-density-btn').addEventListener('click', () =>
+  setViewPref({ itemDensity: viewPrefs.itemDensity === 'compact' ? 'comfortable' : 'compact' })
+);
+
 els.itemFilterInput.addEventListener('input', () => {
   itemFilter = els.itemFilterInput.value.trim().toLowerCase();
   render();
@@ -2912,7 +2946,15 @@ document.addEventListener('drop', async (e) => {
 });
 
 // Initial paint, then reflect sync state, theme, and pull any newer remote data.
-getSettings().then((s) => applyTheme(s.theme));
+getSettings().then((s) => {
+  applyTheme(s.theme);
+  viewPrefs = {
+    itemSort: s.itemSort || 'manual',
+    itemDensity: s.itemDensity || 'comfortable',
+    collectionSort: s.collectionSort || 'manual',
+  };
+  render();
+});
 render();
 // Drop any trashed items past the 30-day retention window (best-effort).
 purgeExpiredTrash().catch(() => {});

@@ -69,6 +69,11 @@
           aria-label="Search collections and items"
         />
         <button id="ai-search-btn" class="btn icon" title="AI search — find items by meaning" aria-label="AI search">✨</button>
+        <select id="collection-sort" class="view-sort" title="Sort collections" aria-label="Sort collections">
+          <option value="manual">Manual</option>
+          <option value="newest">Newest</option>
+          <option value="title">A–Z</option>
+        </select>
       </div>
 
       <div id="collections" class="cards" role="list"></div>
@@ -144,6 +149,13 @@
           placeholder="Filter items in this collection…"
           aria-label="Filter items in this collection"
         />
+        <select id="item-sort" class="view-sort" title="Sort items" aria-label="Sort items">
+          <option value="manual">Manual</option>
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="title">A–Z</option>
+        </select>
+        <button id="item-density-btn" class="btn icon" title="Toggle compact view" aria-label="Toggle compact view">▥</button>
       </div>
 
       <div id="items" class="items" role="list"></div>

@@ -41,6 +41,9 @@ step. Your data stays in your browser.
   (restorable, and auto-emptied after 30 days), and you can **Archive** old
   collections to keep your main list uncluttered. Both are in the ⋯ menu.
 - **Custom covers:** upload an image or promote a saved thumbnail with ★.
+- **Reading list (read-it-later):** saved pages start **unread** and gather in
+  the **📖 Reading list** (with a toolbar count); opening one marks it read, or
+  use **Mark all read**. Bulk imports stay read so they don't flood it.
 - **Light / dark / system theme:** cycle in the ⋯ menu. **System** follows your
   OS / Chrome light-dark setting and switches live (e.g. at sunrise/sunset).
 - **Command palette (`Ctrl+K` / `⌘K`):** jump to any collection or run any

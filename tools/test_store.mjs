@@ -247,6 +247,27 @@ console.log('\nempty trash / delete entry / auto-purge:');
   assert(data.trash.length === 1 && data.trash[0].id === 't-new', 'entries older than 30 days are purged on read');
 }
 
+console.log('\nread-later (unread) state:');
+{
+  reset();
+  const c = await store.createCollection('Reading');
+  const saved = await store.addItem(c.id, { type: 'page', url: 'https://ex.com/a', title: 'A', unread: true });
+  const imported = await store.addItem(c.id, { type: 'page', url: 'https://ex.com/b', title: 'B' });
+  await store.addItem(c.id, { type: 'note', text: 'hi' });
+  assert(saved.item.unread === true, 'page saved with unread:true is unread');
+  assert(imported.item.unread === false, 'page added without unread defaults to read (imports do not flood)');
+
+  let data = await store.getData();
+  const legacy = data.collections[0].items.find((it) => it.title === 'A');
+  assert(typeof legacy.unread === 'boolean', 'unread normalized to a boolean on read');
+
+  const cleared = await store.markAllRead();
+  assert(cleared === 1, 'markAllRead clears exactly the unread pages');
+  data = await store.getData();
+  assert(data.collections[0].items.every((it) => !it.unread), 'nothing is unread after markAllRead');
+  assert((await store.markAllRead()) === 0, 'markAllRead is a no-op when all read');
+}
+
 console.log('');
 if (failures) {
   console.error(`${failures} assertion(s) failed`);

@@ -5,6 +5,13 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Reading list (read-it-later).** Pages you save now start as **unread** and
+collect in a new **📖 Reading list** (with an unread count badge in the toolbar).
+Open one and it's automatically marked read — or use the unread dot on an item,
+or **Mark all read**. Turns Collections Plus into a tidy read-later queue
+without changing how anything else works (bulk imports stay read, so they don't
+flood the list).
+
 **Command palette.** Press **Ctrl+K** (⌘K on Mac) anywhere to jump straight to
 a collection or run any command — new collection, exports, imports, link
 checks, AI actions, theme, archive/trash and more — all from one fuzzy-filtered

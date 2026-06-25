@@ -29,6 +29,7 @@ import {
   moveItems,
   copyItems,
   toggleDone,
+  markAllRead,
   reorderItems,
   findPageByUrl,
   getSettings,
@@ -792,6 +793,9 @@ function renderBin(data) {
   els.detailView.hidden = true;
   els.binView.hidden = false;
 
+  if (binMode === 'reading') return renderReadingList(data);
+
+  $('#mark-all-read-btn').hidden = true;
   const isTrash = binMode === 'trash';
   // Normalize archive collections into the same {kind, …} shape trash uses.
   const entries = isTrash
@@ -818,6 +822,50 @@ function renderBin(data) {
   els.binList.hidden = entries.length === 0;
   els.binList.innerHTML = '';
   for (const e of entries) els.binList.appendChild(buildBinRow(e, isTrash));
+}
+
+/** Reading list: unread page items across all collections (reuses bin-view). */
+function renderReadingList(data) {
+  const rows = unreadItems(data);
+  els.binTitle.textContent = 'Reading list';
+  els.emptyTrashBtn.hidden = true;
+  $('#mark-all-read-btn').hidden = rows.length === 0;
+
+  els.binNote.textContent = 'Pages you save start here as unread. Open one to mark it read.';
+  els.binNote.hidden = rows.length === 0;
+
+  els.binEmpty.hidden = rows.length > 0;
+  els.binEmptySub.textContent = 'Pages you save will appear here until you read them.';
+  els.binList.hidden = rows.length === 0;
+  els.binList.innerHTML = '';
+  for (const r of rows) els.binList.appendChild(buildReadingRow(r));
+}
+
+function buildReadingRow({ item, collection }) {
+  const row = document.createElement('div');
+  row.className = 'card reading-row';
+  const fav = faviconFor(item);
+  const cover = item.thumbnail
+    ? `<div class="card-cover" style="background-image:url('${encodeURI(item.thumbnail)}')"></div>`
+    : `<div class="card-cover">${fav ? `<img class="item-favicon" src="${encodeURI(fav)}" alt="" />` : '🔗'}</div>`;
+
+  row.innerHTML = `
+    ${cover}
+    <div class="card-body">
+      <a class="card-title reading-title" href="${encodeURI(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title || item.url)}</a>
+      <div class="card-meta">${escapeHtml(hostOf(item.url))} · ${escapeHtml(collection.title || 'Untitled')}</div>
+    </div>
+    <button class="btn reading-read" title="Mark as read">✓ Read</button>
+  `;
+
+  // Opening the page marks it read (Pocket-style).
+  row.querySelector('.reading-title').addEventListener('click', () => {
+    updateItem(collection.id, item.id, { unread: false });
+  });
+  row.querySelector('.reading-read').addEventListener('click', async () => {
+    await updateItem(collection.id, item.id, { unread: false });
+  });
+  return row;
 }
 
 function buildBinRow(entry, isTrash) {
@@ -995,8 +1043,11 @@ function renderItem(collectionId, item) {
       : `<div class="item-thumb">${
           fav ? `<img class="item-favicon" src="${encodeURI(fav)}" alt="" />` : '🔗'
         }</div>`;
+    const unreadDot = item.unread
+      ? `<button class="unread-dot" title="Unread — click to mark read" aria-label="Mark read"></button>`
+      : '';
     bodyHtml = `
-      <div class="item-title"><a href="${encodeURI(
+      <div class="item-title">${unreadDot}<a href="${encodeURI(
         item.url
       )}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></div>
       <div class="item-url">${escapeHtml(hostOf(item.url))}${linkStatusHtml(item)}</div>
@@ -1081,6 +1132,13 @@ function renderItem(collectionId, item) {
     snapView.addEventListener('click', (e) => {
       e.stopPropagation();
       showSnapshot(collectionId, item.id);
+    });
+  }
+  const unreadDot = row.querySelector('.unread-dot');
+  if (unreadDot) {
+    unreadDot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      updateItem(collectionId, item.id, { unread: false });
     });
   }
 
@@ -1591,6 +1649,7 @@ async function addCurrentPage() {
     title: (meta && meta.title) || tab.title || tab.url,
     favIconUrl: tab.favIconUrl || '',
     thumbnail,
+    unread: true,
   });
   if (out?.item && (await getSettings()).cacheImages) {
     await cacheItemImage(out.collection.id, out.item.id);
@@ -1617,6 +1676,7 @@ async function addAllTabs() {
       url: t.url,
       title: t.title || t.url,
       favIconUrl: t.favIconUrl || '',
+      unread: true,
     });
     existing.add(t.url);
     added++;
@@ -1940,6 +2000,11 @@ async function buildPaletteCommands() {
     reportLinkCheck(await chrome.runtime.sendMessage({ type: 'checkLinks' }));
   });
   add('Version history', () => openHistoryMenu());
+  add('Reading list', () => openBin('reading'));
+  add('Mark all read', async () => {
+    const n = await markAllRead();
+    toast(n ? `Marked ${n} item${n === 1 ? '' : 's'} read` : 'Nothing to mark');
+  });
   add('Open Archive', () => openBin('archive'));
   add('Open Trash', () => openBin('trash'));
   add('Export backup (JSON)', () => doExport());
@@ -2410,6 +2475,27 @@ function updateBinBadges(data) {
   };
   set('#archive-badge', (data.archive || []).length);
   set('#trash-badge', (data.trash || []).length);
+  set('#reading-badge', countUnread(data));
+}
+
+/** Count unread (read-later) page items across all live collections. */
+function countUnread(data) {
+  let n = 0;
+  for (const c of data.collections) {
+    for (const it of c.items) if (it.type === 'page' && it.unread) n++;
+  }
+  return n;
+}
+
+/** Gather unread page items across collections, newest first. */
+function unreadItems(data) {
+  const out = [];
+  for (const c of data.collections) {
+    for (const it of c.items) {
+      if (it.type === 'page' && it.unread) out.push({ item: it, collection: c });
+    }
+  }
+  return out.sort((a, b) => (b.item.addedAt || 0) - (a.item.addedAt || 0));
 }
 
 // Tracks the OS/Chrome light-dark preference so 'system' theme can mirror it.
@@ -2502,8 +2588,13 @@ els.listEmpty.addEventListener('click', async (e) => {
 });
 
 // Trash / Archive view
+$('#open-reading-btn').addEventListener('click', () => openBin('reading'));
 $('#open-archive-btn').addEventListener('click', () => openBin('archive'));
 $('#open-trash-btn').addEventListener('click', () => openBin('trash'));
+$('#mark-all-read-btn').addEventListener('click', async () => {
+  const n = await markAllRead();
+  toast(n ? `Marked ${n} item${n === 1 ? '' : 's'} read` : 'Nothing to mark');
+});
 $('#bin-back-btn').addEventListener('click', back);
 
 // AI settings view
@@ -2704,7 +2795,7 @@ document.addEventListener('drop', async (e) => {
     toast('Already in this collection');
     return;
   }
-  await addItem(target, { type: 'page', url, title: url });
+  await addItem(target, { type: 'page', url, title: url, unread: true });
   toast('Saved');
 });
 

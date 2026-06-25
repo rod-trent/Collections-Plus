@@ -17,6 +17,9 @@
             ＋ New
           </button>
           <button id="new-folder-btn" class="btn" title="New folder">＋📁</button>
+          <button id="open-reading-btn" class="btn icon badge-host" title="Reading list" aria-label="Reading list">
+            📖<span id="reading-badge" class="top-badge" hidden></span>
+          </button>
           <button id="open-archive-btn" class="btn icon badge-host" title="Archive" aria-label="Archive">
             📦<span id="archive-badge" class="top-badge" hidden></span>
           </button>
@@ -164,6 +167,9 @@
         <button id="bin-back-btn" class="btn icon" title="Back">‹</button>
         <h1 id="bin-title" class="brand">Trash</h1>
         <div class="topbar-actions">
+          <button id="mark-all-read-btn" class="btn" title="Mark every item in the Reading list as read" hidden>
+            Mark all read
+          </button>
           <button id="empty-trash-btn" class="btn danger" title="Permanently delete everything in the Trash" hidden>
             Empty Trash
           </button>

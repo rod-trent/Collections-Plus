@@ -790,6 +790,39 @@ body {
   opacity: 0.6;
 }
 
+/* ---- Read-later (Reading list) ---- */
+.unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  margin-right: 6px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+.unread-dot:hover {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.reading-row .reading-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reading-read {
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
 /* ---- Link-rot status + snapshots ---- */
 .link-status.dead {
   display: inline-block;

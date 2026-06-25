@@ -155,6 +155,7 @@ chrome.commands?.onCommand.addListener(async (command) => {
     title: meta.title || tab.title || tab.url,
     favIconUrl: tab.favIconUrl || '',
     thumbnail,
+    unread: true,
   });
   await maybeCache(out);
 });
@@ -204,6 +205,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       url: info.linkUrl,
       title: info.linkText || info.selectionText || info.linkUrl,
       favIconUrl: tab?.favIconUrl || '',
+      unread: true,
     });
     return;
   }
@@ -224,6 +226,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     title: meta.title || tab?.title || tab?.url || info.pageUrl,
     favIconUrl: tab?.favIconUrl || '',
     thumbnail: meta.thumbnail || '',
+    unread: true,
   });
   await maybeCache(out);
 });

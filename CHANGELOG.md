@@ -3,7 +3,7 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
-## 1.6.0
+## 2.0.0
 
 The biggest release yet — a baker's dozen of new features that make Collections
 Plus far more than a place to drop links. Beat link rot with dead-link checking

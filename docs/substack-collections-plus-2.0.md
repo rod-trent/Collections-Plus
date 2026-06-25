@@ -1,10 +1,10 @@
-title: Collections Plus 1.6: link rot, sharing, and an AI that actually does the work
+title: Collections Plus 2.0: link rot, sharing, and an AI that actually does the work
 
 subtitle: The biggest update yet to my free, local-first replacement for the retiring Edge Collections — thirteen new features, from dead-link snapshots and shareable pages to AI search, a reading list, highlights, and a Ctrl+K command palette. Still no account, still no server.
 
 ---
 
-When Microsoft announced it's retiring **Edge Collections** (around Edge 149, mid-2026), I built **Collections Plus** to keep mine — a small, open, local-first browser extension that brings Collections back and then keeps going. Version 1.6 is the biggest leap so far: **thirteen** new features. This is the release where Collections Plus stops being "a nicer place to drop links" and becomes a genuinely capable place to *keep, find, and use* what you save.
+When Microsoft announced it's retiring **Edge Collections** (around Edge 149, mid-2026), I built **Collections Plus** to keep mine — a small, open, local-first browser extension that brings Collections back and then keeps going. Version 2.0 is the biggest leap so far: **thirteen** new features. This is the release where Collections Plus stops being "a nicer place to drop links" and becomes a genuinely capable place to *keep, find, and use* what you save.
 
 Here's everything that's new.
 
@@ -26,7 +26,7 @@ Collections were always *yours*. Now they can be **theirs** too. **Share as web 
 
 ## Put your AI to work — not just to chat
 
-1.5 let you *chat* with your collections. 1.6 lets the AI *do things* (using your own key — same bring-your-own-provider model as before):
+1.5 let you *chat* with your collections. 2.0 lets the AI *do things* (using your own key — same bring-your-own-provider model as before):
 
 - **Summarize (AI)** turns a saved page's snapshot into a one- or two-line TL;DR, saved right onto the item.
 - **Suggest tags (AI)** proposes topical tags for a collection — you approve which ones get added.

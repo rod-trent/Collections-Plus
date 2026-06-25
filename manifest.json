@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Collections Plus",
-  "version": "1.6.0",
+  "version": "2.0.0",
   "description": "Save pages, images & notes into collections — with dead-link snapshots, sharing, AI search & organize, a reading list, and more.",
   "minimum_chrome_version": "114",
   "homepage_url": "https://github.com/rod-trent/Collections-Plus",

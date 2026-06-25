@@ -138,10 +138,12 @@ def draw_list(pen, x, y, w):
     cx = x + pad
     cw = w - pad * 2
     topbar(pen, cx, y + 16, cw, "Collections Plus", font(17, "sb"))
-    # search box
+    # search box + AI-search button
     sy = y + 50
-    pen.rrect(cx, sy, cx + cw, sy + 32, 6, fill=ELEV, outline=BORDER, width=1)
+    pen.rrect(cx, sy, cx + cw - 40, sy + 32, 6, fill=ELEV, outline=BORDER, width=1)
     pen.text(cx + 10, sy + 8, "Search collections and items…", font(13), FAINT)
+    pen.rrect(cx + cw - 34, sy, cx + cw, sy + 32, 6, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + cw - 17, sy + 9, "AI", font(12, "sb"), ACCENT, anchor="ma")
 
     def card(yy, title, meta, hue, tags=None, pinned=False):
         ch = 78
@@ -360,6 +362,138 @@ def draw_chat(pen, x, y, w):
     pen.text(cx + cw - 28, iy0 + 10, "Send", font(12, "sb"), WHITE, anchor="ma")
 
 
+def draw_ai_search(pen, x, y, w):
+    """List view with the AI-search results overlay."""
+    pad = 16
+    cx = x + pad
+    cw = w - pad * 2
+    topbar(pen, cx, y + 16, cw, "Collections Plus", font(17, "sb"))
+
+    # search box + AI button + sort
+    sy = y + 50
+    pen.rrect(cx, sy, cx + cw - 86, sy + 32, 6, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + 10, sy + 8, "where to eat in Japan", font(13), TEXT)
+    pen.rrect(cx + cw - 82, sy, cx + cw - 46, sy + 32, 6, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + cw - 64, sy + 9, "AI", font(12, "sb"), ACCENT, anchor="ma")
+    pen.rrect(cx + cw - 42, sy, cx + cw, sy + 32, 6, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + cw - 21, sy + 10, "A–Z", font(11), DIM, anchor="ma")
+
+    # faded card behind, to hint at the list
+    pen.rrect(cx, sy + 46, cx + cw, sy + 46 + 60, 8, fill=ELEV, outline=BORDER, width=1)
+    cover(pen, cx + 28, sy + 56, 40, COVER_HUES[0])
+    pen.text(cx + 84, sy + 56, "Trip to Japan", font(15, "sb"), DIM)
+    pen.text(cx + 84, sy + 76, "12 items", font(12), FAINT)
+
+    # results overlay
+    oy = sy + 92
+    oh = 270
+    pen.rrect(cx - 4, oy + 6, cx + cw + 4, oy + oh + 6, 12, fill=(10, 10, 10))  # shadow
+    pen.rrect(cx - 4, oy, cx + cw + 4, oy + oh, 12, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + 8, oy + 12, "AI search", font(15, "sb"), TEXT)
+    pen.text(cx + 8, oy + 34, "3 results for “where to eat in Japan”", font(12), FAINT)
+    pen.line(cx + 8, oy + 56, cx + cw - 8, oy + 56, BORDER, 1)
+    results = [
+        ("Best ramen in Osaka", "top food stop in Japan", "Trip to Japan"),
+        ("Tokyo neighborhood guide", "covers dining districts", "Trip to Japan"),
+        ("Izakaya hopping in Shinjuku", "where locals eat & drink", "Foodie reads"),
+    ]
+    ry = oy + 66
+    for title, why, coll in results:
+        pen.text(cx + 10, ry, title, font(13, "sb"), TEXT)
+        pen.text(cx + 10, ry + 19, why, font(12), FAINT)
+        pen.text(cx + cw - 10, ry + 4, "in “%s” ›" % coll, font(11), ACCENT, anchor="ra")
+        ry += 44
+        if title != results[-1][0]:
+            pen.line(cx + 8, ry - 8, cx + cw - 8, ry - 8, BORDER, 1)
+
+
+def draw_link_rot(pen, x, y, w):
+    """Detail view: dead-link badges + a saved snapshot reader."""
+    pad = 16
+    cx = x + pad
+    cw = w - pad * 2
+    pen.text(cx, y + 14, "‹", font(22), DIM)
+    pen.text(cx + 26, y + 17, "Research", font(17, "sb"), TEXT)
+    pen.text(cx + cw - 14, y + 15, "⋯", font(20), DIM)
+
+    def page_item(yy, title, host, hue, dead=False, snap=False):
+        ih = 60
+        pen.rrect(cx, yy, cx + cw, yy + ih, 8, fill=ELEV, outline=BORDER, width=1)
+        cover(pen, cx + 12, yy + 11, 38, hue)
+        tx = cx + 60
+        pen.text(tx, yy + 9, title, font(14, "sb"), TEXT)
+        pen.text(tx, yy + 30, host, font(12), FAINT)
+        if dead:
+            hw = pen.textlen(host, font(12))
+            bx = tx + hw + 10
+            pen.poly([(bx, yy + 41), (bx + 12, yy + 41), (bx + 6, yy + 30)], DANGER)  # ⚠ triangle
+            pen.rrect(bx + 16, yy + 29, bx + 84, yy + 45, 4, fill=(60, 32, 32))
+            pen.text(bx + 22, yy + 31, "dead link", font(11, "sb"), DANGER)
+        if snap:
+            pen.text(cx + cw - 12, yy + 9, "Saved snapshot", font(11, "sb"), ACCENT, anchor="ra")
+        return yy + ih + 8
+
+    yy = y + 52
+    yy = page_item(yy, "Foundational paper (2019)", "old-domain.org", COVER_HUES[1], dead=True, snap=True)
+    yy = page_item(yy, "Survey of recent methods", "arxiv.org", COVER_HUES[2])
+    yy = page_item(yy, "Lessons learned (blog)", "defunct-blog.com", COVER_HUES[3], dead=True, snap=True)
+
+    # snapshot reader card
+    ry = yy + 6
+    rh = (y + 700) - ry - 16
+    pen.rrect(cx, ry, cx + cw, ry + rh, 10, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + 12, ry + 12, "Foundational paper (2019)", font(13, "sb"), TEXT)
+    pen.text(cx + 12, ry + 32, "Saved snapshot · captured 3 days ago", font(11), FAINT)
+    pen.line(cx + 12, ry + 52, cx + cw - 12, ry + 52, BORDER, 1)
+    body = [
+        "The method reframes the task as a ranking",
+        "problem and shows a lightweight model can",
+        "match far larger ones on the benchmark.",
+        "",
+        "This is the saved copy — still readable even",
+        "though the original page is now gone.",
+    ]
+    by = ry + 62
+    for line in body:
+        pen.text(cx + 12, by, line, font(12), DIM)
+        by += 19
+
+
+def draw_reading(pen, x, y, w):
+    """The Reading list (read-it-later) view."""
+    pad = 16
+    cx = x + pad
+    cw = w - pad * 2
+    pen.text(cx, y + 14, "‹", font(22), DIM)
+    pen.text(cx + 26, y + 17, "Reading list", font(17, "sb"), TEXT)
+    bw = 108
+    pen.rrect(cx + cw - bw, y + 14, cx + cw, y + 38, 6, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + cw - bw + 11, y + 20, "Mark all read", font(12, "sb"), TEXT)
+    pen.text(cx, y + 52, "Pages you save start here as unread.", font(12), DIM)
+
+    def row(yy, title, host, coll, hue):
+        ch = 64
+        pen.rrect(cx, yy, cx + cw, yy + ch, 8, fill=ELEV, outline=BORDER, width=1)
+        cover(pen, cx + 12, yy + 13, 38, hue)
+        tx = cx + 60
+        pen.text(tx, yy + 13, title, font(14, "sb"), TEXT)
+        pen.text(tx, yy + 34, host + " · " + coll, font(12), FAINT)
+        bw2 = 60
+        rx = cx + cw - 12 - bw2
+        pen.rrect(rx, yy + ch / 2 - 12, rx + bw2, yy + ch / 2 + 12, 6, fill=ELEV2, outline=BORDER, width=1)
+        pen.line(rx + 12, yy + ch / 2 + 1, rx + 17, yy + ch / 2 + 6, ACCENT, 2)
+        pen.line(rx + 17, yy + ch / 2 + 6, rx + 26, yy + ch / 2 - 5, ACCENT, 2)
+        pen.text(rx + 32, yy + ch / 2 - 7, "Read", font(12, "sb"), TEXT)
+        return yy + ch + 10
+
+    yy = y + 78
+    yy = row(yy, "Standing desk review", "example.com", "Home Office", COVER_HUES[2])
+    yy = row(yy, "Best ramen in Osaka", "example.com", "Trip to Japan", COVER_HUES[3])
+    yy = row(yy, "Tokyo neighborhood guide", "example.com", "Trip to Japan", COVER_HUES[0])
+    yy = row(yy, "RAG pipelines, explained", "blog.dev", "AI reading", COVER_HUES[1])
+    yy = row(yy, "The case for note-taking", "example.com", "Productivity", COVER_HUES[2])
+
+
 # ---- Canvas composition ----------------------------------------------------
 
 def screenshot(path, headline, sub, draw_panel):
@@ -440,26 +574,36 @@ def marquee(path):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    screenshot(os.path.join(OUT, "screenshot-1-list.png"),
+    # Refreshed set for the 2.0 listing — the headline new features first.
+    screenshot(os.path.join(OUT, "screenshot-1-collections.png"),
                "Organize the web\ninto collections",
-               "Folders, tags, pins, covers, and search\nkeep your saved pages tidy.",
+               "Folders, tags, pins, covers, sort,\nand search keep big libraries tidy.",
                draw_list)
-    screenshot(os.path.join(OUT, "screenshot-2-checklist.png"),
+    screenshot(os.path.join(OUT, "screenshot-2-ai-search.png"),
+               "Find anything\nby meaning",
+               "AI search surfaces the right item\neven when the words don't match.",
+               draw_ai_search)
+    screenshot(os.path.join(OUT, "screenshot-3-link-rot.png"),
+               "Beat link rot",
+               "Dead pages get flagged — and a saved\nsnapshot keeps the content for good.",
+               draw_link_rot)
+    screenshot(os.path.join(OUT, "screenshot-4-reading.png"),
+               "A reading list,\nbuilt in",
+               "Saved pages start unread and gather\nin one place. Open one to mark it read.",
+               draw_reading)
+    screenshot(os.path.join(OUT, "screenshot-5-ai-tools.png"),
+               "Put your AI\nto work",
+               "Summarize, tag, organize, search and\ndigest — with your own AI key.",
+               draw_chat)
+    # Extras the listing can swap in (core utility features).
+    screenshot(os.path.join(OUT, "screenshot-6-checklist.png"),
                "Checklists, notes\n& custom fields",
                "Tick items off and attach data like\nprice or quantity to any item.",
                lambda p, x, y, w: draw_detail(p, x, y, w, menu=False))
-    screenshot(os.path.join(OUT, "screenshot-3-export.png"),
+    screenshot(os.path.join(OUT, "screenshot-7-export.png"),
                "Export to Excel,\nMarkdown & more",
                "Real .xlsx with clickable links, plus\nCSV, Markdown, HTML, and JSON.",
                lambda p, x, y, w: draw_detail(p, x, y, w, menu=True))
-    screenshot(os.path.join(OUT, "screenshot-4-trash.png"),
-               "Nothing's gone\nuntil you say so",
-               "Deletes land in a recoverable Trash;\narchive old collections to declutter.",
-               draw_trash)
-    screenshot(os.path.join(OUT, "screenshot-5-ai.png"),
-               "Chat with your\nsaved collections",
-               "Bring your own AI key and ask for\nsummaries, reports, or what you saved.",
-               draw_chat)
     promo_small(os.path.join(OUT, "promo-small-440x280.png"))
     marquee(os.path.join(OUT, "promo-marquee-1400x560.png"))
 

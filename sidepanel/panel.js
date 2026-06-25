@@ -47,6 +47,7 @@ import { toCsv, toXlsxSheets } from '../lib/export.js';
 import { buildXlsx } from '../lib/xlsx.js';
 import { toMarkdown, toHtml, toLinkList } from '../lib/render.js';
 import { fileToCover, srcToCover } from '../lib/image.js';
+import { extractReadable } from '../lib/snapshot.js';
 import * as sync from '../lib/sync.js';
 import {
   AI_PROVIDERS,
@@ -142,6 +143,103 @@ function faviconFor(item) {
     return '';
   }
 }
+
+/** Human "3 days ago"-style label for a timestamp (empty for falsy input). */
+function timeAgo(ts) {
+  if (!ts) return '';
+  const secs = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  const units = [
+    ['year', 31536000], ['month', 2592000], ['week', 604800],
+    ['day', 86400], ['hour', 3600], ['minute', 60],
+  ];
+  for (const [name, size] of units) {
+    const n = Math.floor(secs / size);
+    if (n >= 1) return `${n} ${name}${n === 1 ? '' : 's'} ago`;
+  }
+  return 'just now';
+}
+
+/** Inline dead-link badge for a page item (nothing for ok/unchecked). */
+function linkStatusHtml(item) {
+  if (item.linkStatus !== 'dead') return '';
+  const when = item.linkCheckedAt ? ` (checked ${timeAgo(item.linkCheckedAt)})` : '';
+  return ` <span class="link-status dead" title="This link appears to be dead${when}. ${
+    item.snapshot ? 'A saved snapshot is available.' : 'Save a snapshot to keep the content.'
+  }">⚠ dead link</span>`;
+}
+
+// ---- Content snapshots (link-rot resilience) -------------------------------
+
+/**
+ * Fetch a page and store a readable text snapshot on the item, so the content
+ * survives the original going offline. Best-effort: bails with a toast if the
+ * page is unreachable or yields no extractable text.
+ */
+async function captureSnapshot(collectionId, item) {
+  if (!/^https?:/i.test(item.url || '')) return toast('Only web pages can be snapshotted');
+  toast('Saving snapshot…');
+  try {
+    const res = await fetch(item.url, { redirect: 'follow', cache: 'no-store' });
+    const html = await res.text();
+    const { title, text, excerpt, chars } = extractReadable(html);
+    if (!chars) return toast('Could not extract readable text');
+    await updateItem(collectionId, item.id, {
+      snapshot: { title: title || item.title || '', text, excerpt, capturedAt: Date.now() },
+    });
+    toast(`Snapshot saved (${chars.toLocaleString()} chars)`);
+  } catch {
+    toast('Snapshot failed — page unreachable');
+  }
+}
+
+/** Toast the outcome of a link check (the re-render updates the badges). */
+function reportLinkCheck(r) {
+  if (!r) return toast('Link check failed');
+  if (!r.checked) return toast('No web links to check');
+  const links = `${r.checked} link${r.checked === 1 ? '' : 's'}`;
+  toast(r.dead ? `Checked ${links} — ${r.dead} dead` : `Checked ${links} — all OK`);
+}
+
+let snapshotCtx = null; // { collectionId, itemId } for the open snapshot reader
+
+/** Open the snapshot reader for an item. */
+async function showSnapshot(collectionId, itemId) {
+  const data = await getData();
+  const c = data.collections.find((x) => x.id === collectionId);
+  const item = c?.items.find((it) => it.id === itemId);
+  if (!item?.snapshot) return;
+  snapshotCtx = { collectionId, itemId };
+  const snap = item.snapshot;
+  $('#snapshot-title').textContent = snap.title || item.title || 'Saved snapshot';
+  $('#snapshot-meta').textContent = `Captured ${timeAgo(snap.capturedAt)} · ${hostOf(item.url)}`;
+  // textContent (not innerHTML) so the snapshot can never inject markup.
+  $('#snapshot-body').textContent = snap.text || '';
+  $('#snapshot-body').scrollTop = 0;
+  $('#snapshot-open').href = item.url;
+  $('#snapshot-overlay').hidden = false;
+}
+
+function closeSnapshot() {
+  $('#snapshot-overlay').hidden = true;
+  snapshotCtx = null;
+}
+
+$('#snapshot-close').addEventListener('click', closeSnapshot);
+$('#snapshot-overlay').addEventListener('click', (e) => {
+  if (e.target === $('#snapshot-overlay')) closeSnapshot();
+});
+$('#snapshot-recapture').addEventListener('click', async () => {
+  if (!snapshotCtx) return;
+  const { collectionId, itemId } = snapshotCtx;
+  const data = await getData();
+  const c = data.collections.find((x) => x.id === collectionId);
+  const item = c?.items.find((it) => it.id === itemId);
+  closeSnapshot();
+  if (item) await captureSnapshot(collectionId, item);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('#snapshot-overlay').hidden) closeSnapshot();
+});
 
 let toastTimer;
 function toast(msg, action) {
@@ -888,7 +986,8 @@ function renderItem(collectionId, item) {
       <div class="item-title"><a href="${encodeURI(
         item.url
       )}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></div>
-      <div class="item-url">${escapeHtml(hostOf(item.url))}</div>`;
+      <div class="item-url">${escapeHtml(hostOf(item.url))}${linkStatusHtml(item)}</div>
+      ${item.snapshot ? `<button class="item-snapshot-view" title="Read the saved snapshot">📄 Saved snapshot</button>` : ''}`;
   }
 
   // Page thumbnails and images can be promoted to the collection cover.
@@ -917,6 +1016,14 @@ function renderItem(collectionId, item) {
     ? `<button class="item-field-add" title="Add a field (price, qty…)">⊞</button>`
     : '';
 
+  // Page items can capture a readable snapshot so the content survives link rot.
+  const snapshotBtn =
+    item.type === 'page'
+      ? `<button class="item-snapshot-btn" title="${
+          item.snapshot ? 'Read the saved snapshot' : 'Save a readable snapshot (survives link rot)'
+        }">📄</button>`
+      : '';
+
   row.innerHTML = `
     <span class="drag-handle" title="Drag to reorder">⠿</span>
     <div class="item-media">
@@ -927,6 +1034,7 @@ function renderItem(collectionId, item) {
     <div class="item-actions">
       ${coverBtnHtml}
       ${addFieldBtn}
+      ${snapshotBtn}
       <button class="item-move-btn" title="Move or copy to another collection">⇄</button>
       <button class="item-del" title="Remove">✕</button>
     </div>
@@ -944,6 +1052,24 @@ function renderItem(collectionId, item) {
     e.stopPropagation();
     openMoveMenu(e.currentTarget, collectionId, item.id);
   });
+
+  // Snapshot: the action button captures (or opens an existing snapshot); the
+  // inline "Saved snapshot" link always opens the reader.
+  const snapBtn = row.querySelector('.item-snapshot-btn');
+  if (snapBtn) {
+    snapBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (item.snapshot) showSnapshot(collectionId, item.id);
+      else captureSnapshot(collectionId, item);
+    });
+  }
+  const snapView = row.querySelector('.item-snapshot-view');
+  if (snapView) {
+    snapView.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showSnapshot(collectionId, item.id);
+    });
+  }
 
   // Custom-field wiring.
   row.querySelectorAll('.field-val').forEach((inp) => {
@@ -1915,6 +2041,8 @@ async function updateSettingLabels() {
   const s = await getSettings();
   const cacheBtn = $('#toggle-cache-btn');
   if (cacheBtn) cacheBtn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
+  const autoCheckBtn = $('#toggle-autocheck-btn');
+  if (autoCheckBtn) autoCheckBtn.textContent = `Auto-check links: ${s.autoCheckLinks ? 'On' : 'Off'}`;
   const themeBtn = $('#toggle-theme-btn');
   if (themeBtn) {
     const label = s.theme === 'light' ? 'Light' : s.theme === 'system' ? 'System' : 'Dark';
@@ -1979,6 +2107,15 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     const s = await getSettings();
     await setSettings({ cacheImages: !s.cacheImages });
     toast(`Offline image caching ${!s.cacheImages ? 'on' : 'off'}`);
+  }
+  if (action === 'check-all-links') {
+    toast('Checking all links…');
+    reportLinkCheck(await chrome.runtime.sendMessage({ type: 'checkLinks' }));
+  }
+  if (action === 'toggle-autocheck') {
+    const s = await getSettings();
+    await setSettings({ autoCheckLinks: !s.autoCheckLinks });
+    toast(`Auto-check links ${!s.autoCheckLinks ? 'on' : 'off'}`);
   }
   if (action === 'toggle-theme') {
     const s = await getSettings();
@@ -2133,6 +2270,10 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
     toast('Caching images…');
     const { cached } = await cacheCollectionImages(openId);
     toast(cached ? `Cached ${cached} image${cached === 1 ? '' : 's'}` : 'Nothing to cache');
+  }
+  if (action === 'check-links') {
+    toast('Checking links…');
+    reportLinkCheck(await chrome.runtime.sendMessage({ type: 'checkLinks', collectionId: openId }));
   }
   if (action === 'archive-collection') {
     const id = openId;

@@ -12,7 +12,8 @@
     "contextMenus",
     "tabs",
     "tabGroups",
-    "scripting"
+    "scripting",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>"

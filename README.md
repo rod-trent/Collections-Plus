@@ -56,6 +56,11 @@ step. Your data stays in your browser.
 - **JSON backup** (high fidelity: keeps notes, images, fields) and a local
   **version history** you can roll back to.
 - **Optional offline image caching** so saved images survive link rot.
+- **Dead-link checking & content snapshots:** *Check links* (per collection or
+  all at once) probes your saved pages and badges any that have gone **⚠ dead**;
+  turn on **Auto-check links** to have it run quietly in the background. The
+  **📄 snapshot** button on a page saves a readable copy of the article text so
+  the content survives even if the original goes offline — read it back anytime.
 - **Optional cross-device sync** through a single file you keep in any
   cloud-synced folder (see [Syncing across devices](#syncing-across-devices)).
 

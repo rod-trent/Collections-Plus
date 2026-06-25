@@ -11,9 +11,11 @@ import {
   findPageByUrl,
   getSettings,
   cacheItemImage,
+  applyLinkResults,
   STORAGE_KEY,
 } from './lib/store.js';
 import { srcToCover } from './lib/image.js';
+import { classifyStatus } from './lib/linkcheck.js';
 
 // If offline image caching is on, inline the freshly-saved item's image.
 async function maybeCache(out) {
@@ -226,12 +228,127 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   await maybeCache(out);
 });
 
+// ---- Link-rot checking -----------------------------------------------------
+// Probe saved page URLs to catch link rot. The verdict logic lives in
+// lib/linkcheck.js (pure, tested); here we just do the network I/O. Our
+// <all_urls> host permission lets the worker fetch cross-origin without CORS.
+
+const LINK_TIMEOUT_MS = 8000;
+const LINK_CONCURRENCY = 5;
+
+// Probe one URL → 'ok' | 'dead' | 'unknown'.
+async function probeUrl(url) {
+  if (!/^https?:/i.test(url || '')) return 'unknown';
+  const attempt = async (method) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), LINK_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method,
+        redirect: 'follow',
+        signal: ctrl.signal,
+        cache: 'no-store',
+      });
+      return { status: res.status };
+    } catch (e) {
+      return e?.name === 'AbortError' ? { timedOut: true } : { networkError: true };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  let outcome = await attempt('HEAD');
+  // Some servers reject or mishandle HEAD (405) — confirm with a GET before
+  // trusting a network error or a method-not-allowed.
+  if (outcome.status === 405 || outcome.networkError) {
+    const get = await attempt('GET');
+    if (!get.networkError) outcome = get;
+  }
+  return classifyStatus(outcome);
+}
+
+// Collect probe targets (http(s) page items), optionally scoped to one
+// collection or to entries not checked since `staleBefore`.
+function collectTargets(data, { collectionId, staleBefore } = {}) {
+  const cols = collectionId
+    ? data.collections.filter((c) => c.id === collectionId)
+    : data.collections;
+  const targets = [];
+  for (const c of cols) {
+    for (const it of c.items) {
+      if (it.type !== 'page' || !/^https?:/i.test(it.url || '')) continue;
+      if (staleBefore != null && it.linkCheckedAt && it.linkCheckedAt >= staleBefore) continue;
+      targets.push({ collectionId: c.id, itemId: it.id, url: it.url, at: it.linkCheckedAt || 0 });
+    }
+  }
+  return targets;
+}
+
+// Probe a list of targets with bounded concurrency; persist in one batch.
+async function probeTargets(targets) {
+  const results = new Array(targets.length);
+  let idx = 0;
+  let dead = 0;
+  const worker = async () => {
+    for (let i = idx++; i < targets.length; i = idx++) {
+      const t = targets[i];
+      const status = await probeUrl(t.url);
+      if (status === 'dead') dead++;
+      results[i] = {
+        collectionId: t.collectionId,
+        itemId: t.itemId,
+        // Only record a definite verdict; 'unknown' just stamps the time.
+        linkStatus: status === 'ok' || status === 'dead' ? status : undefined,
+        linkCheckedAt: Date.now(),
+      };
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(LINK_CONCURRENCY, targets.length) }, worker)
+  );
+  await applyLinkResults(results.filter(Boolean));
+  return { checked: targets.length, dead };
+}
+
+// On-demand check (from the panel): all collections or just one.
+async function checkLinks(collectionId) {
+  const data = await getData();
+  return probeTargets(collectTargets(data, { collectionId }));
+}
+
+// ---- Periodic auto-check (opt-in) ------------------------------------------
+
+const LINK_ALARM = 'linkcheck';
+const RECHECK_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // re-probe at most weekly
+const MAX_PER_RUN = 40; // keep each wake-up cheap
+
+function ensureLinkAlarm() {
+  chrome.alarms?.get(LINK_ALARM, (a) => {
+    if (!a) chrome.alarms.create(LINK_ALARM, { periodInMinutes: 6 * 60 });
+  });
+}
+chrome.runtime.onInstalled.addListener(ensureLinkAlarm);
+chrome.runtime.onStartup.addListener(ensureLinkAlarm);
+
+chrome.alarms?.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== LINK_ALARM) return;
+  if (!(await getSettings()).autoCheckLinks) return;
+  const data = await getData();
+  const stale = collectTargets(data, { staleBefore: Date.now() - RECHECK_AFTER_MS });
+  stale.sort((a, b) => a.at - b.at); // oldest (or never-checked) first
+  if (stale.length) await probeTargets(stale.slice(0, MAX_PER_RUN));
+});
+
 // ---- Messages from the side panel -----------------------------------------
 // The panel asks the worker to capture metadata for the active tab when the
-// user clicks "Add current page" (scripting must run from the worker).
+// user clicks "Add current page" (scripting must run from the worker), and to
+// run link checks (network I/O belongs in the worker).
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'captureMeta' && typeof msg.tabId === 'number') {
     captureMeta(msg.tabId).then(sendResponse);
+    return true; // async response
+  }
+  if (msg?.type === 'checkLinks') {
+    checkLinks(msg.collectionId).then(sendResponse).catch(() => sendResponse(null));
     return true; // async response
   }
   return false;

@@ -38,6 +38,8 @@
               <button data-action="ai-settings">AI settings…</button>
               <div class="menu-sep"></div>
               <button data-action="toggle-cache" id="toggle-cache-btn">Cache images offline: Off</button>
+              <button data-action="check-all-links">Check all links</button>
+              <button data-action="toggle-autocheck" id="toggle-autocheck-btn">Auto-check links: Off</button>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
               <button data-action="history">Version history…</button>
               <div class="menu-sep"></div>
@@ -108,6 +110,7 @@
             <button data-action="cover-upload">Change cover…</button>
             <button data-action="cover-remove">Remove cover</button>
             <button data-action="cache-now">Cache images now</button>
+            <button data-action="check-links">Check links</button>
             <div class="menu-sep"></div>
             <button data-action="archive-collection">Archive collection</button>
             <button data-action="delete-collection" class="danger">Move to Trash</button>
@@ -265,6 +268,22 @@
 
     <!-- Floating menu to assign a collection to a folder -->
     <div id="folder-menu" class="menu floating" hidden></div>
+
+    <!-- Readable snapshot reader (link-rot resilience) -->
+    <div id="snapshot-overlay" class="modal-overlay" hidden>
+      <div class="modal snapshot-modal" role="dialog" aria-modal="true" aria-label="Saved snapshot">
+        <div class="snapshot-head">
+          <div class="snapshot-title" id="snapshot-title"></div>
+          <button id="snapshot-close" class="btn icon" title="Close">✕</button>
+        </div>
+        <div class="snapshot-meta" id="snapshot-meta"></div>
+        <div class="snapshot-body" id="snapshot-body"></div>
+        <div class="snapshot-actions">
+          <a id="snapshot-open" class="btn" target="_blank" rel="noreferrer">Open original ↗</a>
+          <button id="snapshot-recapture" class="btn">Re-capture</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Custom dialog (replaces the browser's native prompt/confirm) -->
     <div id="modal" class="modal-overlay" hidden>

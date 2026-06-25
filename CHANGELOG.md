@@ -3,6 +3,17 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## Unreleased
+
+**Beat link rot.** Collections Plus can now tell you when a saved page has gone
+dead and help you keep its content. Use **Check links** (in a collection's ⋯
+menu, or **Check all links** in the main menu) to probe your saved pages —
+broken ones get a clear **⚠ dead link** badge. And the new **📄 snapshot** button
+on any page saves a clean, readable copy of the article text so the words
+survive even if the original disappears; click **Saved snapshot** to read it
+back anytime. Prefer it hands-off? Turn on **Auto-check links** and the
+extension quietly re-checks your links in the background.
+
 ## 1.5.0
 
 Two big additions. **Search got smarter:** it now looks inside custom fields too,

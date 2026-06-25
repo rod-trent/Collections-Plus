@@ -41,7 +41,8 @@ step. Your data stays in your browser.
   (restorable, and auto-emptied after 30 days), and you can **Archive** old
   collections to keep your main list uncluttered. Both are in the ⋯ menu.
 - **Custom covers:** upload an image or promote a saved thumbnail with ★.
-- **Light / dark theme**.
+- **Light / dark / system theme:** cycle in the ⋯ menu. **System** follows your
+  OS / Chrome light-dark setting and switches live (e.g. at sunrise/sunset).
 
 **Exporting & backup**
 

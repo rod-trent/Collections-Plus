@@ -1916,7 +1916,10 @@ async function updateSettingLabels() {
   const cacheBtn = $('#toggle-cache-btn');
   if (cacheBtn) cacheBtn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
   const themeBtn = $('#toggle-theme-btn');
-  if (themeBtn) themeBtn.textContent = `Theme: ${s.theme === 'light' ? 'Light' : 'Dark'}`;
+  if (themeBtn) {
+    const label = s.theme === 'light' ? 'Light' : s.theme === 'system' ? 'System' : 'Dark';
+    themeBtn.textContent = `Theme: ${label}`;
+  }
 }
 
 /** Refresh the little count badges on the topbar Archive/Trash buttons. */
@@ -1931,9 +1934,25 @@ function updateBinBadges(data) {
   set('#trash-badge', (data.trash || []).length);
 }
 
-function applyTheme(theme) {
-  document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+// Tracks the OS/Chrome light-dark preference so 'system' theme can mirror it.
+const darkMql = window.matchMedia('(prefers-color-scheme: dark)');
+
+/** Resolve a stored theme setting to a concrete 'light' | 'dark'. */
+function resolveTheme(theme) {
+  if (theme === 'system') return darkMql.matches ? 'dark' : 'light';
+  return theme === 'light' ? 'light' : 'dark';
 }
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = resolveTheme(theme);
+}
+
+// When following the system and the OS flips light/dark (e.g. at sunset), update
+// the panel live — no reload needed.
+darkMql.addEventListener('change', async () => {
+  const s = await getSettings();
+  if (s.theme === 'system') applyTheme('system');
+});
 
 $('#overflow-btn').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -1963,9 +1982,13 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'toggle-theme') {
     const s = await getSettings();
-    const theme = s.theme === 'light' ? 'dark' : 'light';
+    // Cycle Dark → Light → System (follows the OS/Chrome setting).
+    const order = ['dark', 'light', 'system'];
+    const cur = order.includes(s.theme) ? s.theme : 'dark';
+    const theme = order[(order.indexOf(cur) + 1) % order.length];
     await setSettings({ theme });
     applyTheme(theme);
+    toast(`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`);
   }
   if (action === 'history') openHistoryMenu();
   if (action === 'ai-chat') openChat({ type: 'all' });

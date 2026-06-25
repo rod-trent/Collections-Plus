@@ -2634,7 +2634,7 @@ $('#new-folder-btn').addEventListener('click', async () => {
 async function updateSettingLabels() {
   const s = await getSettings();
   const cacheBtn = $('#toggle-cache-btn');
-  if (cacheBtn) cacheBtn.textContent = `Cache images offline: ${s.cacheImages ? 'On' : 'Off'}`;
+  if (cacheBtn) cacheBtn.textContent = `Cache images: ${s.cacheImages ? 'On' : 'Off'}`;
   const autoCheckBtn = $('#toggle-autocheck-btn');
   if (autoCheckBtn) autoCheckBtn.textContent = `Auto-check links: ${s.autoCheckLinks ? 'On' : 'Off'}`;
   const themeBtn = $('#toggle-theme-btn');
@@ -2757,7 +2757,7 @@ function closeOverflow() {
   closeSubmenus();
 }
 
-/** Open a category submenu next to its trigger, clamped on-screen. */
+/** Open a category submenu as a flyout to the LEFT of the overflow menu. */
 function openSubmenu(name, trigger) {
   const menu = $(`#submenu-${name}`);
   if (!menu || !menu.hidden) return; // already open — don't re-trigger on hover
@@ -2766,33 +2766,28 @@ function openSubmenu(name, trigger) {
   if (name === 'tools') updateSettingLabels();
   if (name === 'sync') refreshSyncMenu();
 
-  menu.hidden = false; // unhide to measure
-  const overflowEl = $('#overflow-menu');
-  const overflow = overflowEl.getBoundingClientRect();
-  const t = trigger.getBoundingClientRect();
+  const overflow = $('#overflow-menu').getBoundingClientRect();
+  // The side panel can only draw within its own width, so cap the flyout to the
+  // space to the LEFT of the menu. This guarantees it sits fully beside the menu
+  // (never covering it, never clipping past the panel's left edge), while the
+  // menu stays visible so you can move back or hover another category.
+  const avail = Math.round(overflow.left - 10);
+  menu.style.maxWidth = `${avail}px`;
+  menu.style.minWidth = `${Math.min(200, avail)}px`;
+  menu.hidden = false;
 
-  // Position from the element's *rendered* size (getBoundingClientRect is
-  // reliable where offsetWidth can read stale). Prefer flying out to the left
-  // of the menu, fall back to the right, and always clamp inside the viewport.
   const place = () => {
     const rect = menu.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    let left = overflow.left - w - 2;
-    if (left < 8) left = overflow.right + 2;
-    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
-    let top = t.top;
-    if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - h - 8);
+    const left = Math.max(8, overflow.left - rect.width - 2);
+    let top = trigger.getBoundingClientRect().top;
+    if (top + rect.height > window.innerHeight - 8) {
+      top = Math.max(8, window.innerHeight - rect.height - 8);
+    }
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
   };
   place();
   place(); // second pass settles position once the final width is known
-
-  // If the flyout still covers the menu (no room beside it in a narrow panel),
-  // hide the menu so it reads as a clean drill-in instead of overlapping text.
-  const r = menu.getBoundingClientRect();
-  overflowEl.hidden = r.right > overflow.left + 1 && r.left < overflow.right - 1;
 }
 
 $('#overflow-btn').addEventListener('click', (e) => {
@@ -2816,6 +2811,13 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   if (!action) return;
   closeOverflow();
   await runMenuAction(action);
+});
+
+// Hover a category to pop its submenu out (and switch between them). The menu
+// stays visible, so moving back onto it or another category just works.
+$('#overflow-menu').addEventListener('mouseover', (e) => {
+  const trigger = e.target.closest('.submenu-trigger');
+  if (trigger) openSubmenu(trigger.dataset.submenu, trigger);
 });
 
 // Clicks inside a submenu run the action and close everything.

@@ -204,6 +204,12 @@ body {
   margin: 4px 6px;
 }
 
+/* The overflow menu now holds short category labels — keep it narrow so the
+   flyout submenus have room to pop out to its left in the side panel. */
+#overflow-menu {
+  min-width: 156px;
+}
+
 /* Category triggers in the overflow menu (open a flyout submenu). */
 .submenu-trigger {
   display: flex !important;

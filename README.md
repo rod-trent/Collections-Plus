@@ -63,6 +63,8 @@ step. Your data stays in your browser.
   anyone or host anywhere — saved as one portable file, with a one-click preview.
 - **Import your Edge export** (`collections_export.csv`) so your existing
   collections carry over on day one.
+- **Import your browser bookmarks** (Chrome/Edge) — each bookmark folder becomes
+  a collection.
 - **JSON backup** (high fidelity: keeps notes, images, fields) and a local
   **version history** you can roll back to.
 - **Optional offline image caching** so saved images survive link rot.

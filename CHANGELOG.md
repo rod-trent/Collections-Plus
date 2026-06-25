@@ -5,6 +5,11 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Import your browser bookmarks.** New **Import browser bookmarks…** option (in
+the ⋯ menu) brings your Chrome/Edge bookmarks straight in — each bookmark folder
+becomes a collection. A fast way to get your existing links into Collections
+Plus on day one.
+
 **Highlights & annotations.** Select text on any page, right-click → **Save
 selection as highlight**, and the quote is saved with a link back to its source
 page and title — plus a note field for your own annotation. Highlights show as

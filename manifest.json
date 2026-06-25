@@ -13,7 +13,8 @@
     "tabs",
     "tabGroups",
     "scripting",
-    "alarms"
+    "alarms",
+    "bookmarks"
   ],
   "host_permissions": [
     "<all_urls>"

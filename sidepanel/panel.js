@@ -42,6 +42,7 @@ import {
   exportJSON,
   importJSON,
   importEdgeCsv,
+  importBookmarks,
   STORAGE_KEY,
 } from '../lib/store.js';
 import { toCsv, toXlsxSheets } from '../lib/export.js';
@@ -2031,6 +2032,7 @@ async function buildPaletteCommands() {
   add('Export all as HTML', () => doExportDoc('html'));
   add('Import Edge CSV…', () => pickFile('csv'));
   add('Import backup (JSON)…', () => pickFile('json'));
+  add('Import browser bookmarks…', () => doImportBookmarks());
   add('Toggle theme', () => cycleTheme());
 
   // Jump to any collection by name.
@@ -2147,6 +2149,27 @@ function pickFile(mode) {
   else if (mode === 'cover') els.fileInput.accept = 'image/*';
   else els.fileInput.accept = '.json,application/json';
   els.fileInput.click();
+}
+
+/** Import the browser's bookmarks as collections (one per folder). */
+async function doImportBookmarks() {
+  if (!chrome.bookmarks?.getTree) {
+    return toast('Bookmarks are not available in this browser');
+  }
+  const ok = await showConfirm(
+    'Import your browser bookmarks? Each bookmark folder becomes a collection.',
+    { okLabel: 'Import' }
+  );
+  if (!ok) return;
+  try {
+    const tree = await chrome.bookmarks.getTree();
+    const stats = await importBookmarks(tree);
+    if (!stats.collections) return toast('No bookmarks found to import');
+    toast(`Imported ${stats.pages} bookmark${stats.pages === 1 ? '' : 's'} into ${stats.collections} collection${stats.collections === 1 ? '' : 's'}`);
+  } catch (err) {
+    console.error(err);
+    toast('Could not read bookmarks');
+  }
 }
 
 els.fileInput.addEventListener('change', async () => {
@@ -2567,6 +2590,7 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   if (action === 'export-md') doExportDoc('md');
   if (action === 'export-html') doExportDoc('html');
   if (action === 'import-json') pickFile('json');
+  if (action === 'import-bookmarks') doImportBookmarks();
   if (action === 'import-csv') pickFile('csv');
   if (action === 'toggle-cache') {
     const s = await getSettings();

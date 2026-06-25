@@ -911,6 +911,76 @@ body {
   text-decoration: none;
 }
 
+/* Auto-file rules manager */
+.rules-modal {
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(80vh, 600px);
+}
+
+.rules-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding: 6px 0;
+}
+
+.rules-empty {
+  color: var(--text-faint);
+  padding: 12px 2px;
+}
+
+.rules-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rules-cond {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.rules-arrow {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rules-del {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.rules-del:hover {
+  color: var(--danger);
+  background: var(--bg-elev-2);
+}
+
+.rules-add {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.rules-add #rule-add {
+  grid-column: 1 / -1;
+}
+
 /* Command palette */
 #palette-overlay {
   align-items: flex-start;

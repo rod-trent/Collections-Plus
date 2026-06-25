@@ -16,6 +16,7 @@ import {
 } from './lib/store.js';
 import { srcToCover } from './lib/image.js';
 import { classifyStatus } from './lib/linkcheck.js';
+import { matchRule } from './lib/rules.js';
 
 // If offline image caching is on, inline the freshly-saved item's image.
 async function maybeCache(out) {
@@ -143,17 +144,24 @@ chrome.commands?.onCommand.addListener(async (command) => {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab || !/^https?:/i.test(tab.url || '')) return;
 
-  const col = await ensureActiveCollection();
+  const meta = tab.id != null ? await captureMeta(tab.id) : {};
+  const title = meta.title || tab.title || tab.url;
+
+  // Auto-file rules can route the quick-save into a specific collection by
+  // domain/URL/title; otherwise fall back to the active collection.
+  const data = await getData();
+  const ruled = matchRule(data.rules, { url: tab.url, title });
+  const col =
+    (ruled && data.collections.find((c) => c.id === ruled)) || (await ensureActiveCollection());
   if (await findPageByUrl(col.id, tab.url)) return; // already saved — skip
 
-  const meta = tab.id != null ? await captureMeta(tab.id) : {};
   let thumbnail = meta.thumbnail || '';
   if (!thumbnail) thumbnail = await captureScreenshotThumb(tab.windowId);
 
   const out = await addItem(col.id, {
     type: 'page',
     url: tab.url,
-    title: meta.title || tab.title || tab.url,
+    title,
     favIconUrl: tab.favIconUrl || '',
     thumbnail,
     unread: true,

@@ -19,6 +19,8 @@ step. Your data stays in your browser.
   *Save selection as highlight* to keep the quote with a link back to its source
   and your own annotation.
 - **Add all open tabs** in the window to a collection at once.
+- **Auto-file rules:** route quick-saves (`Ctrl+Shift+S`) into a collection
+  automatically by domain, URL or title (⋯ → *Auto-file rules…*).
 - **Drag a link or image** straight onto the panel to save it.
 - **Duplicate-aware:** saving a page already in the collection is skipped.
 - When a page has no preview image, a **local screenshot** is captured as the

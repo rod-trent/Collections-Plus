@@ -247,6 +247,22 @@ console.log('\nempty trash / delete entry / auto-purge:');
   assert(data.trash.length === 1 && data.trash[0].id === 't-new', 'entries older than 30 days are purged on read');
 }
 
+console.log('\nauto-file rules:');
+{
+  reset();
+  const c = await store.createCollection('Videos');
+  const rule = await store.addRule({ type: 'domain', value: 'youtube.com', collectionId: c.id });
+  assert(rule && rule.id, 'addRule returns a rule with an id');
+  let data = await store.getData();
+  assert(data.rules.length === 1 && data.rules[0].value === 'youtube.com', 'rule persisted');
+  assert((await store.addRule({ type: 'bogus', value: 'x', collectionId: c.id })) === null, 'rejects an unknown rule type');
+
+  // A rule whose target collection is removed is pruned on read.
+  await store.removeCollection(c.id);
+  data = await store.getData();
+  assert(data.rules.length === 0, 'rules pointing at a deleted collection are pruned');
+}
+
 console.log('\nhighlight item type:');
 {
   reset();

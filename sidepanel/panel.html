@@ -44,6 +44,7 @@
               <button data-action="toggle-cache" id="toggle-cache-btn">Cache images offline: Off</button>
               <button data-action="check-all-links">Check all links</button>
               <button data-action="toggle-autocheck" id="toggle-autocheck-btn">Auto-check links: Off</button>
+              <button data-action="rules">Auto-file rules…</button>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
               <button data-action="history">Version history…</button>
               <div class="menu-sep"></div>
@@ -279,6 +280,31 @@
 
     <!-- Floating menu to assign a collection to a folder -->
     <div id="folder-menu" class="menu floating" hidden></div>
+
+    <!-- Auto-file rules manager -->
+    <div id="rules-overlay" class="modal-overlay" hidden>
+      <div class="modal rules-modal" role="dialog" aria-modal="true" aria-label="Auto-file rules">
+        <div class="snapshot-head">
+          <div class="snapshot-title">Auto-file rules</div>
+          <button id="rules-close" class="btn icon" title="Close">✕</button>
+        </div>
+        <div class="snapshot-meta">
+          When you quick-save a page (Ctrl+Shift+S), the first matching rule files it
+          into that collection automatically.
+        </div>
+        <div class="rules-list" id="rules-list"></div>
+        <div class="rules-add">
+          <select id="rule-type" class="settings-input" aria-label="Match type">
+            <option value="domain">Domain is</option>
+            <option value="urlContains">URL contains</option>
+            <option value="titleContains">Title contains</option>
+          </select>
+          <input id="rule-value" class="settings-input" placeholder="e.g. youtube.com" aria-label="Match value" />
+          <select id="rule-collection" class="settings-input" aria-label="Target collection"></select>
+          <button id="rule-add" class="btn primary">Add rule</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Command palette (Ctrl/Cmd+K) -->
     <div id="palette-overlay" class="modal-overlay" hidden>

@@ -5,6 +5,11 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Auto-file rules.** Set up rules (⋯ → **Auto-file rules…**) so quick-saves land
+in the right place automatically: when you press **Ctrl+Shift+S**, the first
+matching rule files the page into its collection — match by **domain**, **URL
+contains**, or **title contains**. Rules sync and back up with your data.
+
 **Import your browser bookmarks.** New **Import browser bookmarks…** option (in
 the ⋯ menu) brings your Chrome/Edge bookmarks straight in — each bookmark folder
 becomes a collection. A fast way to get your existing links into Collections

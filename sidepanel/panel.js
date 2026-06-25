@@ -43,8 +43,11 @@ import {
   importJSON,
   importEdgeCsv,
   importBookmarks,
+  addRule,
+  removeRule,
   STORAGE_KEY,
 } from '../lib/store.js';
+import { ruleLabel } from '../lib/rules.js';
 import { toCsv, toXlsxSheets } from '../lib/export.js';
 import { buildXlsx } from '../lib/xlsx.js';
 import { toMarkdown, toHtml, toLinkList, toShareableHtml } from '../lib/render.js';
@@ -2033,6 +2036,7 @@ async function buildPaletteCommands() {
   add('Import Edge CSV…', () => pickFile('csv'));
   add('Import backup (JSON)…', () => pickFile('json'));
   add('Import browser bookmarks…', () => doImportBookmarks());
+  add('Auto-file rules…', () => openRules());
   add('Toggle theme', () => cycleTheme());
 
   // Jump to any collection by name.
@@ -2171,6 +2175,69 @@ async function doImportBookmarks() {
     toast('Could not read bookmarks');
   }
 }
+
+// ---- Auto-file rules manager -----------------------------------------------
+
+async function openRules() {
+  await renderRules();
+  $('#rules-overlay').hidden = false;
+}
+
+function closeRules() {
+  $('#rules-overlay').hidden = true;
+}
+
+async function renderRules() {
+  const data = await getData();
+  const titleById = new Map(data.collections.map((c) => [c.id, c.title || 'Untitled']));
+
+  // Refresh the target-collection picker.
+  const sel = $('#rule-collection');
+  sel.innerHTML = data.collections
+    .map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.title || 'Untitled')}</option>`)
+    .join('');
+
+  const list = $('#rules-list');
+  const rules = data.rules || [];
+  if (!rules.length) {
+    list.innerHTML = `<p class="rules-empty">No rules yet. Add one below.</p>`;
+  } else {
+    list.innerHTML = '';
+    for (const r of rules) {
+      const row = document.createElement('div');
+      row.className = 'rules-row';
+      row.innerHTML = `
+        <span class="rules-cond">${escapeHtml(ruleLabel(r))}</span>
+        <span class="rules-arrow">→ ${escapeHtml(titleById.get(r.collectionId) || '(deleted)')}</span>
+        <button class="rules-del" title="Delete rule">✕</button>`;
+      row.querySelector('.rules-del').addEventListener('click', async () => {
+        await removeRule(r.id);
+        renderRules();
+      });
+      list.append(row);
+    }
+  }
+}
+
+$('#rules-close').addEventListener('click', closeRules);
+$('#rules-overlay').addEventListener('click', (e) => {
+  if (e.target === $('#rules-overlay')) closeRules();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('#rules-overlay').hidden) closeRules();
+});
+$('#rule-add').addEventListener('click', async () => {
+  const type = $('#rule-type').value;
+  const value = $('#rule-value').value.trim();
+  const collectionId = $('#rule-collection').value;
+  if (!value) return toast('Enter a value to match');
+  if (!collectionId) return toast('Create a collection first');
+  const rule = await addRule({ type, value, collectionId });
+  if (!rule) return toast('Could not add that rule');
+  $('#rule-value').value = '';
+  toast('Rule added');
+  renderRules();
+});
 
 els.fileInput.addEventListener('change', async () => {
   const file = els.fileInput.files[0];
@@ -2605,6 +2672,9 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     const s = await getSettings();
     await setSettings({ autoCheckLinks: !s.autoCheckLinks });
     toast(`Auto-check links ${!s.autoCheckLinks ? 'on' : 'off'}`);
+  }
+  if (action === 'rules') {
+    await openRules();
   }
   if (action === 'toggle-theme') {
     await cycleTheme();

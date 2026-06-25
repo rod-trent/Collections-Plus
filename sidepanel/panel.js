@@ -550,6 +550,7 @@ async function render() {
 /** Human-readable name for an item, used in match previews. */
 function itemDisplayName(it) {
   if (it.type === 'note') return (it.text || '').trim().slice(0, 80) || 'Note';
+  if (it.type === 'highlight') return (it.text || '').trim().slice(0, 80) || 'Highlight';
   if (it.type === 'image') return it.alt || 'Image';
   return it.title || it.url || 'Untitled';
 }
@@ -1026,6 +1027,17 @@ function renderItem(collectionId, item) {
     bodyHtml = `<div class="item-note"><textarea placeholder="Write a note…">${escapeHtml(
       item.text
     )}</textarea></div>`;
+  } else if (item.type === 'highlight') {
+    thumbHtml = `<div class="item-thumb">❝</div>`;
+    const srcLine = item.url
+      ? `<div class="item-url"><a href="${encodeURI(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(
+          item.title || hostOf(item.url)
+        )}</a></div>`
+      : '';
+    bodyHtml = `
+      <blockquote class="item-quote">${escapeHtml(item.text || '')}</blockquote>
+      ${srcLine}
+      <div class="item-note"><textarea placeholder="Add a note…">${escapeHtml(item.note || '')}</textarea></div>`;
   } else if (item.type === 'image') {
     thumbHtml = `<div class="item-thumb" style="background-image:url('${encodeURI(
       item.src
@@ -1062,7 +1074,7 @@ function renderItem(collectionId, item) {
     : '';
 
   // Custom fields (price, qty, …) — page/image items only.
-  const supportsFields = item.type !== 'note';
+  const supportsFields = item.type === 'page' || item.type === 'image';
   const fields = item.fields || {};
   const fieldsHtml = supportsFields
     ? `<div class="item-fields">${Object.keys(fields)
@@ -1188,6 +1200,12 @@ function renderItem(collectionId, item) {
     const ta = row.querySelector('textarea');
     ta.addEventListener('change', () =>
       updateItem(collectionId, item.id, { text: ta.value })
+    );
+  }
+  if (item.type === 'highlight') {
+    const ta = row.querySelector('textarea');
+    ta.addEventListener('change', () =>
+      updateItem(collectionId, item.id, { note: ta.value })
     );
   }
 

@@ -5,6 +5,12 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Highlights & annotations.** Select text on any page, right-click → **Save
+selection as highlight**, and the quote is saved with a link back to its source
+page and title — plus a note field for your own annotation. Highlights show as
+tidy quote blocks in the collection and flow through search, exports and shared
+pages, turning Collections Plus into a lightweight research tool.
+
 **Reading list (read-it-later).** Pages you save now start as **unread** and
 collect in a new **📖 Reading list** (with an unread count badge in the toolbar).
 Open one and it's automatically marked read — or use the unread dot on an item,

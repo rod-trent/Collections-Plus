@@ -15,7 +15,9 @@ step. Your data stays in your browser.
 - Save the **current page** (with thumbnail, favicon and title) with one click,
   or with the **`Ctrl+Shift+S`** keyboard shortcut (rebindable).
 - **Right-click** any page, link, or image → *Save to Collections Plus ▸ pick a collection*
-  (or create a new one on the spot). Select text → *Save selection as note*.
+  (or create a new one on the spot). Select text → *Save selection as note*, or
+  *Save selection as highlight* to keep the quote with a link back to its source
+  and your own annotation.
 - **Add all open tabs** in the window to a collection at once.
 - **Drag a link or image** straight onto the panel to save it.
 - **Duplicate-aware:** saving a page already in the collection is skipped.

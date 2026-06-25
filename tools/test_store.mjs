@@ -247,6 +247,24 @@ console.log('\nempty trash / delete entry / auto-purge:');
   assert(data.trash.length === 1 && data.trash[0].id === 't-new', 'entries older than 30 days are purged on read');
 }
 
+console.log('\nhighlight item type:');
+{
+  reset();
+  const c = await store.createCollection('Research');
+  const h = await store.addItem(c.id, {
+    type: 'highlight', text: 'a quoted passage', url: 'https://ex.com/src', title: 'Source', note: 'why it matters',
+  });
+  assert(h.item.type === 'highlight', 'creates a highlight item');
+  assert(h.item.text === 'a quoted passage' && h.item.url === 'https://ex.com/src', 'keeps quote + source url');
+  assert(h.item.title === 'Source' && h.item.note === 'why it matters', 'keeps source title + annotation');
+  assert(!('fields' in h.item), 'highlights carry no custom fields');
+
+  // Round-trips through migration intact.
+  const data = await store.getData();
+  const back = data.collections[0].items[0];
+  assert(back.type === 'highlight' && back.text === 'a quoted passage', 'survives migrate on read');
+}
+
 console.log('\nread-later (unread) state:');
 {
   reset();

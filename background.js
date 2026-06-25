@@ -40,6 +40,7 @@ const PARENTS = [
   { id: 'save-link', title: 'Save link to Collections Plus', contexts: ['link'] },
   { id: 'save-image', title: 'Save image to Collections Plus', contexts: ['image'] },
   { id: 'save-note', title: 'Save selection as note', contexts: ['selection'] },
+  { id: 'save-highlight', title: 'Save selection as highlight', contexts: ['selection'] },
 ];
 
 const NEW_SUFFIX = '::new'; // child id suffix for "New collection…"
@@ -214,6 +215,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await addItem(collectionId, {
       type: 'note',
       text: info.selectionText || '',
+    });
+    return;
+  }
+
+  if (parsed.action === 'save-highlight') {
+    // A highlight keeps the quote anchored to its source page + title.
+    const meta = tab?.id != null ? await captureMeta(tab.id) : {};
+    await addItem(collectionId, {
+      type: 'highlight',
+      text: info.selectionText || '',
+      url: info.pageUrl || tab?.url || '',
+      title: meta.title || tab?.title || tab?.url || info.pageUrl || '',
     });
     return;
   }

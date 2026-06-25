@@ -790,6 +790,16 @@ body {
   opacity: 0.6;
 }
 
+/* ---- Highlights (saved quotes) ---- */
+.item-quote {
+  margin: 0 0 4px;
+  padding: 4px 0 4px 10px;
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
 /* ---- Read-later (Reading list) ---- */
 .unread-dot {
   display: inline-block;

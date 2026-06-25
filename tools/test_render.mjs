@@ -18,6 +18,7 @@ const sample = [
       { type: 'page', title: 'Bolt', url: 'https://ex.com/bolt', note: 'M4', done: true, fields: { Price: '0.50' } },
       { type: 'image', alt: 'Diagram', src: 'https://ex.com/d.png', srcPageUrl: 'https://ex.com/d' },
       { type: 'note', text: 'remember\nwashers' },
+      { type: 'highlight', text: 'torque to spec', url: 'https://ex.com/guide', title: 'Bolt guide', note: 'important' },
     ],
   },
 ];
@@ -31,6 +32,7 @@ console.log('toMarkdown:');
   assert(md.includes('- [x] [Bolt](https://ex.com/bolt) — M4 _(Price: 0.50)_'), 'checked page w/ note + fields');
   assert(md.includes('- [ ] [Diagram](https://ex.com/d)'), 'image uses source page url');
   assert(md.includes('- [ ] remember washers'), 'note newline flattened');
+  assert(md.includes('- [ ] “torque to spec” — [source](https://ex.com/guide) — important'), 'highlight: quote + source + note');
 }
 
 console.log('\ntoHtml:');
@@ -39,6 +41,7 @@ console.log('\ntoHtml:');
   assert(html.startsWith('<!doctype html>'), 'standalone document');
   assert(html.includes('<a href="https://ex.com/bolt">Bolt</a>'), 'clickable link');
   assert(html.includes('checked'), 'done item checkbox checked');
+  assert(html.includes('“torque to spec”') && html.includes('href="https://ex.com/guide">(source)'), 'highlight: quote + source link');
   assert(!html.includes('<script'), 'no script injection from content');
 }
 
@@ -48,7 +51,8 @@ console.log('\ntoShareableHtml:');
   assert(html.startsWith('<!doctype html>'), 'standalone document');
   assert(html.includes('<title>Parts — Collections Plus</title>'), 'collection title in <title>');
   assert(html.includes('<h1>Parts</h1>'), 'collection title as heading');
-  assert(html.includes('3 items · shared Jun 25, 2026'), 'item count + share date');
+  assert(html.includes('4 items · shared Jun 25, 2026'), 'item count + share date');
+  assert(html.includes('<blockquote class="card-quote">torque to spec</blockquote>'), 'highlight rendered as a quote card');
   assert(html.includes('<span class="tag">diy</span>'), 'renders tags');
   assert(html.includes('<img loading="lazy" src="https://ex.com/d.png"'), 'embeds image item');
   assert(html.includes('class="card-title" href="https://ex.com/bolt">Bolt</a>'), 'page card links out');
@@ -66,7 +70,7 @@ console.log('\ntoLinkList:');
 {
   const txt = toLinkList(sample[0]);
   const lines = txt.split('\n');
-  assert(lines.length === 2, 'excludes notes (2 of 3 items)');
+  assert(lines.length === 3, 'excludes notes (3 of 4 items)');
   assert(lines[0] === 'Bolt — https://ex.com/bolt', 'title — url format');
 }
 

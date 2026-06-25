@@ -5,6 +5,10 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Weekly digest (AI).** One click (⋯ → **Weekly digest (AI)…**) recaps
+everything you saved in the last 7 days — a friendly, grouped summary with a
+one-line note per item — rendered right in the chat so you can ask follow-ups.
+
 **Sort & compact view.** Sort the items in a collection by **Newest**,
 **Oldest** or **A–Z** (or keep your **Manual** drag order), and sort the
 collection list by **Newest** or **A–Z**. A new compact-density toggle tightens

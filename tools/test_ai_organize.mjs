@@ -1,6 +1,6 @@
 // Tests for lib/ai-organize.js — `node tools/test_ai_organize.mjs`.
 // Pure prompt builders + parsers; no network.
-import { summaryRequest, tagsRequest, parseTagList, organizeQuestion } from '../lib/ai-organize.js';
+import { summaryRequest, tagsRequest, parseTagList, organizeQuestion, digestRequest } from '../lib/ai-organize.js';
 
 let failures = 0;
 function assert(cond, msg) {
@@ -43,6 +43,21 @@ console.log('\nparseTagList:');
   assert(parseTagList('a, b, c, d, e, f, g, h', { max: 3 }).length === 3, 'respects max');
   assert(parseTagList('thisisaverylongtagthatexceedsthirtychars').length === 0, 'drops overly long tags');
   assert(parseTagList('').length === 0, 'empty reply → no tags');
+}
+
+console.log('\ndigestRequest:');
+{
+  const r = digestRequest(
+    [
+      { title: 'Tokyo guide', collection: 'Travel', host: 'example.com' },
+      { title: 'Tax form', collection: 'Finance' },
+    ],
+    { days: 7 }
+  );
+  assert(/digest/i.test(r.system) && /Markdown/i.test(r.system), 'system asks for a Markdown digest');
+  assert(r.messages[0].content.includes('last 7 days'), 'message states the window');
+  assert(r.messages[0].content.includes('[Travel] Tokyo guide (example.com)'), 'item line includes collection + host');
+  assert(r.messages[0].content.includes('[Finance] Tax form'), 'item without host renders cleanly');
 }
 
 console.log('\norganizeQuestion:');

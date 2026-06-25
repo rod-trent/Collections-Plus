@@ -96,6 +96,8 @@ step. Your data stays in your browser.
 - **AI search (✨):** find items by *meaning* across everything you've saved —
   not just keyword matches — with a one-line reason and a jump to each item's
   collection. The instant keyword search stays available alongside it.
+- **Weekly digest (AI):** a friendly recap of everything saved in the last 7
+  days, grouped by collection, rendered in the chat so you can ask follow-ups.
 - **Your key stays local** (`chrome.storage.local`), is **never synced or
   exported**, and the whole feature is **off until you set it up**. See
   [Ask your collections](#ask-your-collections-ai) and the

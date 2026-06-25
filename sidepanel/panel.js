@@ -68,6 +68,7 @@ import {
   tagsRequest,
   parseTagList,
   organizeQuestion,
+  digestRequest,
 } from '../lib/ai-organize.js';
 import { buildCatalog, searchRequest, parseSearchResults } from '../lib/semantic.js';
 
@@ -1910,6 +1911,41 @@ async function organizeCollection(collectionId) {
   sendChatMessage();
 }
 
+/**
+ * Generate a friendly digest of everything saved in the last 7 days and show it
+ * in the chat view (which renders Markdown), so the user can keep chatting.
+ */
+async function weeklyDigest() {
+  const cfg = await requireAi();
+  if (!cfg) return;
+  const data = await getData();
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recent = [];
+  for (const c of data.collections) {
+    for (const it of c.items) {
+      if ((it.addedAt || 0) < cutoff) continue;
+      recent.push({ title: itemDisplayName(it), collection: c.title || 'Untitled', host: it.url ? hostOf(it.url) : '' });
+    }
+  }
+  if (!recent.length) return toast('Nothing saved in the last 7 days');
+
+  toast('Generating digest…');
+  try {
+    const { system, messages } = digestRequest(recent);
+    const reply = await aiChat({ config: cfg, system, messages });
+    // Present it as a chat turn so it renders as Markdown and stays interactive.
+    aiMode = 'chat';
+    chatScope = { type: 'all' };
+    chatHistory = [
+      { role: 'user', content: `Weekly digest — ${recent.length} item${recent.length === 1 ? '' : 's'} saved in the last 7 days` },
+      { role: 'assistant', content: reply },
+    ];
+    render();
+  } catch (err) {
+    toast(err.message || 'Digest failed');
+  }
+}
+
 // ---- AI semantic search ----------------------------------------------------
 
 let aiSearchBusy = false;
@@ -2038,6 +2074,7 @@ async function buildPaletteCommands() {
     if (name) await createFolder(name);
   });
   add('Chat with collections (AI)', () => openChat({ type: 'all' }));
+  add('Weekly digest (AI)', () => weeklyDigest());
   add('AI settings', () => openSettings());
   add('Check all links', async () => {
     toast('Checking all links…');
@@ -2715,6 +2752,7 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'history') openHistoryMenu();
   if (action === 'ai-chat') openChat({ type: 'all' });
+  if (action === 'weekly-digest') weeklyDigest();
   if (action === 'ai-settings') openSettings();
   if (action === 'sync-create') createSync();
   if (action === 'sync-open') openSync();

@@ -57,6 +57,12 @@ import {
   buildSystemPrompt,
   chat as aiChat,
 } from '../lib/ai.js';
+import {
+  summaryRequest,
+  tagsRequest,
+  parseTagList,
+  organizeQuestion,
+} from '../lib/ai-organize.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -236,6 +242,12 @@ $('#snapshot-recapture').addEventListener('click', async () => {
   const item = c?.items.find((it) => it.id === itemId);
   closeSnapshot();
   if (item) await captureSnapshot(collectionId, item);
+});
+$('#snapshot-summarize').addEventListener('click', async () => {
+  if (!snapshotCtx) return;
+  const { collectionId, itemId } = snapshotCtx;
+  closeSnapshot();
+  await summarizeFromSnapshot(collectionId, itemId);
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#snapshot-overlay').hidden) closeSnapshot();
@@ -1715,6 +1727,84 @@ async function doShareCollection(collectionId) {
   toast('Shareable page saved', { label: 'Open preview', fn: () => window.open(previewUrl, '_blank') });
 }
 
+// ---- AI "do work" actions (summarize / tag / organize) ---------------------
+
+/** Guard: returns the AI config if usable, else toasts + opens settings. */
+async function requireAi() {
+  const cfg = await getAiConfig();
+  if (!isConfigured(cfg)) {
+    toast('Set up an AI provider in settings first');
+    openSettings();
+    return null;
+  }
+  return cfg;
+}
+
+/**
+ * Summarize an item's saved snapshot into a 1–2 sentence TL;DR and store it as
+ * the item's note. Requires a snapshot (the source text); called from the
+ * snapshot reader.
+ */
+async function summarizeFromSnapshot(collectionId, itemId) {
+  const cfg = await requireAi();
+  if (!cfg) return;
+  const data = await getData();
+  const c = data.collections.find((x) => x.id === collectionId);
+  const item = c?.items.find((it) => it.id === itemId);
+  if (!item?.snapshot?.text) return toast('Capture a snapshot first');
+
+  toast('Summarizing…');
+  try {
+    const { system, messages } = summaryRequest({
+      title: item.snapshot.title || item.title || '',
+      text: item.snapshot.text,
+    });
+    const reply = (await aiChat({ config: cfg, system, messages })).trim();
+    if (!reply) return toast('The AI returned an empty summary');
+    await updateItem(collectionId, itemId, { note: reply });
+    toast('Summary saved to the item note');
+  } catch (err) {
+    toast(err.message || 'Summary failed');
+  }
+}
+
+/** Ask the AI for tags for a collection and, on confirmation, merge them in. */
+async function suggestTags(collectionId) {
+  const cfg = await requireAi();
+  if (!cfg) return;
+  const data = await getData();
+  const c = data.collections.find((x) => x.id === collectionId);
+  if (!c || !(c.items || []).length) return toast('This collection is empty');
+
+  toast('Thinking of tags…');
+  let tags;
+  try {
+    const { system, messages } = tagsRequest(c);
+    tags = parseTagList(await aiChat({ config: cfg, system, messages }));
+  } catch (err) {
+    return toast(err.message || 'Tag suggestion failed');
+  }
+  if (!tags.length) return toast('No tags suggested');
+
+  // Only offer tags not already on the collection.
+  const existing = new Set((c.tags || []).map((t) => t.toLowerCase()));
+  const fresh = tags.filter((t) => !existing.has(t));
+  if (!fresh.length) return toast('Suggested tags are already applied');
+
+  const ok = await showConfirm(`Add these tags: ${fresh.join(', ')}?`, { okLabel: 'Add tags' });
+  if (!ok) return;
+  await setTags(collectionId, [...(c.tags || []), ...fresh]);
+  toast(`Added ${fresh.length} tag${fresh.length === 1 ? '' : 's'}`);
+}
+
+/** Route an "organize this collection" request through the grounded chat. */
+async function organizeCollection(collectionId) {
+  if (!(await requireAi())) return;
+  openChat({ type: 'collection', id: collectionId });
+  els.chatText.value = organizeQuestion();
+  sendChatMessage();
+}
+
 /** Copy a collection's links to the clipboard as "Title — URL" lines. */
 async function doCopyLinks(collectionId) {
   const data = await getData();
@@ -2276,6 +2366,12 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'chat-collection') {
     openChat({ type: 'collection', id: openId });
+  }
+  if (action === 'suggest-tags') {
+    await suggestTags(openId);
+  }
+  if (action === 'organize-collection') {
+    await organizeCollection(openId);
   }
   if (action === 'edit-tags') {
     const current = (c.tags || []).join(', ');

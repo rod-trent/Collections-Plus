@@ -5,6 +5,14 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Let the AI do the busywork.** If you've connected an AI provider, three new
+helpers put it to work on your collections (all in a collection's ⋯ menu, plus
+the snapshot reader): **Summarize (AI)** turns a saved page snapshot into a 1–2
+sentence TL;DR saved to the item's note; **Suggest tags (AI)** proposes topical
+tags and adds the ones you approve; and **Organize this collection (AI)** opens
+a grounded chat with suggestions for grouping, duplicates, a clearer title and
+tags. Your key stays local, and these stay off until you set up a provider.
+
 **Share a collection as a web page.** A new **Share as web page…** option (in a
 collection's ⋯ menu) builds a clean, self-contained HTML page — a responsive
 card layout with your thumbnails, links, notes and tags — that you can send to

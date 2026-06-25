@@ -75,6 +75,10 @@ step. Your data stays in your browser.
 - **Bring any provider:** Claude (Anthropic), OpenAI, Grok (xAI), Gemini
   (Google), Azure AI Foundry, or a local **Ollama** model. Scope the chat to a
   single collection or all of them.
+- **Put the AI to work, not just to chat:** **Summarize (AI)** a saved page
+  snapshot into a TL;DR note, **Suggest tags (AI)** for a collection (you approve
+  what's added), or **Organize this collection (AI)** for grouping, duplicate and
+  title suggestions.
 - **Your key stays local** (`chrome.storage.local`), is **never synced or
   exported**, and the whole feature is **off until you set it up**. See
   [Ask your collections](#ask-your-collections-ai) and the

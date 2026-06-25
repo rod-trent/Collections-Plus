@@ -2338,7 +2338,7 @@ let syncPaused = false;
 let syncPausedNotified = false;
 
 function syncBtn(action) {
-  return document.querySelector(`#overflow-menu [data-action="${action}"]`);
+  return document.querySelector(`#submenu-sync [data-action="${action}"]`);
 }
 
 async function refreshSyncMenu() {
@@ -2708,20 +2708,8 @@ darkMql.addEventListener('change', async () => {
   if (s.theme === 'system') applyTheme('system');
 });
 
-$('#overflow-btn').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const willOpen = $('#overflow-menu').hidden;
-  if (willOpen) {
-    refreshSyncMenu();
-    updateSettingLabels();
-  }
-  openMenu($('#overflow-menu'), willOpen);
-});
-
-$('#overflow-menu').addEventListener('click', async (e) => {
-  const action = e.target.dataset.action;
-  if (!action) return;
-  $('#overflow-menu').hidden = true;
+/** Run an action from the overflow menu or one of its category submenus. */
+async function runMenuAction(action) {
   if (action === 'export-json') doExport();
   if (action === 'export-xlsx') doExportXlsx();
   if (action === 'export-csv') doExportCsv();
@@ -2744,12 +2732,8 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     await setSettings({ autoCheckLinks: !s.autoCheckLinks });
     toast(`Auto-check links ${!s.autoCheckLinks ? 'on' : 'off'}`);
   }
-  if (action === 'rules') {
-    await openRules();
-  }
-  if (action === 'toggle-theme') {
-    await cycleTheme();
-  }
+  if (action === 'rules') await openRules();
+  if (action === 'toggle-theme') await cycleTheme();
   if (action === 'history') openHistoryMenu();
   if (action === 'ai-chat') openChat({ type: 'all' });
   if (action === 'weekly-digest') weeklyDigest();
@@ -2760,6 +2744,91 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   if (action === 'sync-now') syncNow();
   if (action === 'sync-pull') syncPull();
   if (action === 'sync-disconnect') disconnectSync();
+}
+
+// ---- Overflow (settings) menu + category submenus --------------------------
+
+function closeSubmenus() {
+  document.querySelectorAll('.submenu').forEach((m) => (m.hidden = true));
+}
+
+function closeOverflow() {
+  $('#overflow-menu').hidden = true;
+  closeSubmenus();
+}
+
+/** Open a category submenu next to its trigger, clamped on-screen. */
+function openSubmenu(name, trigger) {
+  const menu = $(`#submenu-${name}`);
+  if (!menu || !menu.hidden) return; // already open — don't re-trigger on hover
+  closeSubmenus();
+  // Tools/Sync need their dynamic labels/visibility refreshed before measuring.
+  if (name === 'tools') updateSettingLabels();
+  if (name === 'sync') refreshSyncMenu();
+
+  menu.hidden = false; // unhide to measure
+  const overflow = $('#overflow-menu').getBoundingClientRect();
+  const t = trigger.getBoundingClientRect();
+  const mw = menu.offsetWidth || 220;
+  const mh = menu.offsetHeight || 0;
+
+  // Prefer flying out to the left of the overflow menu; fall back to the right;
+  // always clamp inside the viewport (the side panel is narrow).
+  let left = overflow.left - mw - 2;
+  if (left < 8) left = overflow.right + 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
+  let top = t.top;
+  if (top + mh > window.innerHeight - 8) top = Math.max(8, window.innerHeight - mh - 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+$('#overflow-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const willOpen = $('#overflow-menu').hidden;
+  closeSubmenus();
+  if (willOpen) updateSettingLabels();
+  openMenu($('#overflow-menu'), willOpen);
+});
+
+// Clicks on the overflow menu: a category trigger opens its submenu; the Theme
+// toggle runs inline and closes the menu.
+$('#overflow-menu').addEventListener('click', async (e) => {
+  const trigger = e.target.closest('.submenu-trigger');
+  if (trigger) {
+    e.stopPropagation();
+    openSubmenu(trigger.dataset.submenu, trigger);
+    return;
+  }
+  const action = e.target.dataset.action;
+  if (!action) return;
+  closeOverflow();
+  await runMenuAction(action);
+});
+
+// Hover a different category to switch submenus (desktop menu feel).
+$('#overflow-menu').addEventListener('mouseover', (e) => {
+  const trigger = e.target.closest('.submenu-trigger');
+  if (trigger) openSubmenu(trigger.dataset.submenu, trigger);
+});
+
+// Clicks inside a submenu run the action and close everything.
+document.querySelectorAll('.submenu').forEach((menu) => {
+  menu.addEventListener('click', async (e) => {
+    const action = e.target.dataset.action;
+    if (!action) return;
+    closeOverflow();
+    await runMenuAction(action);
+  });
+});
+
+// Clicking anywhere outside the menus closes the submenus (the generic handler
+// closes the overflow menu itself).
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.submenu') || e.target.closest('#overflow-menu') || e.target.closest('#overflow-btn')) {
+    return;
+  }
+  closeSubmenus();
 });
 
 els.listEmpty.addEventListener('click', async (e) => {

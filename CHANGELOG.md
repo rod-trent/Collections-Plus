@@ -5,6 +5,11 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Tidier settings menu.** The ⋯ menu is now organized into categories —
+**Export**, **Import**, **AI**, **Tools & settings**, and **Sync** — that open
+as fly-out submenus, with the theme toggle still one click away. Much shorter
+and easier to scan.
+
 **Address-bar search.** Type **`col`** then a space in the browser's address bar
 and search your saved pages without opening the panel — pick a result to jump
 straight to it. A fast way to re-find that thing you saved.

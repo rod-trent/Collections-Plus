@@ -204,6 +204,25 @@ body {
   margin: 4px 6px;
 }
 
+/* Category triggers in the overflow menu (open a flyout submenu). */
+.submenu-trigger {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.submenu-caret {
+  color: var(--text-faint);
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Floating category submenus sit above the overflow menu they fly out of. */
+.menu.submenu {
+  z-index: 30;
+}
+
 .menu-note {
   padding: 6px 10px 4px;
   color: var(--text-faint);

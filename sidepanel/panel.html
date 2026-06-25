@@ -29,33 +29,13 @@
           <div class="menu-wrap">
             <button id="overflow-btn" class="btn icon" title="More" aria-haspopup="true">⋯</button>
             <div id="overflow-menu" class="menu" hidden>
-              <button data-action="export-xlsx">Export to Excel (.xlsx)</button>
-              <button data-action="export-csv">Export as CSV</button>
-              <button data-action="export-md">Export all as Markdown</button>
-              <button data-action="export-html">Export all as HTML</button>
-              <button data-action="export-json">Export backup (JSON)</button>
-              <button data-action="import-csv">Import Edge CSV…</button>
-              <button data-action="import-json">Import backup (JSON)…</button>
-              <button data-action="import-bookmarks">Import browser bookmarks…</button>
+              <button class="submenu-trigger" data-submenu="export">Export<span class="submenu-caret">›</span></button>
+              <button class="submenu-trigger" data-submenu="import">Import<span class="submenu-caret">›</span></button>
+              <button class="submenu-trigger" data-submenu="ai">AI<span class="submenu-caret">›</span></button>
+              <button class="submenu-trigger" data-submenu="tools">Tools &amp; settings<span class="submenu-caret">›</span></button>
+              <button class="submenu-trigger" data-submenu="sync">Sync<span class="submenu-caret">›</span></button>
               <div class="menu-sep"></div>
-              <button data-action="ai-chat">Chat with collections (AI)…</button>
-              <button data-action="weekly-digest">Weekly digest (AI)…</button>
-              <button data-action="ai-settings">AI settings…</button>
-              <div class="menu-sep"></div>
-              <button data-action="toggle-cache" id="toggle-cache-btn">Cache images offline: Off</button>
-              <button data-action="check-all-links">Check all links</button>
-              <button data-action="toggle-autocheck" id="toggle-autocheck-btn">Auto-check links: Off</button>
-              <button data-action="rules">Auto-file rules…</button>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
-              <button data-action="history">Version history…</button>
-              <div class="menu-sep"></div>
-              <button data-action="sync-create" hidden>Create sync file…</button>
-              <button data-action="sync-open" hidden>Use existing sync file…</button>
-              <button data-action="sync-resume" hidden>Resume sync (grant write access)</button>
-              <button data-action="sync-now" hidden>Sync now</button>
-              <button data-action="sync-pull" hidden>Pull from sync file</button>
-              <button data-action="sync-disconnect" class="danger" hidden>Disconnect sync</button>
-              <div id="sync-status" class="menu-note" hidden></div>
             </div>
           </div>
         </div>
@@ -284,6 +264,41 @@
 
     <!-- Hidden file input reused for both JSON and CSV imports -->
     <input id="file-input" type="file" hidden />
+
+    <!-- Floating category submenus for the overflow (settings) menu -->
+    <div id="submenu-export" class="menu floating submenu" hidden>
+      <button data-action="export-xlsx">Export to Excel (.xlsx)</button>
+      <button data-action="export-csv">Export as CSV</button>
+      <button data-action="export-md">Export all as Markdown</button>
+      <button data-action="export-html">Export all as HTML</button>
+      <button data-action="export-json">Export backup (JSON)</button>
+    </div>
+    <div id="submenu-import" class="menu floating submenu" hidden>
+      <button data-action="import-csv">Import Edge CSV…</button>
+      <button data-action="import-json">Import backup (JSON)…</button>
+      <button data-action="import-bookmarks">Import browser bookmarks…</button>
+    </div>
+    <div id="submenu-ai" class="menu floating submenu" hidden>
+      <button data-action="ai-chat">Chat with collections…</button>
+      <button data-action="weekly-digest">Weekly digest…</button>
+      <button data-action="ai-settings">AI settings…</button>
+    </div>
+    <div id="submenu-tools" class="menu floating submenu" hidden>
+      <button data-action="toggle-cache" id="toggle-cache-btn">Cache images offline: Off</button>
+      <button data-action="check-all-links">Check all links</button>
+      <button data-action="toggle-autocheck" id="toggle-autocheck-btn">Auto-check links: Off</button>
+      <button data-action="rules">Auto-file rules…</button>
+      <button data-action="history">Version history…</button>
+    </div>
+    <div id="submenu-sync" class="menu floating submenu" hidden>
+      <button data-action="sync-create" hidden>Create sync file…</button>
+      <button data-action="sync-open" hidden>Use existing sync file…</button>
+      <button data-action="sync-resume" hidden>Resume sync (grant write access)</button>
+      <button data-action="sync-now" hidden>Sync now</button>
+      <button data-action="sync-pull" hidden>Pull from sync file</button>
+      <button data-action="sync-disconnect" class="danger" hidden>Disconnect sync</button>
+      <div id="sync-status" class="menu-note" hidden></div>
+    </div>
 
     <!-- Floating menu for moving/copying an item to another collection -->
     <div id="move-menu" class="menu floating" hidden></div>

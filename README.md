@@ -43,6 +43,8 @@ step. Your data stays in your browser.
 - **Custom covers:** upload an image or promote a saved thumbnail with ★.
 - **Light / dark / system theme:** cycle in the ⋯ menu. **System** follows your
   OS / Chrome light-dark setting and switches live (e.g. at sunrise/sunset).
+- **Command palette (`Ctrl+K` / `⌘K`):** jump to any collection or run any
+  command from one keyboard-driven, fuzzy-filtered list.
 
 **Exporting & backup**
 

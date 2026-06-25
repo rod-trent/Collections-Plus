@@ -1900,6 +1900,148 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#aisearch-overlay').hidden) closeAiSearch();
 });
 
+// ---- Command palette (Ctrl/Cmd+K) ------------------------------------------
+
+let paletteItems = []; // currently shown [{ label, hint, run }]
+let paletteActive = 0;
+
+/** Build the command list for the palette from the current data + view. */
+async function buildPaletteCommands() {
+  const data = await getData();
+  const cmds = [];
+  const add = (label, run, hint = '') => cmds.push({ label, hint, run });
+
+  // Collection-scoped actions come first when a collection is open.
+  if (openId) {
+    const c = data.collections.find((x) => x.id === openId);
+    if (c) {
+      add('Add current page', () => addCurrentPage(), c.title);
+      add('Add all open tabs', () => addAllTabs(), c.title);
+      add('Open all pages in tab group', () => openAllPages(c), c.title);
+      add('Share as web page…', () => doShareCollection(openId), c.title);
+      add('Check links', async () => {
+        toast('Checking links…');
+        reportLinkCheck(await chrome.runtime.sendMessage({ type: 'checkLinks', collectionId: openId }));
+      }, c.title);
+      add('Suggest tags (AI)', () => suggestTags(openId), c.title);
+      add('Organize this collection (AI)', () => organizeCollection(openId), c.title);
+    }
+  }
+
+  add('New collection', async () => open((await createCollection('New collection')).id));
+  add('New folder', async () => {
+    const name = ((await showPrompt('New folder name:')) || '').trim();
+    if (name) await createFolder(name);
+  });
+  add('Chat with collections (AI)', () => openChat({ type: 'all' }));
+  add('AI settings', () => openSettings());
+  add('Check all links', async () => {
+    toast('Checking all links…');
+    reportLinkCheck(await chrome.runtime.sendMessage({ type: 'checkLinks' }));
+  });
+  add('Version history', () => openHistoryMenu());
+  add('Open Archive', () => openBin('archive'));
+  add('Open Trash', () => openBin('trash'));
+  add('Export backup (JSON)', () => doExport());
+  add('Export all to Excel (.xlsx)', () => doExportXlsx());
+  add('Export all as Markdown', () => doExportDoc('md'));
+  add('Export all as HTML', () => doExportDoc('html'));
+  add('Import Edge CSV…', () => pickFile('csv'));
+  add('Import backup (JSON)…', () => pickFile('json'));
+  add('Toggle theme', () => cycleTheme());
+
+  // Jump to any collection by name.
+  for (const c of data.collections) {
+    const n = (c.items || []).length;
+    add(`Go to: ${c.title || 'Untitled'}`, () => open(c.id), `${n} item${n === 1 ? '' : 's'}`);
+  }
+  return cmds;
+}
+
+function renderPalette() {
+  const list = $('#palette-list');
+  if (!paletteItems.length) {
+    list.innerHTML = `<div class="palette-empty">No matches</div>`;
+    return;
+  }
+  list.innerHTML = paletteItems
+    .map(
+      (it, i) => `
+      <div class="palette-item${i === paletteActive ? ' active' : ''}" role="option" data-i="${i}">
+        <span class="palette-label">${escapeHtml(it.label)}</span>
+        ${it.hint ? `<span class="palette-hint">${escapeHtml(it.hint)}</span>` : ''}
+      </div>`
+    )
+    .join('');
+  const activeEl = list.querySelector('.palette-item.active');
+  if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+}
+
+let allPaletteCommands = [];
+function filterPalette() {
+  const q = $('#palette-input').value.trim().toLowerCase();
+  paletteItems = q
+    ? allPaletteCommands.filter(
+        (c) => c.label.toLowerCase().includes(q) || (c.hint || '').toLowerCase().includes(q)
+      )
+    : allPaletteCommands;
+  paletteActive = 0;
+  renderPalette();
+}
+
+async function openPalette() {
+  if (!$('#palette-overlay').hidden) return closePalette();
+  allPaletteCommands = await buildPaletteCommands();
+  $('#palette-input').value = '';
+  filterPalette();
+  $('#palette-overlay').hidden = false;
+  $('#palette-input').focus();
+}
+
+function closePalette() {
+  $('#palette-overlay').hidden = true;
+}
+
+function runPaletteItem(i) {
+  const cmd = paletteItems[i];
+  if (!cmd) return;
+  closePalette();
+  cmd.run();
+}
+
+// Global shortcut: Ctrl+K / Cmd+K toggles the palette.
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    openPalette();
+  } else if (e.key === 'Escape' && !$('#palette-overlay').hidden) {
+    closePalette();
+  }
+});
+
+$('#palette-input').addEventListener('input', filterPalette);
+$('#palette-input').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    paletteActive = Math.min(paletteActive + 1, paletteItems.length - 1);
+    renderPalette();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    paletteActive = Math.max(paletteActive - 1, 0);
+    renderPalette();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    runPaletteItem(paletteActive);
+  }
+});
+$('#palette-list').addEventListener('click', (e) => {
+  const row = e.target.closest('.palette-item');
+  if (row) runPaletteItem(Number(row.dataset.i));
+});
+$('#palette-overlay').addEventListener('click', (e) => {
+  if (e.target === $('#palette-overlay')) closePalette();
+});
+
 /** Copy a collection's links to the clipboard as "Title — URL" lines. */
 async function doCopyLinks(collectionId) {
   const data = await getData();
@@ -2283,6 +2425,17 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = resolveTheme(theme);
 }
 
+/** Cycle the theme setting Dark → Light → System and apply it. */
+async function cycleTheme() {
+  const s = await getSettings();
+  const order = ['dark', 'light', 'system'];
+  const cur = order.includes(s.theme) ? s.theme : 'dark';
+  const theme = order[(order.indexOf(cur) + 1) % order.length];
+  await setSettings({ theme });
+  applyTheme(theme);
+  toast(`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`);
+}
+
 // When following the system and the OS flips light/dark (e.g. at sunset), update
 // the panel live — no reload needed.
 darkMql.addEventListener('change', async () => {
@@ -2326,14 +2479,7 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     toast(`Auto-check links ${!s.autoCheckLinks ? 'on' : 'off'}`);
   }
   if (action === 'toggle-theme') {
-    const s = await getSettings();
-    // Cycle Dark → Light → System (follows the OS/Chrome setting).
-    const order = ['dark', 'light', 'system'];
-    const cur = order.includes(s.theme) ? s.theme : 'dark';
-    const theme = order[(order.indexOf(cur) + 1) % order.length];
-    await setSettings({ theme });
-    applyTheme(theme);
-    toast(`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`);
+    await cycleTheme();
   }
   if (action === 'history') openHistoryMenu();
   if (action === 'ai-chat') openChat({ type: 'all' });

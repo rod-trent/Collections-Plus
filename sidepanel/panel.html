@@ -273,6 +273,15 @@
     <!-- Floating menu to assign a collection to a folder -->
     <div id="folder-menu" class="menu floating" hidden></div>
 
+    <!-- Command palette (Ctrl/Cmd+K) -->
+    <div id="palette-overlay" class="modal-overlay" hidden>
+      <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <input id="palette-input" class="palette-input" type="text" autocomplete="off"
+          spellcheck="false" placeholder="Jump to a collection or run a command…" />
+        <div id="palette-list" class="palette-list" role="listbox"></div>
+      </div>
+    </div>
+
     <!-- AI semantic search results -->
     <div id="aisearch-overlay" class="modal-overlay" hidden>
       <div class="modal aisearch-modal" role="dialog" aria-modal="true" aria-label="AI search results">

@@ -5,6 +5,11 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Command palette.** Press **Ctrl+K** (⌘K on Mac) anywhere to jump straight to
+a collection or run any command — new collection, exports, imports, link
+checks, AI actions, theme, archive/trash and more — all from one fuzzy-filtered
+list, keyboard-driven. The fastest way to get around.
+
 **Search by meaning, not just keywords.** Type a query and hit the new **✨**
 button in the search bar to run an **AI search** across everything you've saved —
 it finds items by what they're *about*, so "where to eat on my trip" can surface

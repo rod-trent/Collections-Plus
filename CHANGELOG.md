@@ -3,7 +3,18 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
-## Unreleased
+## 1.6.0
+
+The biggest release yet — a baker's dozen of new features that make Collections
+Plus far more than a place to drop links. Beat link rot with dead-link checking
+and readable snapshots, share any collection as a web page, put your own AI to
+work (summarize, tag, organize, search by meaning, weekly digest), keep a
+reading list, save highlights with annotations, import your browser bookmarks,
+auto-file saves by rule, fly around with a Ctrl+K command palette and address-bar
+search, sort and compact your lists, follow your system light/dark theme, and
+find it all in a tidier, categorized settings menu. Still local-first: no
+account, no server, and every networked or AI feature stays off until you turn
+it on.
 
 **Tidier settings menu.** The ⋯ menu is now organized into categories —
 **Export**, **Import**, **AI**, **Tools & settings**, and **Sync** — that open
@@ -81,6 +92,10 @@ on any page saves a clean, readable copy of the article text so the words
 survive even if the original disappears; click **Saved snapshot** to read it
 back anytime. Prefer it hands-off? Turn on **Auto-check links** and the
 extension quietly re-checks your links in the background.
+
+**System theme.** Alongside Light and Dark, a new **System** theme follows your
+OS / Chrome light-dark setting and switches live — so the panel dims at sunset
+with the rest of your desktop. Cycle it from the ⋯ menu.
 
 ## 1.5.0
 

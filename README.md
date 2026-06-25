@@ -51,6 +51,9 @@ step. Your data stays in your browser.
   anything you want to sort and total.
 - **Export to Markdown or HTML**, or **copy a collection's links** to the
   clipboard.
+- **Share as a web page:** turn any collection into a clean, self-contained HTML
+  page (responsive cards with thumbnails, links, notes and tags) you can send to
+  anyone or host anywhere — saved as one portable file, with a one-click preview.
 - **Import your Edge export** (`collections_export.csv`) so your existing
   collections carry over on day one.
 - **JSON backup** (high fidelity: keeps notes, images, fields) and a local

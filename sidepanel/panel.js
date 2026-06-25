@@ -45,7 +45,7 @@ import {
 } from '../lib/store.js';
 import { toCsv, toXlsxSheets } from '../lib/export.js';
 import { buildXlsx } from '../lib/xlsx.js';
-import { toMarkdown, toHtml, toLinkList } from '../lib/render.js';
+import { toMarkdown, toHtml, toLinkList, toShareableHtml } from '../lib/render.js';
 import { fileToCover, srcToCover } from '../lib/image.js';
 import { extractReadable } from '../lib/snapshot.js';
 import * as sync from '../lib/sync.js';
@@ -1692,6 +1692,29 @@ async function doExportDoc(format, collectionId) {
   }
 }
 
+/**
+ * Build a self-contained, shareable web page for one collection: save the .html
+ * file (ready to send or host) and offer to preview it in a new tab.
+ */
+async function doShareCollection(collectionId) {
+  const data = await getData();
+  const c = data.collections.find((x) => x.id === collectionId);
+  if (!c) return;
+  if (!(c.items || []).length) return toast('This collection is empty');
+
+  const date = new Date().toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+  });
+  const html = toShareableHtml(c, { date });
+  const stamp = new Date().toISOString().slice(0, 10);
+  download(html, `${slugify(c.title)}-${stamp}.html`, 'text/html;charset=utf-8');
+
+  // A separate blob URL for the optional preview (download() revokes its own).
+  const previewUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  setTimeout(() => URL.revokeObjectURL(previewUrl), 120000);
+  toast('Shareable page saved', { label: 'Open preview', fn: () => window.open(previewUrl, '_blank') });
+}
+
 /** Copy a collection's links to the clipboard as "Title — URL" lines. */
 async function doCopyLinks(collectionId) {
   const data = await getData();
@@ -2244,6 +2267,9 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
   }
   if (action === 'export-collection-html') {
     await doExportDoc('html', openId);
+  }
+  if (action === 'share-collection') {
+    await doShareCollection(openId);
   }
   if (action === 'copy-links') {
     await doCopyLinks(openId);

@@ -5,6 +5,12 @@ Release notes for Collections Plus. The summaries here double as the
 
 ## Unreleased
 
+**Share a collection as a web page.** A new **Share as web page…** option (in a
+collection's ⋯ menu) builds a clean, self-contained HTML page — a responsive
+card layout with your thumbnails, links, notes and tags — that you can send to
+anyone or host anywhere. It saves the file and offers a one-click preview. No
+account, no server, no tracking: just one portable file.
+
 **Beat link rot.** Collections Plus can now tell you when a saved page has gone
 dead and help you keep its content. Use **Check links** (in a collection's ⋯
 menu, or **Check all links** in the main menu) to probe your saved pages —

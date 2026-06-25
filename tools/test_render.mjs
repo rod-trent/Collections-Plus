@@ -1,5 +1,5 @@
 // Tests for lib/render.js — `node tools/test_render.mjs`.
-import { toMarkdown, toHtml, toLinkList } from '../lib/render.js';
+import { toMarkdown, toHtml, toLinkList, toShareableHtml } from '../lib/render.js';
 
 let failures = 0;
 function assert(cond, msg) {
@@ -40,6 +40,26 @@ console.log('\ntoHtml:');
   assert(html.includes('<a href="https://ex.com/bolt">Bolt</a>'), 'clickable link');
   assert(html.includes('checked'), 'done item checkbox checked');
   assert(!html.includes('<script'), 'no script injection from content');
+}
+
+console.log('\ntoShareableHtml:');
+{
+  const html = toShareableHtml(sample[0], { date: 'Jun 25, 2026' });
+  assert(html.startsWith('<!doctype html>'), 'standalone document');
+  assert(html.includes('<title>Parts — Collections Plus</title>'), 'collection title in <title>');
+  assert(html.includes('<h1>Parts</h1>'), 'collection title as heading');
+  assert(html.includes('3 items · shared Jun 25, 2026'), 'item count + share date');
+  assert(html.includes('<span class="tag">diy</span>'), 'renders tags');
+  assert(html.includes('<img loading="lazy" src="https://ex.com/d.png"'), 'embeds image item');
+  assert(html.includes('class="card-title" href="https://ex.com/bolt">Bolt</a>'), 'page card links out');
+  assert(html.includes('ex.com</p>'), 'shows page host');
+  assert(html.includes('remember\nwashers'), 'note text preserved verbatim');
+  assert(html.includes('Shared from <a'), 'has attribution footer');
+  assert(!html.includes('<script'), 'no script injection from content');
+}
+{
+  const one = toShareableHtml({ title: 'Solo', items: [{ type: 'note', text: 'x' }] });
+  assert(one.includes('1 item<'), 'singular item count, no date when omitted');
 }
 
 console.log('\ntoLinkList:');

@@ -3,6 +3,15 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.1.0
+
+**Close the panel after Open all.** A new opt-in setting (⋯ → **Tools** →
+**Close panel after Open all**) makes the side panel close itself the moment
+you open a collection with **▶ Open all pages** — so opening a saved project is
+a single click with nothing left to dismiss. It's off by default; turn it on if
+you'd rather the panel step out of the way once your tabs are up. Thanks to
+Gianpaolo for the suggestion.
+
 ## 2.0.0
 
 The biggest release yet — a baker's dozen of new features that make Collections

@@ -191,6 +191,11 @@ collection (more than 8 pages), it asks for confirmation first. Tab grouping
 needs a Chromium browser with the Tab Groups API (Chrome/Edge have it); where
 it's unavailable, the pages still open as ordinary tabs.
 
+Prefer the panel to get out of the way once you've opened a collection? Turn on
+⋯ → **Tools** → **Close panel after Open all**. It's off by default; when on, the
+side panel closes itself as soon as the tabs open, so opening a collection is a
+single click with nothing left to dismiss.
+
 ### Reorder collections and items
 
 Drag the **⠿ handle** on a collection card to reorder your list, and the handle

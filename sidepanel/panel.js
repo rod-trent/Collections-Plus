@@ -629,6 +629,16 @@ async function openAllPages(c) {
   } catch (e) {
     /* grouping unsupported or failed — the tabs are still open */
   }
+
+  // Opt-in: once the pages are open, close the side panel so opening a
+  // collection is a single click (off by default; see the Tools menu).
+  if (tabIds.length) {
+    try {
+      if ((await getSettings()).closeAfterOpenAll) window.close();
+    } catch (e) {
+      /* setting unreadable or window.close() unavailable — leave the panel open */
+    }
+  }
 }
 
 function buildCard(c) {
@@ -2637,6 +2647,9 @@ async function updateSettingLabels() {
   if (cacheBtn) cacheBtn.textContent = `Cache images: ${s.cacheImages ? 'On' : 'Off'}`;
   const autoCheckBtn = $('#toggle-autocheck-btn');
   if (autoCheckBtn) autoCheckBtn.textContent = `Auto-check links: ${s.autoCheckLinks ? 'On' : 'Off'}`;
+  const closeAfterOpenBtn = $('#toggle-close-after-open-btn');
+  if (closeAfterOpenBtn)
+    closeAfterOpenBtn.textContent = `Close panel after Open all: ${s.closeAfterOpenAll ? 'On' : 'Off'}`;
   const themeBtn = $('#toggle-theme-btn');
   if (themeBtn) {
     const label = s.theme === 'light' ? 'Light' : s.theme === 'system' ? 'System' : 'Dark';
@@ -2731,6 +2744,11 @@ async function runMenuAction(action) {
     const s = await getSettings();
     await setSettings({ autoCheckLinks: !s.autoCheckLinks });
     toast(`Auto-check links ${!s.autoCheckLinks ? 'on' : 'off'}`);
+  }
+  if (action === 'toggle-close-after-open') {
+    const s = await getSettings();
+    await setSettings({ closeAfterOpenAll: !s.closeAfterOpenAll });
+    toast(`Close panel after Open all ${!s.closeAfterOpenAll ? 'on' : 'off'}`);
   }
   if (action === 'rules') await openRules();
   if (action === 'toggle-theme') await cycleTheme();

@@ -875,7 +875,7 @@ function buildReadingRow({ item, collection }) {
   row.innerHTML = `
     ${cover}
     <div class="card-body">
-      <a class="card-title reading-title" href="${encodeURI(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title || item.url)}</a>
+      <a class="card-title reading-title" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title || item.url)}</a>
       <div class="card-meta">${escapeHtml(hostOf(item.url))} · ${escapeHtml(collection.title || 'Untitled')}</div>
     </div>
     <button class="btn reading-read" title="Mark as read">✓ Read</button>
@@ -1067,7 +1067,7 @@ function renderItem(collectionId, item) {
   } else if (item.type === 'highlight') {
     thumbHtml = `<div class="item-thumb">❝</div>`;
     const srcLine = item.url
-      ? `<div class="item-url"><a href="${encodeURI(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(
+      ? `<div class="item-url"><a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(
           item.title || hostOf(item.url)
         )}</a></div>`
       : '';
@@ -1080,7 +1080,7 @@ function renderItem(collectionId, item) {
       item.src
     )}')"></div>`;
     bodyHtml = `
-      <div class="item-title"><a href="${encodeURI(
+      <div class="item-title"><a href="${escapeHtml(
         item.srcPageUrl || item.src
       )}" target="_blank" rel="noreferrer">${escapeHtml(item.alt || 'Image')}</a></div>
       <div class="item-url">${escapeHtml(hostOf(item.srcPageUrl || item.src))}</div>`;
@@ -1096,7 +1096,7 @@ function renderItem(collectionId, item) {
       ? `<button class="unread-dot" title="Unread — click to mark read" aria-label="Mark read"></button>`
       : '';
     bodyHtml = `
-      <div class="item-title">${unreadDot}<a href="${encodeURI(
+      <div class="item-title">${unreadDot}<a href="${escapeHtml(
         item.url
       )}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></div>
       <div class="item-url">${escapeHtml(hostOf(item.url))}${linkStatusHtml(item)}</div>
@@ -1991,7 +1991,7 @@ function renderAiSearchResults(results, entriesByN, data, query) {
       <div class="aisearch-result-main">
         ${
           isLink
-            ? `<a class="aisearch-result-title" href="${encodeURI(url || '')}" target="_blank" rel="noreferrer">${escapeHtml(title)}</a>`
+            ? `<a class="aisearch-result-title" href="${escapeHtml(url || '')}" target="_blank" rel="noreferrer">${escapeHtml(title)}</a>`
             : `<span class="aisearch-result-title">${escapeHtml(title)}</span>`
         }
         ${r.why ? `<span class="aisearch-why">${escapeHtml(r.why)}</span>` : ''}

@@ -3,6 +3,24 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.1.1
+
+Two bug fixes:
+
+**Links with a `%` now work.** Saved page links that contained a percent sign
+(most commonly Microsoft SharePoint URLs, where spaces show up as `%20`) were
+being double-encoded when rendered — `%20` became `%2520` — so the link opened
+to the wrong place or a dead page. Links are now escaped correctly and open
+exactly as saved. Affects the link rendered for every saved page, image and
+highlight.
+
+**Snapshot reader buttons fit the panel.** In the readable-snapshot view the
+action buttons could get pushed past the edge of the popup at narrow side-panel
+widths, hiding part of the **Open original** button. The buttons are now
+labelled **Open ↗**, **Summarize (AI)** and **Refresh**, and wrap cleanly if
+space is truly tight — so they always stay inside the window. Thanks to
+Gianpaolo for both reports.
+
 ## 2.1.0
 
 **Close the panel after Open all.** A new opt-in setting (⋯ → **Tools** →

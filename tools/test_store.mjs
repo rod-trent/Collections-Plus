@@ -132,6 +132,14 @@ console.log('\nfolders:');
   await store.toggleFolder(folder.id);
   data = await store.getData();
   assert(data.folders[0].collapsed === true, 'toggleFolder flips collapsed');
+  assert(data.folders[0].color === null, 'new folder has no color');
+
+  await store.setFolderColor(folder.id, '#8b5cf6');
+  data = await store.getData();
+  assert(data.folders[0].color === '#8b5cf6', 'setFolderColor stores a valid hex');
+  await store.setFolderColor(folder.id, 'red'); // invalid → cleared
+  data = await store.getData();
+  assert(data.folders[0].color === null, 'setFolderColor rejects a non-hex value');
 
   await store.removeFolder(folder.id);
   data = await store.getData();

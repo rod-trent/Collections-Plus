@@ -12,6 +12,7 @@ import {
   setParent,
   createFolder,
   renameFolder,
+  setFolderColor,
   toggleFolder,
   archiveCollection,
   unarchiveCollection,
@@ -55,6 +56,7 @@ import { toMarkdown, toHtml, toLinkList, toShareableHtml } from '../lib/render.j
 import { fileToCover, srcToCover } from '../lib/image.js';
 import { extractReadable } from '../lib/snapshot.js';
 import * as sync from '../lib/sync.js';
+import * as backup from '../lib/backup.js';
 import {
   AI_PROVIDERS,
   getAiConfig,
@@ -140,6 +142,33 @@ function escapeHtml(s = '') {
   return s.replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   );
+}
+
+// ---- Cover / folder colors -------------------------------------------------
+// A collection cover is stored in the single `cover` string field: an image
+// URL/data-URL, OR a solid color as a "#rrggbb" hex. Folders carry an optional
+// `color` (same hex form). The preset palette below powers the swatch pickers;
+// any value is validated as strict 6-digit hex before it's injected into CSS,
+// so a hand-edited or synced value can never break out of a style attribute.
+const COLOR_PALETTE = [
+  '#ef4444', '#f97316', '#f59e0b', '#eab308',
+  '#22c55e', '#14b8a6', '#3b82f6', '#6366f1',
+  '#8b5cf6', '#ec4899', '#78716c', '#64748b',
+];
+
+/** True if a cover/color value is a solid color rather than an image. */
+function isColorValue(v) {
+  return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+}
+
+/** Build the swatch-grid HTML for a color picker (optionally marking active). */
+function paletteSwatches(active) {
+  return COLOR_PALETTE.map(
+    (hex) =>
+      `<button class="swatch${
+        active && active.toLowerCase() === hex ? ' active' : ''
+      }" style="background:${hex}" data-color="${hex}" title="${hex}"></button>`
+  ).join('');
 }
 
 function hostOf(url) {
@@ -480,6 +509,52 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// ---- Color picker (cover + folder colors) ----------------------------------
+const colorMenu = $('#color-menu');
+let colorPick = null; // callback for the current picker: (hexOrNull) => void
+
+/**
+ * Open the swatch palette anchored to `anchor`. `current` highlights the active
+ * color; picking a swatch (or "None") calls `onPick(hex|null)` and closes.
+ */
+function openColorMenu(anchor, current, onPick) {
+  colorPick = onPick;
+  colorMenu.innerHTML =
+    `<div class="menu-note">Pick a color</div>` +
+    `<div class="swatch-grid">${paletteSwatches(current)}</div>` +
+    `<button class="color-none" data-color="">✕ No color</button>`;
+  colorMenu.hidden = false;
+  const r = anchor.getBoundingClientRect();
+  const mw = colorMenu.offsetWidth || 200;
+  const mh = colorMenu.offsetHeight || 0;
+  let top = r.bottom + 4;
+  if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 4);
+  colorMenu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - mw - 8))}px`;
+  colorMenu.style.top = `${top}px`;
+}
+
+colorMenu.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-color]');
+  if (!btn) return;
+  const hex = btn.dataset.color || null;
+  colorMenu.hidden = true;
+  const cb = colorPick;
+  colorPick = null;
+  if (cb) cb(hex);
+});
+
+document.addEventListener('click', (e) => {
+  if (
+    !colorMenu.hidden &&
+    !colorMenu.contains(e.target) &&
+    !e.target.closest('.cover-color-btn') &&
+    !e.target.closest('.folder-color')
+  ) {
+    colorMenu.hidden = true;
+    colorPick = null;
+  }
+});
+
 // ---- Version history -------------------------------------------------------
 const historyMenu = $('#history-menu');
 
@@ -646,8 +721,13 @@ function buildCard(c) {
   card.className = 'card' + (c.pinned ? ' pinned' : '');
   card.setAttribute('role', 'listitem');
   card.dataset.id = c.id;
+  // Remember which folder (if any) this card lives in, so a drag that drops
+  // onto it can adopt the same grouping.
+  card.dataset.parent = c.parentId || '';
 
-  const coverInner = c.cover
+  const coverInner = isColorValue(c.cover)
+    ? `<div class="card-cover is-color" style="background:${c.cover}"></div>`
+    : c.cover
     ? `<div class="card-cover" style="background-image:url('${encodeURI(c.cover)}')"></div>`
     : `<div class="card-cover">🗂️</div>`;
   const tagsHtml = (c.tags || []).length
@@ -746,16 +826,23 @@ function buildFolderHeader(f, count) {
   const el = document.createElement('div');
   el.className = 'folder-header';
   el.dataset.folder = f.id;
+  if (isColorValue(f.color)) el.style.setProperty('--folder-color', f.color);
+  el.classList.toggle('has-color', isColorValue(f.color));
   el.innerHTML = `
     <button class="folder-toggle" title="Collapse / expand">${f.collapsed ? '▸' : '▾'}</button>
     <span class="folder-name">📁 ${escapeHtml(f.name)}</span>
     <span class="folder-count">${count}</span>
+    <button class="folder-color" title="Folder color">🎨</button>
     <button class="folder-rename" title="Rename folder">✎</button>
     <button class="folder-del" title="Move folder to Trash">🗑</button>
   `;
   const toggle = () => toggleFolder(f.id);
   el.querySelector('.folder-toggle').addEventListener('click', toggle);
   el.querySelector('.folder-name').addEventListener('click', toggle);
+  el.querySelector('.folder-color').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openColorMenu(e.currentTarget, f.color, (hex) => setFolderColor(f.id, hex));
+  });
   el.querySelector('.folder-rename').addEventListener('click', async (e) => {
     e.stopPropagation();
     const name = await showPrompt('Folder name:', { value: f.name });
@@ -770,6 +857,20 @@ function buildFolderHeader(f, count) {
         fn: () => restoreFromTrash(entryId),
       });
     }
+  });
+
+  // Drop a dragged collection card onto the header to move it into this folder.
+  el.addEventListener('dragover', (e) => {
+    if (!cardDragId) return;
+    e.preventDefault();
+    el.classList.add('drop-target');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drop-target'));
+  el.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    el.classList.remove('drop-target');
+    if (!cardDragId) return;
+    await setParent(cardDragId, f.id);
   });
   return el;
 }
@@ -999,8 +1100,14 @@ function wireCardDrag(card) {
     card.classList.remove('drop-target');
     if (!cardDragId || cardDragId === card.dataset.id) return;
     const dragged = els.collections.querySelector(`[data-id="${cardDragId}"]`);
+    if (!dragged) return;
+    // Dropping onto a card adopts that card's folder: drop onto an in-folder
+    // card to join the folder, or onto a top-level card to leave it.
+    const targetParent = card.dataset.parent || '';
+    const changedFolder = (dragged.dataset.parent || '') !== targetParent;
     els.collections.insertBefore(dragged, card);
-    const order = [...els.collections.children].map((el) => el.dataset.id);
+    const order = [...els.collections.children].map((el) => el.dataset.id).filter(Boolean);
+    if (changedFolder) await setParent(cardDragId, targetParent || null);
     await reorderCollections(order);
   });
 }
@@ -1010,11 +1117,18 @@ function renderDetail(c) {
   els.detailView.hidden = false;
 
   els.detailTitle.value = c.title;
-  if (c.cover) {
+  if (isColorValue(c.cover)) {
+    els.detailCover.style.backgroundImage = '';
+    els.detailCover.style.backgroundColor = c.cover;
+    els.detailCover.textContent = '';
+    els.coverRemoveBtn.hidden = false;
+  } else if (c.cover) {
+    els.detailCover.style.backgroundColor = '';
     els.detailCover.style.backgroundImage = `url('${encodeURI(c.cover)}')`;
     els.detailCover.textContent = '';
     els.coverRemoveBtn.hidden = false;
   } else {
+    els.detailCover.style.backgroundColor = '';
     els.detailCover.style.backgroundImage = '';
     els.detailCover.textContent = '🗂️';
     els.coverRemoveBtn.hidden = true;
@@ -1137,6 +1251,14 @@ function renderItem(collectionId, item) {
         }">📄</button>`
       : '';
 
+  // Page/image items carry an editable display title (pages) or alt text
+  // (images) that can be renamed to something friendlier than the auto-captured
+  // tab title.
+  const renameBtn =
+    item.type === 'page' || item.type === 'image'
+      ? `<button class="item-rename-btn" title="Rename">✎</button>`
+      : '';
+
   row.innerHTML = `
     <span class="drag-handle" title="Drag to reorder">⠿</span>
     <div class="item-media">
@@ -1146,6 +1268,7 @@ function renderItem(collectionId, item) {
     <div class="item-body">${bodyHtml}${fieldsHtml}</div>
     <div class="item-actions">
       ${coverBtnHtml}
+      ${renameBtn}
       ${addFieldBtn}
       ${snapshotBtn}
       <button class="item-move-btn" title="Move or copy to another collection">⇄</button>
@@ -1165,6 +1288,23 @@ function renderItem(collectionId, item) {
     e.stopPropagation();
     openMoveMenu(e.currentTarget, collectionId, item.id);
   });
+
+  // Rename: pages edit `title`, images edit their `alt` display text. Persisting
+  // via updateItem re-renders and syncs like any other edit.
+  const renameBtnEl = row.querySelector('.item-rename-btn');
+  if (renameBtnEl) {
+    renameBtnEl.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const field = item.type === 'image' ? 'alt' : 'title';
+      const current = item[field] || '';
+      const next = await showPrompt('Rename', { value: current, okLabel: 'Rename' });
+      if (next == null) return; // cancelled
+      const trimmed = next.trim();
+      if (!trimmed || trimmed === current) return;
+      await updateItem(collectionId, item.id, { [field]: trimmed });
+      toast('Renamed');
+    });
+  }
 
   // Snapshot: the action button captures (or opens an existing snapshot); the
   // inline "Saved snapshot" link always opens the reader.
@@ -2425,6 +2565,42 @@ function schedulePush() {
   }, 1500);
 }
 
+// Debounced + throttled write of the lightweight Chrome-account recovery
+// backup. Runs independently of file sync — it needs no permission and survives
+// an extension reset — so it's the safety net when file sync isn't set up or is
+// paused. chrome.storage.sync has write-rate quotas (~1800 ops/hour) and each
+// save touches several chunk keys, so we settle bursts (8s) AND enforce a floor
+// between actual writes (~60s). File sync + local history cover finer-grained
+// rollback; this layer only needs to be recent, not instantaneous.
+const BACKUP_SETTLE_MS = 8000;
+const BACKUP_MIN_INTERVAL_MS = 60000;
+let backupTimer = null;
+let backupWarned = false;
+let lastBackupAt = 0;
+function scheduleBackup() {
+  if (backupTimer) clearTimeout(backupTimer);
+  const sinceLast = Date.now() - lastBackupAt;
+  const wait = Math.max(BACKUP_SETTLE_MS, BACKUP_MIN_INTERVAL_MS - sinceLast);
+  backupTimer = setTimeout(runBackup, wait);
+}
+async function runBackup() {
+  backupTimer = null;
+  lastBackupAt = Date.now();
+  try {
+    const res = await backup.saveBackup();
+    if (res.ok && res.truncated && !backupWarned) {
+      // The library is bigger than Chrome's ~100KB sync backup can hold; the
+      // stalest collections are left out. Say so once, don't nag.
+      backupWarned = true;
+      toast(
+        `Chrome backup covers your ${res.count} most-recent collections (of ${res.total}). Set up file Sync for a full backup.`
+      );
+    }
+  } catch (err) {
+    console.warn('Backup save failed', err);
+  }
+}
+
 // Show the "sync paused" affordance once, and reflect it in the menu.
 function notifySyncPaused() {
   refreshSyncMenu();
@@ -2924,6 +3100,13 @@ $('#add-current-btn').addEventListener('click', addCurrentPage);
 $('#cover-change-btn').addEventListener('click', () => {
   if (openId) pickFile('cover');
 });
+$('#cover-color-btn').addEventListener('click', async (e) => {
+  if (!openId) return;
+  const c = (await getData()).collections.find((x) => x.id === openId);
+  openColorMenu(e.currentTarget, isColorValue(c?.cover) ? c.cover : null, (hex) =>
+    setCover(openId, hex)
+  );
+});
 els.coverRemoveBtn.addEventListener('click', async () => {
   if (openId) {
     await setCover(openId, null);
@@ -3025,6 +3208,9 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local' || !changes[STORAGE_KEY]) return;
   render();
+  // Keep the Chrome-account recovery backup fresh on every change — including
+  // pulled ones — since it protects against local storage being wiped.
+  scheduleBackup();
   if (applyingRemote) {
     applyingRemote = false; // this write came from a pull — don't echo it back
     return;
@@ -3091,12 +3277,89 @@ getSettings().then((s) => {
 render();
 // Drop any trashed items past the 30-day retention window (best-effort).
 purgeExpiredTrash().catch(() => {});
-// If connected but write access lapsed (e.g. after a reload), mark sync paused
-// up front so the menu shows Resume instead of failing the first push.
-sync.status().then(async ({ connected }) => {
-  if (connected && !(await sync.canWrite())) {
-    syncPaused = true;
+
+// ---- Recovery backup + sync nudges (startup) -------------------------------
+
+/** Restore from the Chrome-account backup. Returns true if anything came back. */
+async function maybeRecover() {
+  try {
+    const res = await backup.restoreBackup(); // no-op if there's no backup
+    if (res.restored) {
+      const extra = res.truncated ? ' (most-recent collections)' : '';
+      toast(
+        `Recovered ${res.restored} collection${res.restored === 1 ? '' : 's'} from your Chrome account backup${extra}.`
+      );
+      return true;
+    }
+  } catch (err) {
+    console.warn('Recovery failed', err);
   }
+  return false;
+}
+
+// chrome.storage.sync can populate a little after the panel opens (right after a
+// reinstall). Watch briefly for a backup to arrive while local is still empty.
+let lateBackupWatch = null;
+function stopLateWatch() {
+  if (lateBackupWatch) {
+    chrome.storage.onChanged.removeListener(lateBackupWatch);
+    lateBackupWatch = null;
+  }
+}
+function watchForLateBackup() {
+  if (lateBackupWatch) return;
+  lateBackupWatch = async (_changes, area) => {
+    if (area !== 'sync') return;
+    const data = await getData();
+    if (data.collections.length) return stopLateWatch(); // local filled in — leave it
+    if (await maybeRecover()) stopLateWatch();
+  };
+  chrome.storage.onChanged.addListener(lateBackupWatch);
+  setTimeout(stopLateWatch, 60000); // don't watch forever
+}
+
+async function initSafety() {
+  // Mark file-sync paused up front so the menu shows Resume, not a failed push.
+  const { connected } = await sync.status();
+  if (connected && !(await sync.canWrite())) syncPaused = true;
   refreshSyncMenu();
-});
+
+  let data;
+  try {
+    data = await getData();
+  } catch {
+    data = { collections: [] };
+  }
+
+  // Empty local storage: possible data loss (or a fresh device). Try the
+  // account backup now, and again if it arrives shortly after open.
+  if (!data.collections.length) {
+    if (!(await maybeRecover())) watchForLateBackup();
+    return;
+  }
+
+  // We have data — make sure a backup exists even before the next edit.
+  runBackup();
+
+  // Proactively nudge so protection is actually active.
+  if (connected) {
+    if (syncPaused && !syncPausedNotified) {
+      syncPausedNotified = true;
+      toast('Sync paused after restart — resume to keep your file backup current.', {
+        label: 'Resume',
+        fn: resumeSync,
+      });
+    }
+  } else {
+    const s = await getSettings();
+    if (!s.syncHintShown && data.collections.length >= 3) {
+      await setSettings({ syncHintShown: true });
+      toast(
+        'Your collections are auto-backed-up to your Chrome account. Set up Sync (⋯ menu) for a full cross-device backup too.'
+      );
+    }
+  }
+}
+
+initSafety();
 autoPull();

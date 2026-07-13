@@ -1,11 +1,11 @@
 {
   "name": "collections-extension",
-  "version": "2.1.1",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "description": "Open replacement for Microsoft Edge Collections (MV3 browser extension).",
   "scripts": {
-    "test": "node tools/test_csv.mjs && node tools/test_export.mjs && node tools/test_store.mjs && node tools/test_render.mjs && node tools/test_xlsx.mjs && node tools/test_ai.mjs && node tools/test_linkcheck.mjs && node tools/test_snapshot.mjs && node tools/test_ai_organize.mjs && node tools/test_semantic.mjs && node tools/test_bookmarks.mjs && node tools/test_rules.mjs && node tools/test_sortview.mjs && node tools/test_omnibox.mjs",
+    "test": "node tools/test_csv.mjs && node tools/test_export.mjs && node tools/test_store.mjs && node tools/test_backup.mjs && node tools/test_render.mjs && node tools/test_xlsx.mjs && node tools/test_ai.mjs && node tools/test_linkcheck.mjs && node tools/test_snapshot.mjs && node tools/test_ai_organize.mjs && node tools/test_semantic.mjs && node tools/test_bookmarks.mjs && node tools/test_rules.mjs && node tools/test_sortview.mjs && node tools/test_omnibox.mjs",
     "icons": "python tools/make_icons.py",
     "images": "python tools/make_store_images.py",
     "package": "pwsh -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1"

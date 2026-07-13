@@ -1,6 +1,6 @@
 # Privacy Policy — Collections Plus
 
-_Last updated: 2026-06-16_
+_Last updated: 2026-07-13_
 
 Collections Plus is a **local-first** browser extension. It is designed so that
 your data stays on your own devices. This policy explains exactly what the
@@ -10,9 +10,15 @@ extension does and does not do with your information.
 
 - **We collect nothing.** There is no account, no server operated by the
   developer, no analytics, and no telemetry.
-- **Your data stays on your machine**, in the browser's local extension storage.
-- **Nothing is transmitted to the developer.**
-- The only time any data leaves your device is when **you** turn on an optional
+- **Your data lives in your browser's local storage** on your device.
+- **Nothing is ever transmitted to the developer.**
+- **One automatic exception:** a lightweight recovery copy of your collections
+  is saved to your browser's built-in account-synced storage so your library can
+  be restored if the extension is ever reset or reinstalled. This is handled by
+  your browser (Google for Chrome, Microsoft for Edge) under its own privacy
+  policy and tied to your browser account, never to the developer. See
+  **Automatic recovery backup** below.
+- Beyond that, data only leaves your device when **you** turn on an optional
   feature: cross-device sync (a file in your own cloud folder), offline image
   caching (fetching images you saved), or the **AI chat** (sending the
   collections you choose to the AI provider **you** configured). Each is **off
@@ -28,7 +34,32 @@ device via `chrome.storage.local`:
 - Collections, folders, tags, custom fields, and your settings.
 
 This data never leaves your device unless **you** explicitly export it or turn
-on optional sync (see below).
+on optional sync (see below), aside from the automatic recovery backup described
+next.
+
+## Automatic recovery backup
+
+To protect against losing your collections if the browser wipes the extension's
+local storage — for example when a browser update resets your extensions — the
+extension keeps a **lightweight recovery copy** of your data in the browser's
+built-in account-synced storage (`chrome.storage.sync`). This is **on by
+default** and updates automatically in the background.
+
+- **What's included:** collection titles, links (URLs), notes, tags, folders,
+  folder colors, and item done-state — the structure of your library.
+- **What's excluded:** heavy content such as cached images, saved page snapshots
+  and thumbnails, and your **settings and AI API key** are **not** part of this
+  backup.
+- **Where it goes:** into your own browser account's sync storage, which the
+  browser (Google for Chrome, Microsoft for Edge) replicates across your
+  signed-in devices under **its** privacy policy. It is **never** sent to the
+  developer, who still runs no server and receives nothing.
+- **Size limits:** the browser caps this storage at roughly 100 KB, so for a
+  large library only your most-recent collections are kept in the recovery copy
+  (the extension tells you when this happens). For a complete backup, use the
+  optional cross-device sync below.
+- **Restore:** if your local data is ever empty (for example after an extension
+  reset), the recovery copy is restored automatically.
 
 ## Optional features that touch the network or filesystem
 
@@ -68,16 +99,20 @@ These are **off by default** and only do anything if you turn them on:
 - **Tabs / scripting** are used to read the current page's title/URL and extract
   its preview image when you save it.
 - **Storage / unlimited storage** hold your collections and cached images
-  locally.
+  locally, and keep the lightweight recovery copy (see **Automatic recovery
+  backup**) in your browser account's synced storage.
 
 ## Data sharing
 
 The developer does **not** sell, share, or transmit your data to anyone, and runs
-no backend service. The only outbound transmission of your data is the one **you**
-initiate to a third party you chose: your cloud provider's synced folder (if you
-enable sync) or the AI provider whose key you entered (if you enable and use AI
-chat). In both cases the data goes from your browser straight to that provider,
-never through the developer.
+no backend service. Your data leaves your device only in these ways, none of
+which route through the developer: automatically, the lightweight recovery copy
+saved to your browser account's synced storage (see **Automatic recovery
+backup**); and, when **you** enable them, your cloud provider's synced folder
+(cross-device sync) or the AI provider whose key you entered (AI chat). In each
+case the data goes from your browser straight to that party — your browser
+vendor, your cloud service, or your chosen AI provider — never through the
+developer.
 
 ## Children's privacy
 

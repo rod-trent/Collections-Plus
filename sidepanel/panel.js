@@ -830,7 +830,8 @@ function buildFolderHeader(f, count) {
   el.classList.toggle('has-color', isColorValue(f.color));
   el.innerHTML = `
     <button class="folder-toggle" title="Collapse / expand">${f.collapsed ? '▸' : '▾'}</button>
-    <span class="folder-name">📁 ${escapeHtml(f.name)}</span>
+    <span class="folder-icon" aria-hidden="true">📁</span>
+    <span class="folder-name">${escapeHtml(f.name)}</span>
     <span class="folder-count">${count}</span>
     <button class="folder-color" title="Folder color">🎨</button>
     <button class="folder-rename" title="Rename folder">✎</button>
@@ -838,6 +839,7 @@ function buildFolderHeader(f, count) {
   `;
   const toggle = () => toggleFolder(f.id);
   el.querySelector('.folder-toggle').addEventListener('click', toggle);
+  el.querySelector('.folder-icon').addEventListener('click', toggle);
   el.querySelector('.folder-name').addEventListener('click', toggle);
   el.querySelector('.folder-color').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -3102,8 +3104,11 @@ $('#cover-change-btn').addEventListener('click', () => {
 });
 $('#cover-color-btn').addEventListener('click', async (e) => {
   if (!openId) return;
+  // Capture the button before awaiting: event.currentTarget is only valid
+  // during dispatch and becomes null once we await getData().
+  const anchor = e.currentTarget;
   const c = (await getData()).collections.find((x) => x.id === openId);
-  openColorMenu(e.currentTarget, isColorValue(c?.cover) ? c.cover : null, (hex) =>
+  openColorMenu(anchor, isColorValue(c?.cover) ? c.cover : null, (hex) =>
     setCover(openId, hex)
   );
 });

@@ -506,9 +506,18 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 6px 4px;
+  padding: 8px 6px 7px;
   margin-top: 4px;
   border-top: 1px solid var(--border);
+}
+
+.folder-icon {
+  flex: 0 0 auto;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  /* Nudge into optical alignment with the larger name text. */
+  margin-right: -1px;
 }
 
 .folder-toggle {
@@ -523,7 +532,7 @@ body {
 .folder-name {
   flex: 1;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;

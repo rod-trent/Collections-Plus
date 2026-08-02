@@ -1873,7 +1873,7 @@ function renderChat(data) {
     // Render the model's markdown to formatted HTML; keep user/error text plain.
     if (m.role === 'assistant') {
       row.classList.add('md');
-      row.innerHTML = renderMarkdown(m.content);
+      row.innerHTML = renderMarkdown(m.content).replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
     } else {
       row.textContent = m.content;
     }

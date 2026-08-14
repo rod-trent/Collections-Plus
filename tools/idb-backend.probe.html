@@ -1,0 +1,73 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>idb-backend probe</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; padding: 1.5rem; }
+  .ok { color: #16803c; }
+  .fail { color: #b91c1c; font-weight: 600; }
+  #summary { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
+</style>
+<h1>idb-backend probe</h1>
+<div id="summary">running…</div>
+<ul id="log"></ul>
+
+<script type="module">
+  // Manual, in-browser verification of lib/idb-backend.js against a REAL
+  // IndexedDB. Serve the repo root and open /tools/idb-backend.probe.html.
+  // (Raw-IDB code is verified in-browser, not in Node — same as lib/sync.js.)
+  import { createIdbBackend } from '../lib/idb-backend.js';
+
+  const log = document.getElementById('log');
+  let failures = 0;
+  function assert(cond, msg) {
+    const li = document.createElement('li');
+    li.textContent = (cond ? '✓ ' : '✗ ') + msg;
+    li.className = cond ? 'ok' : 'fail';
+    log.appendChild(li);
+    if (cond) console.log('✓', msg);
+    else { failures++; console.error('✗', msg); }
+  }
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  try {
+    // Use a throwaway db per run so repeats start clean.
+    const dbName = 'cp-probe-' + Math.floor(performance.now());
+    const be = createIdbBackend({ dbName });
+
+    assert((await be.get('missing')) === undefined, 'get() on an absent key is undefined');
+
+    await be.set('collectionsData', { version: 3, collections: [{ id: 'c1', title: 'X' }] });
+    const got = await be.get('collectionsData');
+    assert(eq(got, { version: 3, collections: [{ id: 'c1', title: 'X' }] }), 'set() then get() round-trips a structured value');
+
+    // Heavy value: an inline data: URL like a real thumbnail (no JSON round-trip loss).
+    const big = 'data:image/png;base64,' + 'A'.repeat(200000);
+    await be.set('thumb', { thumbnail: big });
+    assert((await be.get('thumb')).thumbnail === big, 'stores a large data: URL payload intact');
+
+    await be.set('collectionsData', { version: 3, collections: [] });
+    assert(eq(await be.get('collectionsData'), { version: 3, collections: [] }), 'set() overwrites an existing key');
+
+    assert(eq(await be.get('thumb'), { thumbnail: big }), 'keys are isolated (overwrite did not touch other keys)');
+
+    await be.remove('thumb');
+    assert((await be.get('thumb')) === undefined, 'remove() deletes a key');
+
+    // A second backend instance on the same db sees committed writes (durability).
+    const be2 = createIdbBackend({ dbName });
+    assert(eq(await be2.get('collectionsData'), { version: 3, collections: [] }), 'a fresh backend on the same db reads committed data');
+  } catch (e) {
+    assert(false, 'threw: ' + (e && e.message ? e.message : e));
+  }
+
+  const summary = document.getElementById('summary');
+  if (failures) {
+    summary.textContent = `FAIL — ${failures} failed`;
+    summary.className = 'fail';
+    console.error(`PROBE RESULT: FAIL (${failures})`);
+  } else {
+    summary.textContent = 'All idb-backend probes passed.';
+    summary.className = 'ok';
+    console.log('PROBE RESULT: PASS');
+  }
+</script>

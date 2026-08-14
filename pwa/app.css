@@ -1,0 +1,100 @@
+/* Mobile-first skeleton styling for the Collections Plus PWA. Light/dark follow
+   the OS via prefers-color-scheme. This is a functional shell, not the final
+   design — enough to prove the shared data model runs on IndexedDB. */
+
+:root {
+  --bg: #ffffff;
+  --panel: #f4f6f8;
+  --text: #14181d;
+  --muted: #5b6672;
+  --border: #dfe4ea;
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f14;
+    --panel: #151b22;
+    --text: #e6eaef;
+    --muted: #93a1b0;
+    --border: #232c36;
+    --accent: #3b82f6;
+    --accent-text: #0b0f14;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app-bar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.app-bar h1 { font-size: 1.1rem; margin: 0; font-weight: 700; }
+.app-bar h1 span { color: var(--accent); }
+.actions { display: flex; gap: 0.4rem; align-items: center; }
+
+button, .import {
+  font: inherit;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+button:active, .import:active { transform: translateY(1px); }
+#new-collection { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+
+main { padding: 0.75rem 1rem 4rem; }
+.empty { color: var(--muted); text-align: center; margin: 3rem 1rem; }
+
+.collections { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.collection {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.collection > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.collection > summary::-webkit-details-marker { display: none; }
+.collection .count { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+
+.items { list-style: none; margin: 0; padding: 0 0.9rem 0.6rem; display: grid; gap: 0.35rem; }
+.item { display: flex; gap: 0.5rem; align-items: baseline; padding: 0.35rem 0; border-top: 1px solid var(--border); }
+.item a { color: var(--accent); text-decoration: none; word-break: break-word; }
+.item .kind { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
+.item .note-text { color: var(--text); }
+
+.status {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding: 0.4rem 1rem calc(0.4rem + env(safe-area-inset-bottom));
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.status.error { color: #ef4444; }

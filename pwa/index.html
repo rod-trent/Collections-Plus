@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Collections Plus</title>
+  <meta name="theme-color" content="#0b0f14" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="../icons/icon128.png" />
+  <link rel="stylesheet" href="./app.css" />
+</head>
+<body>
+  <header class="app-bar">
+    <h1>Collections <span>Plus</span></h1>
+    <div class="actions">
+      <button id="new-collection" title="New collection">＋ Collection</button>
+      <label class="import" title="Import a JSON export from the desktop extension">
+        Import
+        <input id="import-json" type="file" accept="application/json,.json" hidden />
+      </label>
+    </div>
+  </header>
+
+  <main id="app">
+    <p class="empty" id="empty" hidden>No collections yet. Create one, or import a JSON export from the desktop extension.</p>
+    <ul id="collections" class="collections"></ul>
+  </main>
+
+  <footer class="status" id="status">booting…</footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

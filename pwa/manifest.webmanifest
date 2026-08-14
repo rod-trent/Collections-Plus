@@ -1,0 +1,14 @@
+{
+  "name": "Collections Plus",
+  "short_name": "Collections",
+  "description": "Your Collections Plus library, on mobile — in sync with the desktop extension.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    { "src": "../icons/icon128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "../icons/icon128.png", "sizes": "128x128", "type": "image/png", "purpose": "maskable" }
+  ]
+}

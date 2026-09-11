@@ -227,20 +227,71 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // ---- Metadata capture ------------------------------------------------------
 
 // Runs in the page to extract a representative thumbnail + title.
+//
+// NOTE: this function is injected into the page, so it can't import anything —
+// the "is this a site-wide default image?" rules below are a hand-kept copy of
+// isGenericImageUrl() in lib/pagemeta.js. Change both together.
 function scrapeMeta() {
   const pick = (sel, attr) => document.querySelector(sel)?.getAttribute(attr) || '';
-  let thumbnail =
-    pick('meta[property="og:image"]', 'content') ||
-    pick('meta[name="twitter:image"]', 'content') ||
-    pick('meta[itemprop="image"]', 'content');
-  // Resolve relative URLs against the page.
-  if (thumbnail) {
+  const abs = (u) => {
+    // Guard the empty case: new URL('', location.href) resolves to the page's
+    // own address, which would otherwise sail through as a valid candidate.
+    if (!u) return '';
     try {
-      thumbnail = new URL(thumbnail, location.href).href;
+      return new URL(u, location.href).href;
     } catch {
-      /* leave as-is */
+      return '';
+    }
+  };
+
+  const GENERIC =
+    /(^|[/\-_.])(logo|logotype|wordmark|favicon|apple-touch-icon|placeholder|default|fallback|no-?image|sprite|avatar|share|social|og-?image|opengraph|twitter-?card)([/\-_.]|$)/i;
+  const isGeneric = (u) => {
+    let path = u;
+    try {
+      path = new URL(u, location.href).pathname;
+    } catch {
+      /* not parseable — test the raw string */
+    }
+    if (GENERIC.test(path)) return true;
+    const d = path.match(/[-_](\d{2,4})x(\d{2,4})[.][a-z]{3,4}$/i);
+    return !!(d && Number(d[1]) < 200 && Number(d[2]) < 200);
+  };
+
+  const metaCandidates = [
+    pick('meta[property="og:image"]', 'content'),
+    pick('meta[name="twitter:image"]', 'content'),
+    pick('meta[itemprop="image"]', 'content'),
+    pick('link[rel="image_src"]', 'href'),
+  ]
+    .map(abs)
+    .filter(Boolean);
+
+  // The largest image actually rendered in the article — the fallback for when
+  // every meta tag points at site furniture (a logo or a stock social card),
+  // which is the usual cause of "my collection cover shows an unrelated image".
+  let contentImage = '';
+  let bestArea = 0;
+  const scope = document.querySelector('article, main') || document.body;
+  for (const img of scope ? scope.querySelectorAll('img') : []) {
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (w < 200 || h < 200) continue; // icons, spacers, sprites
+    const src = img.currentSrc || img.src;
+    if (!src || src.startsWith('data:') || isGeneric(src)) continue;
+    const area = w * h;
+    if (area > bestArea) {
+      bestArea = area;
+      contentImage = abs(src);
     }
   }
+
+  const thumbnail =
+    metaCandidates.find((u) => !isGeneric(u)) || // a picture of this page
+    contentImage || // …or the biggest real image on it
+    metaCandidates[0] || // …or whatever we had (better weak than nothing)
+    '';
+
   return { thumbnail, title: document.title || location.href };
 }
 

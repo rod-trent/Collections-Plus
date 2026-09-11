@@ -31,17 +31,36 @@
   box-sizing: border-box;
 }
 
-html,
-body {
+html {
   margin: 0;
   height: 100%;
   /* Gentle floor so the panel never opens absurdly narrow. Above this, Chrome
      remembers whatever width the user drags the panel to. The header itself
      wraps (see .topbar) so the title stays fully readable at any width. */
   min-width: 300px;
+  /* The panel is a fixed-viewport app: only the card/item lists scroll, never
+     the document. Pinning this also stops a UI scale below 100% from reporting
+     a phantom overflow. */
+  overflow: hidden;
 }
 
+/* ---- UI scale ----
+   `--ui-scale` (set from the uiScale setting) zooms the entire panel, so type,
+   spacing and thumbnails grow together — the thing that actually helps on a
+   large monitor.
+
+   Two units behave differently under `zoom`, which is the whole trick here:
+   percentages resolve against the parent in the *scaled* space already, so a
+   plain `height: 100%` still fills exactly one viewport at any scale; `vh`
+   units do NOT, and would overflow by the scale factor. So `--vh` is the
+   zoom-corrected "1% of the visible height", and everything that sizes itself
+   against the viewport below uses it instead of raw `vh`. */
 body {
+  margin: 0;
+  zoom: var(--ui-scale, 1);
+  height: 100%;
+  overflow: hidden;
+  --vh: calc(1vh / var(--ui-scale, 1));
   background: var(--bg);
   color: var(--text);
   font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -51,7 +70,7 @@ body {
 .view {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
 }
 
 [hidden] {
@@ -210,6 +229,27 @@ body {
   min-width: 156px;
 }
 
+/* Reading list / Archive / Trash moved off the toolbar and into this menu;
+   their counts ride along as a right-aligned chip on each entry. */
+.menu button:has(.menu-count) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-count {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
 /* Category triggers in the overflow menu (open a flyout submenu). */
 .submenu-trigger {
   display: flex !important;
@@ -325,6 +365,44 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Compact collection density — the list-view counterpart to `.items.compact`:
+   smaller covers and tighter rows, so roughly twice as many collections fit on
+   screen. Toggled from the ▥ button beside the collection sort. */
+.cards.compact {
+  gap: 6px;
+  padding: 8px;
+}
+
+.cards.compact .card {
+  padding: 6px 8px;
+}
+
+.cards.compact .card-cover {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
+.cards.compact .card-title {
+  font-size: 13.5px;
+  /* One line only, so a long name can't re-inflate the row. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cards.compact .card-meta {
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+/* Tags are decoration — drop them when the point is density. Search match
+   previews stay: they only render while searching, and they're the whole reason
+   a result is showing. */
+.cards.compact .card-tags {
+  display: none;
 }
 
 .card {
@@ -815,6 +893,28 @@ body {
   border-color: var(--accent);
 }
 
+/* Rows that navigate somewhere advertise it: the whole row is the hit target,
+   not just the title text. Inner controls reset the cursor to the default. */
+.item.is-openable {
+  cursor: pointer;
+}
+
+.item.is-openable:hover {
+  border-color: var(--accent);
+}
+
+.item.is-openable .item-actions,
+.item.is-openable .item-fields,
+.item.is-openable .drag-handle,
+.item.is-openable input,
+.item.is-openable textarea {
+  cursor: auto;
+}
+
+.item.is-openable .drag-handle {
+  cursor: grab;
+}
+
 .drag-handle {
   cursor: grab;
   color: var(--text-faint);
@@ -1033,7 +1133,7 @@ body {
   max-width: 560px;
   display: flex;
   flex-direction: column;
-  max-height: min(80vh, 640px);
+  max-height: min(calc(80 * var(--vh)), 640px);
 }
 
 .snapshot-head {
@@ -1085,7 +1185,7 @@ body {
   max-width: 520px;
   display: flex;
   flex-direction: column;
-  max-height: min(80vh, 600px);
+  max-height: min(calc(80 * var(--vh)), 600px);
 }
 
 .rules-list {
@@ -1153,7 +1253,7 @@ body {
 /* Command palette */
 #palette-overlay {
   align-items: flex-start;
-  padding-top: 12vh;
+  padding-top: calc(12 * var(--vh));
 }
 
 .palette {
@@ -1166,7 +1266,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  max-height: calc(70 * var(--vh));
 }
 
 .palette-input {
@@ -1227,7 +1327,7 @@ body {
   max-width: 560px;
   display: flex;
   flex-direction: column;
-  max-height: min(80vh, 640px);
+  max-height: min(calc(80 * var(--vh)), 640px);
 }
 
 .aisearch-body {
@@ -1303,12 +1403,15 @@ a.aisearch-result-title:hover {
 
 .item-field {
   display: flex;
-  align-items: center;
+  /* Values can wrap to several lines, so pin the key label to the first line
+     rather than centring it against a tall box. */
+  align-items: flex-start;
   gap: 6px;
 }
 
 .field-key {
   flex: 0 0 auto;
+  padding-top: 4px;
   min-width: 54px;
   max-width: 110px;
   color: var(--text-dim);
@@ -1318,6 +1421,9 @@ a.aisearch-result-title:hover {
   white-space: nowrap;
 }
 
+/* A textarea, not an input: a field used as a comment box needs to show more
+   than one line. JS sizes it to its content (see autoGrow), so it still looks
+   like a one-line input until there's something to wrap. */
 .field-val {
   flex: 1;
   min-width: 0;
@@ -1327,7 +1433,11 @@ a.aisearch-result-title:hover {
   color: var(--text);
   font: inherit;
   font-size: 12px;
+  line-height: 1.4;
   padding: 3px 6px;
+  resize: vertical;
+  overflow-y: auto;
+  display: block;
 }
 
 .field-val:focus {
@@ -1337,6 +1447,7 @@ a.aisearch-result-title:hover {
 
 .field-del {
   flex: 0 0 auto;
+  margin-top: 2px;
   background: none;
   border: none;
   color: var(--text-faint);
@@ -1355,7 +1466,7 @@ a.aisearch-result-title:hover {
   position: fixed;
   min-width: 200px;
   max-width: 260px;
-  max-height: 60vh;
+  max-height: calc(60 * var(--vh));
   overflow-y: auto;
   overflow-x: hidden;
 }

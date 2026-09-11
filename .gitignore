@@ -12,3 +12,8 @@ dist/
 
 # Local-only Web Store submission notes (listing copy, etc.)
 docs/CHROME_WEB_STORE.md
+
+# Local-only test harness: panel.html plus a `chrome` stub and sample data, so
+# the side panel can be booted in an ordinary tab (npm run dev server) without
+# loading the extension. Never packaged — tools/package.ps1 copies files by name.
+sidepanel/_harness.html

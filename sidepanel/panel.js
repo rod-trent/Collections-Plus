@@ -135,14 +135,145 @@ let viewPrefs = {
   itemSort: 'manual',
   itemDensity: 'comfortable',
   collectionSort: 'manual',
+  collectionDensity: 'comfortable',
   readingListEnabled: true,
+  openItemsIn: 'newTab',
+  markReadOnOpen: true,
+  uiScale: 100,
 };
 let aiMode = null; // 'settings' | 'chat' | null
 let chatScope = { type: 'all' }; // { type:'all' } | { type:'collection', id }
 let chatHistory = []; // [{ role:'user'|'assistant'|'error', content }]
 let chatBusy = false;
 
+// ---- UI scale --------------------------------------------------------------
+
+/** Selectable UI scales, in percent. Cycled from ⋯ → Tools → "Text size". */
+const UI_SCALES = [90, 100, 110, 125, 150];
+
+/** Apply a UI scale (percent) to the panel. See the --ui-scale block in panel.css. */
+function applyUiScale(pct) {
+  const n = UI_SCALES.includes(pct) ? pct : 100;
+  document.documentElement.style.setProperty('--ui-scale', String(n / 100));
+}
+
+/**
+ * Convert a viewport pixel measurement into the body-local pixels an inline
+ * style needs. getBoundingClientRect() reports viewport px, but a `left`/`top`
+ * written onto a zoomed element is interpreted in its own scaled space — so
+ * floating menus land off by the scale factor unless the value is divided back
+ * out first.
+ */
+function toLocalNum(visual) {
+  return visual / ((viewPrefs.uiScale || 100) / 100);
+}
+
+function toLocalPx(visual) {
+  return `${toLocalNum(visual)}px`;
+}
+
+/**
+ * The visible viewport, in the same pixels getBoundingClientRect reports. The
+ * window's own inner width/height can't be used here: at a UI scale below 100%
+ * they inflate to body-local pixels, which would push floating menus off the
+ * bottom of the panel. documentElement.clientWidth/Height stay true at every
+ * scale.
+ */
+function viewportW() {
+  return document.documentElement.clientWidth;
+}
+
+function viewportH() {
+  return document.documentElement.clientHeight;
+}
+
 // ---- Helpers ---------------------------------------------------------------
+
+/**
+ * The URL an item navigates to when opened: the page itself, an image's source
+ * page (falling back to the image), or a highlight's source. Notes open nothing.
+ */
+function itemOpenUrl(item) {
+  if (!item) return '';
+  if (item.type === 'page') return item.url || '';
+  if (item.type === 'image') return item.srcPageUrl || item.src || '';
+  if (item.type === 'highlight') return item.url || '';
+  return '';
+}
+
+/**
+ * Open a saved URL, honouring the "Open saved pages in" preference: a new tab
+ * (the long-standing behaviour) or replacing the page you're currently on.
+ * `forceNewTab` is used for Ctrl/middle-clicks, which must always open a tab.
+ *
+ * Tabs are aimed at the browser window the panel belongs to — in pop-up mode
+ * the panel is its own window and can't host tabs, which hostWindowId() sorts
+ * out (it returns null in the side panel, where Chrome uses the current one).
+ */
+async function openItemUrl(url, { forceNewTab = false } = {}) {
+  if (!url) return;
+  const windowId = await hostWindowId();
+  const inWindow = windowId != null ? { windowId } : {};
+  try {
+    if (!forceNewTab && viewPrefs.openItemsIn === 'currentTab') {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        ...(windowId != null ? { windowId } : { currentWindow: true }),
+      });
+      if (tab?.id != null) {
+        await chrome.tabs.update(tab.id, { url });
+        return;
+      }
+      // Nothing addressable to replace (e.g. a pop-up with no window behind
+      // it) — fall through and open a tab rather than doing nothing.
+    }
+    await chrome.tabs.create({ url, ...inWindow });
+  } catch {
+    window.open(url, '_blank', 'noreferrer'); // last resort
+  }
+}
+
+/**
+ * Open a saved item: routes through openItemUrl for the new-tab/current-tab
+ * preference, and clears the unread flag when "Mark read when opened" is on, so
+ * the Reading list stays accurate no matter where you opened the page from.
+ */
+async function openItem(collectionId, item, url = itemOpenUrl(item), opts = {}) {
+  if (!url) return;
+  if (viewPrefs.markReadOnOpen && item?.type === 'page' && item.unread) {
+    updateItem(collectionId, item.id, { unread: false });
+  }
+  await openItemUrl(url, opts);
+}
+
+/** True for a click the browser should handle itself (new tab, window, save). */
+function isModifiedClick(e) {
+  return e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+}
+
+/**
+ * Controls inside an item row that own their own click. Anything else on the
+ * row is dead space that should open the item instead.
+ */
+const ITEM_INTERACTIVE =
+  'a, button, input, textarea, select, label, .drag-handle, .item-actions, .item-fields';
+
+/**
+ * Size a textarea to its content, so multi-line values are fully visible
+ * without an inner scrollbar. Capped so one very long value can't push the rest
+ * of the collection off screen — past the cap the textarea scrolls instead.
+ */
+function autoGrow(ta, maxPx = 220) {
+  ta.style.height = 'auto';
+  // scrollHeight excludes the border, but the global `box-sizing: border-box`
+  // means the height we set includes it — without this the last line clips.
+  const cs = getComputedStyle(ta);
+  const border =
+    cs.boxSizing === 'border-box'
+      ? parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth)
+      : 0;
+  ta.style.height = Math.min(ta.scrollHeight + border, maxPx) + 'px';
+}
 
 function escapeHtml(s = '') {
   return s.replace(/[&<>"']/g, (c) =>
@@ -443,13 +574,17 @@ async function openMoveMenu(anchor, fromId, itemId) {
   // Unhide to measure, then position near the anchor and keep it on-screen.
   moveMenu.hidden = false;
   const r = anchor.getBoundingClientRect();
-  const mw = moveMenu.offsetWidth || 220;
-  const mh = moveMenu.offsetHeight || 0;
+  // Measure with rects, not offsetWidth/Height: under a UI scale the former are
+  // viewport px (like the anchor rect and viewportH() we compare against) while
+  // the latter are body-local, and mixing the two misplaces the menu.
+  const mr = moveMenu.getBoundingClientRect();
+  const mw = mr.width || 220;
+  const mh = mr.height || 0;
   let left = Math.max(8, r.right - mw);
   let top = r.bottom + 4;
-  if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 4);
-  moveMenu.style.left = `${left}px`;
-  moveMenu.style.top = `${top}px`;
+  if (top + mh > viewportH() - 8) top = Math.max(8, r.top - mh - 4);
+  moveMenu.style.left = toLocalPx(left);
+  moveMenu.style.top = toLocalPx(top);
 }
 
 moveMenu.addEventListener('click', async (e) => {
@@ -497,9 +632,9 @@ async function openFolderMenu(anchor, collectionId) {
 
   folderMenu.hidden = false;
   const r = anchor.getBoundingClientRect();
-  const mw = folderMenu.offsetWidth || 200;
-  folderMenu.style.left = `${Math.max(8, r.right - mw)}px`;
-  folderMenu.style.top = `${Math.min(r.bottom + 4, window.innerHeight - 10)}px`;
+  const mw = folderMenu.getBoundingClientRect().width || 200;
+  folderMenu.style.left = toLocalPx(Math.max(8, r.right - mw));
+  folderMenu.style.top = toLocalPx(Math.min(r.bottom + 4, viewportH() - 10));
 }
 
 folderMenu.addEventListener('click', async (e) => {
@@ -538,12 +673,13 @@ function openColorMenu(anchor, current, onPick) {
     `<button class="color-none" data-color="">✕ No color</button>`;
   colorMenu.hidden = false;
   const r = anchor.getBoundingClientRect();
-  const mw = colorMenu.offsetWidth || 200;
-  const mh = colorMenu.offsetHeight || 0;
+  const cr = colorMenu.getBoundingClientRect();
+  const mw = cr.width || 200;
+  const mh = cr.height || 0;
   let top = r.bottom + 4;
-  if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 4);
-  colorMenu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - mw - 8))}px`;
-  colorMenu.style.top = `${top}px`;
+  if (top + mh > viewportH() - 8) top = Math.max(8, r.top - mh - 4);
+  colorMenu.style.left = toLocalPx(Math.max(8, Math.min(r.left, viewportW() - mw - 8)));
+  colorMenu.style.top = toLocalPx(top);
 }
 
 colorMenu.addEventListener('click', (e) => {
@@ -586,9 +722,9 @@ async function openHistoryMenu() {
       .join('');
   const r = $('#overflow-btn').getBoundingClientRect();
   historyMenu.hidden = false;
-  const mw = historyMenu.offsetWidth || 240;
-  historyMenu.style.left = `${Math.max(8, r.right - mw)}px`;
-  historyMenu.style.top = `${r.bottom + 4}px`;
+  const mw = historyMenu.getBoundingClientRect().width || 240;
+  historyMenu.style.left = toLocalPx(Math.max(8, r.right - mw));
+  historyMenu.style.top = toLocalPx(r.bottom + 4);
 }
 
 historyMenu.addEventListener('click', async (e) => {
@@ -925,6 +1061,7 @@ function renderList(data) {
   els.listNoResults.hidden = !(all.length > 0 && filtered.length === 0);
   els.collections.hidden = filtered.length === 0;
   els.collections.classList.toggle('no-drag', viewPrefs.collectionSort !== 'manual');
+  els.collections.classList.toggle('compact', viewPrefs.collectionDensity === 'compact');
   els.collections.innerHTML = '';
   syncViewControls();
 
@@ -1047,9 +1184,16 @@ function buildReadingRow({ item, collection }) {
     <button class="btn reading-read" title="Mark as read">✓ Read</button>
   `;
 
-  // Opening the page marks it read (Pocket-style).
-  row.querySelector('.reading-title').addEventListener('click', () => {
+  // Opening the page marks it read (Pocket-style) — unconditionally here, since
+  // acting on the Reading list is itself the "I've dealt with this" gesture.
+  row.querySelector('.reading-title').addEventListener('click', (e) => {
+    if (isModifiedClick(e)) {
+      updateItem(collection.id, item.id, { unread: false });
+      return; // browser opens it in its own tab
+    }
+    e.preventDefault();
     updateItem(collection.id, item.id, { unread: false });
+    openItemUrl(item.url);
   });
   row.querySelector('.reading-read').addEventListener('click', async () => {
     await updateItem(collection.id, item.id, { unread: false });
@@ -1286,7 +1430,10 @@ function renderDetail(c) {
 
   syncViewControls();
   for (const item of visible) {
-    els.items.appendChild(renderItem(c.id, item));
+    const row = els.items.appendChild(renderItem(c.id, item));
+    // Size multi-line field values now that the row is in the document
+    // (scrollHeight reads 0 on a detached node).
+    row.querySelectorAll('.field-val').forEach((ta) => autoGrow(ta));
   }
 }
 
@@ -1298,6 +1445,8 @@ function syncViewControls() {
   if (dens) dens.textContent = viewPrefs.itemDensity === 'compact' ? '▤' : '▥';
   const cs = $('#collection-sort');
   if (cs) cs.value = viewPrefs.collectionSort;
+  const cdens = $('#collection-density-btn');
+  if (cdens) cdens.textContent = viewPrefs.collectionDensity === 'compact' ? '▤' : '▥';
 }
 
 function renderItem(collectionId, item) {
@@ -1373,7 +1522,11 @@ function renderItem(collectionId, item) {
           (k) => `
         <div class="item-field" data-key="${escapeHtml(k)}">
           <span class="field-key">${escapeHtml(k)}</span>
-          <input class="field-val" value="${escapeHtml(fields[k])}" />
+          <!-- The newline right after the opening tag is deliberate: the HTML
+               parser swallows one there, so a value that itself starts with a
+               blank line would otherwise lose it. -->
+          <textarea class="field-val" rows="1">
+${escapeHtml(fields[k])}</textarea>
           <button class="field-del" title="Remove field">✕</button>
         </div>`
         )
@@ -1503,9 +1656,15 @@ function renderItem(collectionId, item) {
     });
   }
 
-  // Custom-field wiring.
+  // Custom-field wiring. Values are textareas so a field used as a comment box
+  // can hold more than one line; they grow to fit their content and commit on
+  // blur like every other inline edit.
   row.querySelectorAll('.field-val').forEach((inp) => {
+    inp.addEventListener('input', () => autoGrow(inp));
     inp.addEventListener('change', () => {
+      // Editing a field doesn't rebuild the row, so re-size here too: `change`
+      // also covers value changes that never fired `input` (undo, autofill).
+      autoGrow(inp);
       const key = inp.closest('.item-field').dataset.key;
       updateItem(collectionId, item.id, { fields: { ...item.fields, [key]: inp.value } });
     });
@@ -1536,6 +1695,33 @@ function renderItem(collectionId, item) {
     });
   }
 
+  // The title (and a highlight's source link) are real anchors so they keep
+  // their hover URL, middle-click and context menu — but a plain left-click is
+  // routed through openItem() so it honours the same preferences as the row.
+  row.querySelectorAll('.item-title a, .item-url a').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      if (isModifiedClick(e)) return; // let the browser do its thing
+      e.preventDefault();
+      openItem(collectionId, item, a.getAttribute('href'));
+    });
+  });
+
+  // The whole row opens the item — the 64px thumbnail and the empty space
+  // beside the title are the targets people actually aim for, and previously
+  // only the title text itself worked. Controls that own their click (links,
+  // buttons, checkboxes, the note/field textareas) are excluded.
+  const rowUrl = itemOpenUrl(item);
+  if (rowUrl) {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest(ITEM_INTERACTIVE)) return;
+      if (row.dataset.dragged) return; // a drag just finished; don't open
+      // Don't hijack a click that ended a text selection.
+      if (!window.getSelection()?.isCollapsed) return;
+      openItem(collectionId, item, rowUrl, { forceNewTab: isModifiedClick(e) });
+    });
+    row.classList.add('is-openable');
+  }
+
   // Drag starts only from the handle, so checkboxes, links and the note
   // textarea stay interactive without kicking off a row drag.
   row.querySelector('.drag-handle').addEventListener('mousedown', () => {
@@ -1546,13 +1732,13 @@ function renderItem(collectionId, item) {
   });
 
   if (item.type === 'note') {
-    const ta = row.querySelector('textarea');
+    const ta = row.querySelector('.item-note textarea');
     ta.addEventListener('change', () =>
       updateItem(collectionId, item.id, { text: ta.value })
     );
   }
   if (item.type === 'highlight') {
-    const ta = row.querySelector('textarea');
+    const ta = row.querySelector('.item-note textarea');
     ta.addEventListener('change', () =>
       updateItem(collectionId, item.id, { note: ta.value })
     );
@@ -1578,6 +1764,10 @@ function wireDrag(row, collectionId) {
     document.querySelectorAll('.item.drop-target').forEach((r) =>
       r.classList.remove('drop-target')
     );
+    // Suppress the click that browsers may synthesize right after a drag, so
+    // reordering a row doesn't also open it.
+    row.dataset.dragged = '1';
+    setTimeout(() => delete row.dataset.dragged, 0);
   });
   row.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -3027,6 +3217,11 @@ $('#item-sort').addEventListener('change', (e) => setViewPref({ itemSort: e.targ
 $('#item-density-btn').addEventListener('click', () =>
   setViewPref({ itemDensity: viewPrefs.itemDensity === 'compact' ? 'comfortable' : 'compact' })
 );
+$('#collection-density-btn').addEventListener('click', () =>
+  setViewPref({
+    collectionDensity: viewPrefs.collectionDensity === 'compact' ? 'comfortable' : 'compact',
+  })
+);
 
 els.itemFilterInput.addEventListener('input', () => {
   itemFilter = els.itemFilterInput.value.trim().toLowerCase();
@@ -3056,6 +3251,16 @@ async function updateSettingLabels() {
   const readingBtn = $('#toggle-reading-list-btn');
   if (readingBtn)
     readingBtn.textContent = `Reading list: ${s.readingListEnabled !== false ? 'On' : 'Off'}`;
+  const openItemsBtn = $('#toggle-open-items-in-btn');
+  if (openItemsBtn)
+    openItemsBtn.textContent = `Open saved pages in: ${
+      s.openItemsIn === 'currentTab' ? 'Current tab' : 'New tab'
+    }`;
+  const markReadBtn = $('#toggle-mark-read-on-open-btn');
+  if (markReadBtn)
+    markReadBtn.textContent = `Mark read when opened: ${s.markReadOnOpen !== false ? 'On' : 'Off'}`;
+  const scaleBtn = $('#ui-scale-btn');
+  if (scaleBtn) scaleBtn.textContent = `Text size: ${s.uiScale || 100}%`;
   const themeBtn = $('#toggle-theme-btn');
   if (themeBtn) {
     const label = s.theme === 'light' ? 'Light' : s.theme === 'system' ? 'System' : 'Dark';
@@ -3063,7 +3268,12 @@ async function updateSettingLabels() {
   }
 }
 
-/** Refresh the little count badges on the topbar Archive/Trash buttons. */
+/**
+ * Refresh the counts on the Reading list / Archive / Trash entries in the ⋯
+ * menu, and mirror the unread count onto the ⋯ button itself — collapsing those
+ * three buttons into the menu freed a toolbar row, but the unread count is the
+ * one signal that's useful without opening anything.
+ */
 function updateBinBadges(data) {
   const set = (sel, count) => {
     const el = $(sel);
@@ -3071,9 +3281,11 @@ function updateBinBadges(data) {
     el.hidden = !count;
     el.textContent = count > 99 ? '99+' : String(count);
   };
+  const unread = countUnread(data);
   set('#archive-badge', (data.archive || []).length);
   set('#trash-badge', (data.trash || []).length);
-  set('#reading-badge', countUnread(data));
+  set('#reading-badge', unread);
+  set('#overflow-badge', viewPrefs.readingListEnabled ? unread : 0);
   // Hide the Reading-list (📖) entry point entirely when the feature is off.
   const readingBtn = $('#open-reading-btn');
   if (readingBtn) readingBtn.hidden = !viewPrefs.readingListEnabled;
@@ -3121,6 +3333,15 @@ async function cycleTheme() {
   await setSettings({ theme });
   applyTheme(theme);
   toast(`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`);
+}
+
+/** Step the UI scale to the next size up, wrapping back to the smallest. */
+async function cycleUiScale() {
+  const cur = UI_SCALES.includes(viewPrefs.uiScale) ? viewPrefs.uiScale : 100;
+  const next = UI_SCALES[(UI_SCALES.indexOf(cur) + 1) % UI_SCALES.length];
+  applyUiScale(next);
+  await setViewPref({ uiScale: next }); // persists + re-renders
+  toast(`Text size: ${next}%`);
 }
 
 // When following the system and the OS flips light/dark (e.g. at sunset), update
@@ -3202,6 +3423,20 @@ async function runMenuAction(action) {
     await setViewPref({ readingListEnabled: enabled }); // persists + re-renders
     toast(`Reading list ${enabled ? 'on' : 'off'}`);
   }
+  if (action === 'open-reading') openBin('reading');
+  if (action === 'open-archive') openBin('archive');
+  if (action === 'open-trash') openBin('trash');
+  if (action === 'toggle-open-items-in') {
+    const openItemsIn = viewPrefs.openItemsIn === 'currentTab' ? 'newTab' : 'currentTab';
+    await setViewPref({ openItemsIn });
+    toast(`Saved pages open in: ${openItemsIn === 'currentTab' ? 'current tab' : 'new tab'}`);
+  }
+  if (action === 'toggle-mark-read-on-open') {
+    const markReadOnOpen = !viewPrefs.markReadOnOpen;
+    await setViewPref({ markReadOnOpen });
+    toast(`Mark read when opened ${markReadOnOpen ? 'on' : 'off'}`);
+  }
+  if (action === 'cycle-ui-scale') await cycleUiScale();
   if (action === 'rules') await openRules();
   if (action === 'toggle-theme') await cycleTheme();
   if (action === 'history') openHistoryMenu();
@@ -3234,7 +3469,9 @@ function positionFlyout(menu, anchorMenu, trigger) {
   // space to the LEFT of the menu. This guarantees it sits fully beside the menu
   // (never covering it, never clipping past the panel's left edge), while the
   // menu stays visible so you can move back or hover another category.
-  const avail = Math.round(anchor.left - 10);
+  // Widths are written onto the (scaled) menu, so convert the measured gap to
+  // body-local px before comparing it with the 200px design minimum.
+  const avail = Math.round(toLocalNum(anchor.left - 10));
   menu.style.maxWidth = `${avail}px`;
   menu.style.minWidth = `${Math.min(200, avail)}px`;
   menu.hidden = false;
@@ -3243,11 +3480,11 @@ function positionFlyout(menu, anchorMenu, trigger) {
     const rect = menu.getBoundingClientRect();
     const left = Math.max(8, anchor.left - rect.width - 2);
     let top = trigger.getBoundingClientRect().top;
-    if (top + rect.height > window.innerHeight - 8) {
-      top = Math.max(8, window.innerHeight - rect.height - 8);
+    if (top + rect.height > viewportH() - 8) {
+      top = Math.max(8, viewportH() - rect.height - 8);
     }
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
+    menu.style.left = toLocalPx(left);
+    menu.style.top = toLocalPx(top);
   };
   place();
   place(); // second pass settles position once the final width is known
@@ -3331,7 +3568,7 @@ $('#overflow-menu').addEventListener('click', async (e) => {
     openSubmenu(trigger.dataset.submenu, trigger);
     return;
   }
-  const action = e.target.dataset.action;
+  const action = e.target.closest('[data-action]')?.dataset.action;
   if (!action) return;
   closeOverflow();
   await runMenuAction(action);
@@ -3381,9 +3618,6 @@ els.listEmpty.addEventListener('click', async (e) => {
 });
 
 // Trash / Archive view
-$('#open-reading-btn').addEventListener('click', () => openBin('reading'));
-$('#open-archive-btn').addEventListener('click', () => openBin('archive'));
-$('#open-trash-btn').addEventListener('click', () => openBin('trash'));
 $('#mark-all-read-btn').addEventListener('click', async () => {
   const n = await markAllRead();
   toast(n ? `Marked ${n} item${n === 1 ? '' : 's'} read` : 'Nothing to mark');
@@ -3649,8 +3883,13 @@ getSettings().then((s) => {
     itemSort: s.itemSort || 'manual',
     itemDensity: s.itemDensity || 'comfortable',
     collectionSort: s.collectionSort || 'manual',
+    collectionDensity: s.collectionDensity || 'comfortable',
     readingListEnabled: s.readingListEnabled !== false,
+    openItemsIn: s.openItemsIn === 'currentTab' ? 'currentTab' : 'newTab',
+    markReadOnOpen: s.markReadOnOpen !== false,
+    uiScale: s.uiScale || 100,
   };
+  applyUiScale(viewPrefs.uiScale);
   render();
 });
 render();

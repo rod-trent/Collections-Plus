@@ -1,9 +1,11 @@
 # Collections Plus
 
-An open, local-first replacement for **Microsoft Edge Collections**, which is
-being retired in Edge 149 (~June 2026). It's a small Manifest V3 browser
-extension for **Chromium-based browsers**: no account, no server, no build
-step. Your data stays in your browser.
+An open, local-first replacement for **Microsoft Edge Collections**, which
+Microsoft has now retired. Collections Plus is the way to get that workflow
+back — and, if you never exported before the feature disappeared, the way to
+recover the collections Edge left behind on disk. It's a small Manifest V3
+browser extension for **Chromium-based browsers**: no account, no server, no
+build step. Your data stays in your browser.
 
 ![icon](icons/icon128.png)
 
@@ -42,22 +44,30 @@ step. Your data stays in your browser.
   manual sort — folders and top-level collections share **one order**, so you can
   interleave them freely (Folder A, Collection 1, Folder B, …).
 - **Sort & compact view:** sort items (Newest / Oldest / A–Z) and collections
-  (Newest / A–Z), or keep your manual drag order; a compact toggle fits more on
-  screen. Sorting is display-only and your choice is remembered.
+  (Newest / A–Z), or keep your manual drag order; a **▥** compact toggle on each
+  list (items *and* collections) fits roughly twice as many on screen. Sorting is
+  display-only and your choice is remembered.
 - **Checkboxes** turn any collection into a checklist; **custom fields**
-  (price, qty, SKU…) add structured data that flows into exports.
+  (price, qty, SKU…) add structured data that flows into exports. Field values
+  are multi-line, so one doubles nicely as a per-item comment box.
 - **Move or copy** items between collections; **undo** deletes.
 - **Trash & Archive:** deleting a collection or folder moves it to the **Trash**
   (restorable, and auto-emptied after 30 days), and you can **Archive** old
   collections to keep your main list uncluttered. Both are in the ⋯ menu.
 - **Custom covers:** upload an image or promote a saved thumbnail with ★.
 - **Reading list (read-it-later):** saved pages start **unread** and gather in
-  the **📖 Reading list** (with a toolbar count); opening one marks it read, or
-  use **Mark all read**. Bulk imports stay read so they don't flood it. Don't use
-  it? Turn it off with **Reading list: Off** (⋯ → Tools) and new pages stop being
-  marked unread.
+  the **📖 Reading list** (in the ⋯ menu, with its count mirrored on the ⋯
+  button); opening one marks it read wherever you open it from, or use **Mark all
+  read**. Bulk imports stay read so they don't flood it. Don't want the
+  mark-on-open? **Mark read when opened: Off** (⋯ → Tools). Don't use the feature
+  at all? **Reading list: Off** turns it off entirely.
 - **Light / dark / system theme:** cycle in the ⋯ menu. **System** follows your
   OS / Chrome light-dark setting and switches live (e.g. at sunrise/sunset).
+- **Adjustable text size:** ⋯ → Tools → **Text size** steps the whole panel
+  through 90–150% — type, spacing and thumbnails together — for large monitors.
+- **Open a saved page in the current tab** instead of a new one: ⋯ → Tools →
+  **Open saved pages in**. Ctrl- and middle-click still force a new tab. Clicking
+  anywhere on a saved item's row opens it, not just the title text.
 - **Command palette (`Ctrl+K` / `⌘K`):** jump to any collection or run any
   command from one keyboard-driven, fuzzy-filtered list.
 - **Address-bar search:** type `col` + space in the browser's address bar to
@@ -180,15 +190,32 @@ per device is just how unpacked extensions work.)
 
 ## Migrating from Edge Collections
 
-Before Collections is removed, open the Collections pane in Edge and click
-**Export Your Data**. Edge writes `collections_export.csv` to your Documents
-folder. Then in this extension:
+Edge Collections has been retired, so the export button is no longer there to
+click. Which path you take depends on whether you got your data out in time.
+
+**If you never exported** — which is most people — your collections are very
+likely still on disk. Edge leaves its database behind when the feature goes:
+
+```
+%LOCALAPPDATA%\Microsoft\Edge\User Data\<profile>\Collections\collectionsSQLite
+```
+
+> ⋯ (top-right) → **Import Edge database (SQLite)…** → choose `collectionsSQLite`
+
+That rebuilds your collections **with each page's thumbnail and favicon**, which
+the CSV never carried. The file has no extension, so browse straight to it (set
+the file picker to "All files" if it's hidden). This works as long as the file
+is still there — if you've since cleared Edge's data or deleted the profile,
+there may be nothing left to read.
+
+**If you did export** while Collections still existed, you have
+`collections_export.csv` in your Documents folder:
 
 > ⋯ (top-right) → **Import Edge CSV…** → choose `collections_export.csv`
 
 The CSV only contains saved pages (Edge's export drops images and notes), so
-the import is pages-only. Going forward, use **Export backup (JSON)** for a
-complete backup.
+that import is pages-only — prefer the SQLite route above if you still have the
+database. Going forward, use **Export backup (JSON)** for a complete backup.
 
 ## Organizing & exporting
 

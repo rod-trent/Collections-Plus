@@ -748,6 +748,21 @@ document.addEventListener('click', (e) => {
   }
 });
 
+/**
+ * Hide the anchored pop-ups (move / folder / colour / version history).
+ *
+ * They normally dismiss themselves from a document-level click, but the ⋯
+ * buttons call stopPropagation() so their own click doesn't immediately close
+ * the menu they just opened — which also means that click never reaches those
+ * dismissal handlers. Opening a ⋯ menu therefore has to close them explicitly,
+ * or one stays stranded on top with nothing obvious to dismiss it.
+ */
+function closeFloatingMenus() {
+  for (const m of [moveMenu, folderMenu, colorMenu, historyMenu]) {
+    if (m) m.hidden = true;
+  }
+}
+
 // ---- Rendering -------------------------------------------------------------
 
 async function render() {
@@ -3554,6 +3569,12 @@ document.addEventListener(
     // An overlay is up: it owns this keypress, and its own handler is next.
     if (document.querySelector('.modal-overlay:not([hidden])')) return;
 
+    // An anchored pop-up is its own layer: back out of it first.
+    if ([moveMenu, folderMenu, colorMenu, historyMenu].some((m) => m && !m.hidden)) {
+      closeFloatingMenus();
+      return;
+    }
+
     if (!$('#overflow-menu').hidden || !$('#detail-overflow-menu').hidden) {
       closeOverflow();
       closeDetailMenu();
@@ -3579,6 +3600,7 @@ $('#overflow-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   const willOpen = $('#overflow-menu').hidden;
   closeSubmenus();
+  closeFloatingMenus();
   if (willOpen) {
     updateSettingLabels();
     syncUiScaleValue(viewPrefs.uiScale);
@@ -3726,6 +3748,7 @@ $('#detail-overflow-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   const willOpen = $('#detail-overflow-menu').hidden;
   closeSubmenus();
+  closeFloatingMenus();
   openMenu($('#detail-overflow-menu'), willOpen);
 });
 

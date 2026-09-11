@@ -32,6 +32,12 @@
               <button class="submenu-trigger" data-submenu="tools">Tools<span class="submenu-caret">›</span></button>
               <button class="submenu-trigger" data-submenu="sync">Sync<span class="submenu-caret">›</span></button>
               <div class="menu-sep"></div>
+              <div class="menu-stepper">
+                <span class="menu-stepper-label">Text size</span>
+                <button class="menu-step" data-action="ui-scale-down" title="Smaller text" aria-label="Smaller text">−</button>
+                <span id="ui-scale-value" class="menu-stepper-value" aria-live="polite">100%</span>
+                <button class="menu-step" data-action="ui-scale-up" title="Larger text" aria-label="Larger text">+</button>
+              </div>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
             </div>
           </div>
@@ -280,7 +286,6 @@
       <button data-action="toggle-reading-list" id="toggle-reading-list-btn">Reading list: On</button>
       <button data-action="toggle-open-items-in" id="toggle-open-items-in-btn">Open saved pages in: New tab</button>
       <button data-action="toggle-mark-read-on-open" id="toggle-mark-read-on-open-btn">Mark read when opened: On</button>
-      <button data-action="cycle-ui-scale" id="ui-scale-btn">Text size: 100%</button>
       <button data-action="rules">Auto-file rules…</button>
       <button data-action="history">Version history…</button>
     </div>

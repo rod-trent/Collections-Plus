@@ -63,8 +63,9 @@ build step. Your data stays in your browser.
   at all? **Reading list: Off** turns it off entirely.
 - **Light / dark / system theme:** cycle in the ⋯ menu. **System** follows your
   OS / Chrome light-dark setting and switches live (e.g. at sunrise/sunset).
-- **Adjustable text size:** ⋯ → Tools → **Text size** steps the whole panel
-  through 90–150% — type, spacing and thumbnails together — for large monitors.
+- **Adjustable text size:** the **Text size** row in the ⋯ menu steps the whole
+  panel through 90–150% — type, spacing and thumbnails together — for large
+  monitors. **−** / **+** adjust it either way, and the menu stays open as you do.
 - **Open a saved page in the current tab** instead of a new one: ⋯ → Tools →
   **Open saved pages in**. Ctrl- and middle-click still force a new tab. Clicking
   anywhere on a saved item's row opens it, not just the title text.

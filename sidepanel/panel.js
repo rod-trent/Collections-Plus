@@ -3259,8 +3259,6 @@ async function updateSettingLabels() {
   const markReadBtn = $('#toggle-mark-read-on-open-btn');
   if (markReadBtn)
     markReadBtn.textContent = `Mark read when opened: ${s.markReadOnOpen !== false ? 'On' : 'Off'}`;
-  const scaleBtn = $('#ui-scale-btn');
-  if (scaleBtn) scaleBtn.textContent = `Text size: ${s.uiScale || 100}%`;
   const themeBtn = $('#toggle-theme-btn');
   if (themeBtn) {
     const label = s.theme === 'light' ? 'Light' : s.theme === 'system' ? 'System' : 'Dark';
@@ -3335,13 +3333,26 @@ async function cycleTheme() {
   toast(`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`);
 }
 
-/** Step the UI scale to the next size up, wrapping back to the smallest. */
-async function cycleUiScale() {
+/**
+ * Step the UI scale one stop up or down. Deliberately CLAMPED, not wrapping:
+ * the first version cycled 90→…→150→90, so the only way back to a smaller size
+ * was to keep growing — miserable on its own, and a trap once a large panel
+ * made the menu harder to use.
+ */
+async function stepUiScale(dir) {
   const cur = UI_SCALES.includes(viewPrefs.uiScale) ? viewPrefs.uiScale : 100;
-  const next = UI_SCALES[(UI_SCALES.indexOf(cur) + 1) % UI_SCALES.length];
+  const i = Math.min(UI_SCALES.length - 1, Math.max(0, UI_SCALES.indexOf(cur) + dir));
+  const next = UI_SCALES[i];
+  if (next === cur) return; // already at the end of the range
   applyUiScale(next);
+  syncUiScaleValue(next);
   await setViewPref({ uiScale: next }); // persists + re-renders
-  toast(`Text size: ${next}%`);
+}
+
+/** Keep the stepper's readout in step with the current scale. */
+function syncUiScaleValue(pct) {
+  const el = $('#ui-scale-value');
+  if (el) el.textContent = `${pct || 100}%`;
 }
 
 // When following the system and the OS flips light/dark (e.g. at sunset), update
@@ -3436,7 +3447,8 @@ async function runMenuAction(action) {
     await setViewPref({ markReadOnOpen });
     toast(`Mark read when opened ${markReadOnOpen ? 'on' : 'off'}`);
   }
-  if (action === 'cycle-ui-scale') await cycleUiScale();
+  if (action === 'ui-scale-down') await stepUiScale(-1);
+  if (action === 'ui-scale-up') await stepUiScale(1);
   if (action === 'rules') await openRules();
   if (action === 'toggle-theme') await cycleTheme();
   if (action === 'history') openHistoryMenu();
@@ -3457,28 +3469,40 @@ function closeSubmenus() {
   document.querySelectorAll('.submenu').forEach((m) => (m.hidden = true));
 }
 
+// Actions that adjust something in place, rather than navigating away.
+const MENU_ACTIONS_KEEPING_MENU_OPEN = new Set(['ui-scale-down', 'ui-scale-up']);
+
 function closeOverflow() {
   $('#overflow-menu').hidden = true;
   closeSubmenus();
 }
 
 /** Position a floating flyout to the LEFT of its anchor menu, beside `trigger`. */
+// Narrower than this a flyout can't show its labels or be reliably clicked, so
+// we overlay the parent menu instead of shrinking past it. In body-local px.
+const FLYOUT_MIN_WIDTH = 176;
+
 function positionFlyout(menu, anchorMenu, trigger) {
   const anchor = anchorMenu.getBoundingClientRect();
-  // The side panel can only draw within its own width, so cap the flyout to the
-  // space to the LEFT of the menu. This guarantees it sits fully beside the menu
-  // (never covering it, never clipping past the panel's left edge), while the
-  // menu stays visible so you can move back or hover another category.
-  // Widths are written onto the (scaled) menu, so convert the measured gap to
-  // body-local px before comparing it with the 200px design minimum.
-  const avail = Math.round(toLocalNum(anchor.left - 10));
-  menu.style.maxWidth = `${avail}px`;
-  menu.style.minWidth = `${Math.min(200, avail)}px`;
+  // Preferred layout: beside the menu, in the space to its LEFT, so the menu
+  // stays visible and you can hover another category. Widths are written onto
+  // the (scaled) menu, so measurements convert to body-local px first.
+  const beside = Math.round(toLocalNum(anchor.left - 10));
+  const panel = Math.round(toLocalNum(viewportW() - 16));
+
+  // …but only while that space is actually usable. A wide parent menu — which
+  // is exactly what a large Text size produces — used to squeeze the flyout to
+  // a few unreadable pixels, stranding the user with no way back to the setting
+  // that caused it. When there isn't room beside it, cover the menu instead.
+  const overlay = beside < FLYOUT_MIN_WIDTH;
+  const width = Math.min(overlay ? panel : beside, 260);
+  menu.style.maxWidth = `${width}px`;
+  menu.style.minWidth = `${Math.min(200, width)}px`;
   menu.hidden = false;
 
   const place = () => {
     const rect = menu.getBoundingClientRect();
-    const left = Math.max(8, anchor.left - rect.width - 2);
+    const left = overlay ? 8 : Math.max(8, anchor.left - rect.width - 2);
     let top = trigger.getBoundingClientRect().top;
     if (top + rect.height > viewportH() - 8) {
       top = Math.max(8, viewportH() - rect.height - 8);
@@ -3555,7 +3579,10 @@ $('#overflow-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   const willOpen = $('#overflow-menu').hidden;
   closeSubmenus();
-  if (willOpen) updateSettingLabels();
+  if (willOpen) {
+    updateSettingLabels();
+    syncUiScaleValue(viewPrefs.uiScale);
+  }
   openMenu($('#overflow-menu'), willOpen);
 });
 
@@ -3570,7 +3597,9 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   }
   const action = e.target.closest('[data-action]')?.dataset.action;
   if (!action) return;
-  closeOverflow();
+  // The text-size stepper is adjusted in place — closing the menu after every
+  // press would make it unusable.
+  if (!MENU_ACTIONS_KEEPING_MENU_OPEN.has(action)) closeOverflow();
   await runMenuAction(action);
 });
 
@@ -3890,6 +3919,7 @@ getSettings().then((s) => {
     uiScale: s.uiScale || 100,
   };
   applyUiScale(viewPrefs.uiScale);
+  syncUiScaleValue(viewPrefs.uiScale);
   render();
 });
 render();

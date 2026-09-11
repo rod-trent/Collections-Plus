@@ -250,6 +250,54 @@ body {
   text-align: center;
 }
 
+/* Text-size stepper: a row inside the menu you adjust in place, rather than a
+   button that cycles. Cycling meant the only way back to a smaller size was to
+   keep going up — and a large panel makes the menus harder to use, so that was
+   a one-way trip. */
+.menu-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 6px;
+}
+
+.menu-stepper-label {
+  flex: 1 1 auto;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.menu-stepper-value {
+  flex: 0 0 auto;
+  min-width: 38px;
+  text-align: center;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+/* Override the block/full-width styling `.menu button` gives menu entries. */
+.menu button.menu-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  border-radius: 5px;
+  font-size: 15px;
+  line-height: 1;
+  text-align: center;
+}
+
+.menu button.menu-step:hover {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+}
+
 /* Category triggers in the overflow menu (open a flyout submenu). */
 .submenu-trigger {
   display: flex !important;

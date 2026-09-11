@@ -229,6 +229,20 @@ body {
   min-width: 156px;
 }
 
+/* "‹ Back" row, present only while a submenu is standing in for the menu it
+   drilled down from (too narrow a panel, or a large text size, to sit beside
+   it). Set apart from the actions below it so it doesn't read as one. */
+.submenu-back {
+  color: var(--text-dim) !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 5px 5px 0 0 !important;
+  margin-bottom: 4px;
+}
+
+.submenu-back:hover {
+  color: var(--text) !important;
+}
+
 /* Reading list / Archive / Trash moved off the toolbar and into this menu;
    their counts ride along as a right-aligned chip on each entry. */
 .menu button:has(.menu-count) {

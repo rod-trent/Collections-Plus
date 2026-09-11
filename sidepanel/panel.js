@@ -3481,44 +3481,72 @@ async function runMenuAction(action) {
 // ---- Overflow (settings) menu + category submenus --------------------------
 
 function closeSubmenus() {
-  document.querySelectorAll('.submenu').forEach((m) => (m.hidden = true));
+  document.querySelectorAll('.submenu').forEach((m) => {
+    m.hidden = true;
+    m.querySelector('.submenu-back')?.remove();
+  });
+  // Put back the menu a drilled-down submenu was standing in for.
+  if (drilledParent) {
+    drilledParent.hidden = false;
+    drilledParent = null;
+  }
 }
 
 // Actions that adjust something in place, rather than navigating away.
 const MENU_ACTIONS_KEEPING_MENU_OPEN = new Set(['ui-scale-down', 'ui-scale-up']);
 
 function closeOverflow() {
-  $('#overflow-menu').hidden = true;
+  // Order matters: closeSubmenus() restores a menu that a drilled-down submenu
+  // replaced, so hiding first would just un-hide it again.
   closeSubmenus();
+  $('#overflow-menu').hidden = true;
 }
 
 /** Position a floating flyout to the LEFT of its anchor menu, beside `trigger`. */
-// Narrower than this a flyout can't show its labels or be reliably clicked, so
-// we overlay the parent menu instead of shrinking past it. In body-local px.
+// Narrower than this a flyout can't show its labels or be reliably clicked. In
+// body-local px.
 const FLYOUT_MIN_WIDTH = 176;
+
+/**
+ * True when there isn't room to show a submenu BESIDE its menu — which is what
+ * a wide menu (a large Text size, a narrow panel) produces. In that case the
+ * submenu drills down, replacing the menu, rather than being squeezed to an
+ * unreadable sliver or dropped on top of the entries the user is reaching for.
+ */
+function flyoutNeedsDrillDown(anchorMenu) {
+  const left = anchorMenu.getBoundingClientRect().left;
+  return Math.round(toLocalNum(left - 10)) < FLYOUT_MIN_WIDTH;
+}
+
+// The menu a drilled-down submenu is standing in for, restored when it closes.
+let drilledParent = null;
 
 function positionFlyout(menu, anchorMenu, trigger) {
   const anchor = anchorMenu.getBoundingClientRect();
-  // Preferred layout: beside the menu, in the space to its LEFT, so the menu
-  // stays visible and you can hover another category. Widths are written onto
-  // the (scaled) menu, so measurements convert to body-local px first.
+  const drill = flyoutNeedsDrillDown(anchorMenu);
   const beside = Math.round(toLocalNum(anchor.left - 10));
-  const panel = Math.round(toLocalNum(viewportW() - 16));
+  const width = drill
+    ? Math.min(Math.round(toLocalNum(anchor.width)), 260)
+    : Math.min(beside, 260);
 
-  // …but only while that space is actually usable. A wide parent menu — which
-  // is exactly what a large Text size produces — used to squeeze the flyout to
-  // a few unreadable pixels, stranding the user with no way back to the setting
-  // that caused it. When there isn't room beside it, cover the menu instead.
-  const overlay = beside < FLYOUT_MIN_WIDTH;
-  const width = Math.min(overlay ? panel : beside, 260);
   menu.style.maxWidth = `${width}px`;
   menu.style.minWidth = `${Math.min(200, width)}px`;
+
+  if (drill) {
+    // Stand in for the menu: same top-right corner, and the menu goes away so
+    // nothing is hidden underneath it. A Back row returns.
+    addSubmenuBack(menu);
+    drilledParent = anchorMenu;
+    anchorMenu.hidden = true;
+  }
   menu.hidden = false;
 
   const place = () => {
     const rect = menu.getBoundingClientRect();
-    const left = overlay ? 8 : Math.max(8, anchor.left - rect.width - 2);
-    let top = trigger.getBoundingClientRect().top;
+    const left = drill
+      ? Math.max(8, anchor.right - rect.width)
+      : Math.max(8, anchor.left - rect.width - 2);
+    let top = drill ? anchor.top : trigger.getBoundingClientRect().top;
     if (top + rect.height > viewportH() - 8) {
       top = Math.max(8, viewportH() - rect.height - 8);
     }
@@ -3527,6 +3555,33 @@ function positionFlyout(menu, anchorMenu, trigger) {
   };
   place();
   place(); // second pass settles position once the final width is known
+}
+
+/**
+ * Step out of a drilled-down submenu, back to the menu it replaced. Used by the
+ * "‹ Back" row and by Esc.
+ *
+ * Note the caller must stopPropagation(): closeSubmenus() removes the Back row
+ * from the DOM, so by the time the document-level handlers run, the click's
+ * target is detached and their `closest('#overflow-menu')` guards no longer
+ * recognise it as an inside-the-menu click — they'd close the menu we just
+ * restored.
+ */
+function exitDrillDown() {
+  const parent = drilledParent;
+  closeSubmenus();
+  if (parent) parent.hidden = false;
+  return !!parent;
+}
+
+/** Prepend the "‹ Back" row a drilled-down submenu needs to get out again. */
+function addSubmenuBack(menu) {
+  if (menu.querySelector('.submenu-back')) return;
+  const back = document.createElement('button');
+  back.className = 'submenu-back';
+  back.dataset.action = 'submenu-back';
+  back.textContent = '‹ Back';
+  menu.prepend(back);
 }
 
 /** Open a category submenu as a flyout to the LEFT of the overflow menu. */
@@ -3549,8 +3604,8 @@ function openDetailSubmenu(name, trigger) {
 }
 
 function closeDetailMenu() {
+  closeSubmenus(); // before hiding — see closeOverflow()
   $('#detail-overflow-menu').hidden = true;
-  closeSubmenus();
 }
 
 // ---- Esc closes the panel --------------------------------------------------
@@ -3574,6 +3629,9 @@ document.addEventListener(
       closeFloatingMenus();
       return;
     }
+
+    // So is a drilled-down submenu — step back to the menu it replaced.
+    if (drilledParent && exitDrillDown()) return;
 
     if (!$('#overflow-menu').hidden || !$('#detail-overflow-menu').hidden) {
       closeOverflow();
@@ -3629,15 +3687,27 @@ $('#overflow-menu').addEventListener('click', async (e) => {
 // stays visible, so moving back onto it or another category just works.
 $('#overflow-menu').addEventListener('mouseover', (e) => {
   const trigger = e.target.closest('.submenu-trigger');
-  if (trigger) openSubmenu(trigger.dataset.submenu, trigger);
+  if (!trigger) return;
+  // When a submenu would replace the menu rather than sit beside it, opening on
+  // hover hijacks the pointer on its way past — which is exactly what made the
+  // entries below Tools/Sync unreachable. Require a deliberate click there.
+  if (flyoutNeedsDrillDown($('#overflow-menu'))) return;
+  openSubmenu(trigger.dataset.submenu, trigger);
 });
 
 // Clicks inside a settings submenu run the action and close everything. Detail
 // submenus are wired separately (their actions live in runDetailAction).
 document.querySelectorAll('.submenu:not(.detail-submenu)').forEach((menu) => {
   menu.addEventListener('click', async (e) => {
-    const action = e.target.dataset.action;
+    const action = e.target.closest('[data-action]')?.dataset.action;
     if (!action) return;
+    // "‹ Back" steps out of a drilled-down submenu to the menu it replaced,
+    // rather than dismissing everything.
+    if (action === 'submenu-back') {
+      e.stopPropagation();
+      exitDrillDown();
+      return;
+    }
     closeOverflow();
     await runMenuAction(action);
   });
@@ -3769,13 +3839,20 @@ $('#detail-overflow-menu').addEventListener('click', async (e) => {
 
 $('#detail-overflow-menu').addEventListener('mouseover', (e) => {
   const trigger = e.target.closest('.submenu-trigger');
-  if (trigger) openDetailSubmenu(trigger.dataset.submenu, trigger);
+  if (!trigger) return;
+  if (flyoutNeedsDrillDown($('#detail-overflow-menu'))) return; // see above
+  openDetailSubmenu(trigger.dataset.submenu, trigger);
 });
 
 document.querySelectorAll('.detail-submenu').forEach((menu) => {
   menu.addEventListener('click', async (e) => {
-    const action = e.target.dataset.action;
+    const action = e.target.closest('[data-action]')?.dataset.action;
     if (!action) return;
+    if (action === 'submenu-back') {
+      e.stopPropagation();
+      exitDrillDown(); // step back to the menu this replaced
+      return;
+    }
     closeDetailMenu();
     await runDetailAction(action);
   });

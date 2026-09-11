@@ -17,3 +17,6 @@ docs/CHROME_WEB_STORE.md
 # the side panel can be booted in an ordinary tab (npm run dev server) without
 # loading the extension. Never packaged — tools/package.ps1 copies files by name.
 sidepanel/_harness.html
+
+# Python bytecode from the tools/ scripts (icons, store images, hero art)
+__pycache__/

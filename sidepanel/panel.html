@@ -17,24 +17,27 @@
             ＋ New
           </button>
           <button id="new-folder-btn" class="btn" title="New folder">＋📁</button>
-          <button id="open-reading-btn" class="btn icon badge-host" title="Reading list" aria-label="Reading list">
-            📖<span id="reading-badge" class="top-badge" hidden></span>
-          </button>
-          <button id="open-archive-btn" class="btn icon badge-host" title="Archive" aria-label="Archive">
-            📦<span id="archive-badge" class="top-badge" hidden></span>
-          </button>
-          <button id="open-trash-btn" class="btn icon badge-host" title="Trash" aria-label="Trash">
-            🗑<span id="trash-badge" class="top-badge" hidden></span>
-          </button>
           <div class="menu-wrap">
-            <button id="overflow-btn" class="btn icon" title="More" aria-haspopup="true">⋯</button>
+            <button id="overflow-btn" class="btn icon badge-host" title="More" aria-haspopup="true">
+              ⋯<span id="overflow-badge" class="top-badge" hidden></span>
+            </button>
             <div id="overflow-menu" class="menu" hidden>
+              <button id="open-reading-btn" data-action="open-reading">📖 Reading list<span id="reading-badge" class="menu-count" hidden></span></button>
+              <button id="open-archive-btn" data-action="open-archive">📦 Archive<span id="archive-badge" class="menu-count" hidden></span></button>
+              <button id="open-trash-btn" data-action="open-trash">🗑 Trash<span id="trash-badge" class="menu-count" hidden></span></button>
+              <div class="menu-sep"></div>
               <button class="submenu-trigger" data-submenu="export">Export<span class="submenu-caret">›</span></button>
               <button class="submenu-trigger" data-submenu="import">Import<span class="submenu-caret">›</span></button>
               <button class="submenu-trigger" data-submenu="ai">AI<span class="submenu-caret">›</span></button>
               <button class="submenu-trigger" data-submenu="tools">Tools<span class="submenu-caret">›</span></button>
               <button class="submenu-trigger" data-submenu="sync">Sync<span class="submenu-caret">›</span></button>
               <div class="menu-sep"></div>
+              <div class="menu-stepper">
+                <span class="menu-stepper-label">Text size</span>
+                <button class="menu-step" data-action="ui-scale-down" title="Smaller text" aria-label="Smaller text">−</button>
+                <span id="ui-scale-value" class="menu-stepper-value" aria-live="polite">100%</span>
+                <button class="menu-step" data-action="ui-scale-up" title="Larger text" aria-label="Larger text">+</button>
+              </div>
               <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
             </div>
           </div>
@@ -55,6 +58,7 @@
           <option value="newest">Newest</option>
           <option value="title">A–Z</option>
         </select>
+        <button id="collection-density-btn" class="btn icon" title="Toggle compact view" aria-label="Toggle compact view">▥</button>
       </div>
 
       <div id="collections" class="cards" role="list"></div>
@@ -87,8 +91,6 @@
           <button id="detail-overflow-btn" class="btn icon" title="More">⋯</button>
           <div id="detail-overflow-menu" class="menu" hidden>
             <button data-action="open-all">Open all pages</button>
-            <button data-action="add-note">Add a note</button>
-            <button data-action="add-all-tabs">Add all open tabs</button>
             <div class="menu-sep"></div>
             <button class="submenu-trigger" data-submenu="col-add">Add<span class="submenu-caret">›</span></button>
             <button class="submenu-trigger" data-submenu="col-export">Export &amp; share<span class="submenu-caret">›</span></button>
@@ -279,8 +281,11 @@
       <button data-action="toggle-cache" id="toggle-cache-btn">Cache images: Off</button>
       <button data-action="check-all-links">Check all links</button>
       <button data-action="toggle-autocheck" id="toggle-autocheck-btn">Auto-check links: Off</button>
+      <button data-action="toggle-open-mode" id="toggle-open-mode-btn">Open in: Side panel</button>
       <button data-action="toggle-close-after-open" id="toggle-close-after-open-btn">Close panel after Open all: Off</button>
       <button data-action="toggle-reading-list" id="toggle-reading-list-btn">Reading list: On</button>
+      <button data-action="toggle-open-items-in" id="toggle-open-items-in-btn">Open saved pages in: New tab</button>
+      <button data-action="toggle-mark-read-on-open" id="toggle-mark-read-on-open-btn">Mark read when opened: On</button>
       <button data-action="rules">Auto-file rules…</button>
       <button data-action="history">Version history…</button>
     </div>

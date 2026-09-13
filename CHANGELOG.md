@@ -3,6 +3,90 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.7.0
+
+From two user reports — a batch of usability fixes: a shorter toolbar, easier
+clicking, multi-line fields, adjustable text size, and a fix for collection
+covers picking up the wrong image.
+
+**Click anywhere on a saved item to open it.** Previously only the title text
+was a link, so clicking the thumbnail or the space beside the title did nothing.
+The whole row is now the target; the buttons, checkbox and text fields on the
+row keep their own behavior, and dragging a row to reorder it no longer opens it
+by accident.
+
+**Custom fields hold more than one line.** A field used as a comment box was
+clipped to a single line of input, hiding everything past the first few words.
+Field values are now text areas that grow to fit what you type (up to a point,
+after which they scroll), so long notes stay readable at a glance.
+
+**Adjustable text size.** A **Text size** row in the ⋯ menu steps the whole
+panel through 90 / 100 / 110 / 125 / 150% — type, spacing and thumbnails
+together, which is what actually helps on a large monitor. Use **−** and **+**
+to adjust it in either direction; the menu stays open while you do, so you can
+see the effect and settle on a size. Your choice is remembered.
+
+At larger sizes the menus adapt: a category like **Tools** no longer tries to
+squeeze its submenu into the sliver of space beside the menu, which used to
+leave it unreadable, or drop it on top of the entries below. It now opens in
+the menu's place with a **‹ Back** row, on a deliberate click rather than on
+hover — so moving the pointer down the menu no longer trips a submenu over
+whatever you were reaching for. Below ~110% nothing changes.
+
+**A shorter toolbar, and a compact collection list.** The toolbar used to wrap
+onto two rows, eating about a fifth of the panel before the first collection.
+**Reading list**, **Archive** and **Trash** have moved into the ⋯ menu (each
+showing its count, and the unread count now rides on the ⋯ button itself), which
+gets the toolbar back to one row. Alongside it, the **▥** button beside the sort
+dropdown toggles a **compact list** — smaller covers and tighter rows, the same
+option the item list already had. Together they roughly double how many
+collections fit on screen.
+
+**Choose where saved pages open.** ⋯ → **Tools** → **Open saved pages in**
+switches between a **New tab** (the default, unchanged) and the **Current tab**,
+replacing the page you're on. Ctrl-click and middle-click still force a new tab
+either way.
+
+**Mark read when opened.** Opening a saved page now clears its unread mark
+wherever you open it from, not just inside the Reading list — so the unread
+count actually reflects what you've read. If you'd rather it didn't, turn it off
+with ⋯ → **Tools** → **Mark read when opened**.
+
+**Fixed: pop-ups that wouldn't go away.** Opening the ⋯ menu while the version
+history, move/copy or colour pop-up was showing left that pop-up stranded on
+top, with no obvious way to dismiss it. Opening either ⋯ menu now closes them,
+and **Esc** backs out of one as its own layer before closing the panel.
+
+**Fixed: collection covers showing an unrelated image.** Many sites serve the
+same `og:image` on every page — their logo, or a stock social-share card — so a
+saved page would pick up the *site's* picture rather than the article's, and
+that image would then become the collection's cover. Saving now recognises those
+site-wide defaults (logos, placeholders, social cards) and prefers a real image
+from the page instead: another meta tag if one points somewhere better, else the
+largest image in the article itself. When a page genuinely offers nothing else,
+the previous image is still used rather than none. Nothing changes for sites
+whose `og:image` was already correct. To re-fetch images for pages you saved
+before this fix, use ⋯ → **Tools** → **Fetch all missing images** (turn on
+**Replace existing images** first to overwrite the ones you already have).
+
+## 2.6.0
+
+Two changes to how the panel opens and closes, from a user report about
+fullscreen.
+
+**Open in a floating pop-up window instead of the side panel.** ⋯ → **Tools** →
+**Open in** switches the toolbar icon between the docked **Side panel**
+(unchanged, still the default) and a **Pop-up window** — the same UI in its own
+small window. There's no dock/undock animation and nothing reflows the page
+underneath, which is the friendlier behavior in fullscreen. The pop-up reopens
+at the size and position you last left it, and clicking the toolbar icon again
+just focuses it rather than opening a second one.
+
+**Esc closes the panel.** In both the side panel and the pop-up, `Esc` now backs
+out one layer at a time — an open menu, then a dialog or overlay, then a search
+box you're typing in — and closes the panel once there's nothing left to back
+out of. No more reaching for the X in the corner.
+
 ## 2.5.0
 
 Five requested improvements, from a user's wishlist.

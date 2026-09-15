@@ -109,6 +109,9 @@ console.log('\nisGenericImageUrl — site furniture vs. page content:');
     'https://example.com/favicon.ico',
     'https://example.com/i/avatar.jpg',
     'https://example.com/img/icon-64x64.png',
+    // Reported: recyclingtoday.com keeps its site logo in a logos/ folder.
+    'https://www.recyclingtoday.com/fileuploads/image/logos/rt-logo.png',
+    'https://example.com/logos/brand.png',
   ];
   for (const u of generic) assert(isGenericImageUrl(u), `generic: ${u}`);
 

@@ -3,6 +3,19 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.7.1
+
+**Fixed: covers still showing a site logo or an ad.** The 2.7.0 cover fix
+missed sites that keep their logo in a `logos` folder, so those pages still
+saved the logo instead of the article's photo. Those are now recognised too.
+When a page's tags offer only a logo, Collections Plus looks for the
+biggest image in the page instead — and that search now skips ads: wide
+banner and billboard strips, and pictures that link off to another website.
+And the image-refresh button on a saved item now reads the page straight from
+its open tab, if you have one open, so it sees the same photo you do rather
+than what the site hands an automated download. Thanks to the user who
+reported it with a clear example.
+
 ## 2.7.0
 
 From two user reports — a batch of usability fixes: a shorter toolbar, easier

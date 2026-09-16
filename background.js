@@ -245,7 +245,7 @@ function scrapeMeta() {
   };
 
   const GENERIC =
-    /(^|[/\-_.])(logo|logotype|wordmark|favicon|apple-touch-icon|placeholder|default|fallback|no-?image|sprite|avatar|share|social|og-?image|opengraph|twitter-?card)([/\-_.]|$)/i;
+    /(^|[/\-_.])(logos?|logotype|wordmark|favicon|apple-touch-icon|placeholder|default|fallback|no-?image|sprite|avatar|share|social|og-?image|opengraph|twitter-?card)([/\-_.]|$)/i;
   const isGeneric = (u) => {
     let path = u;
     try {
@@ -256,6 +256,20 @@ function scrapeMeta() {
     if (GENERIC.test(path)) return true;
     const d = path.match(/[-_](\d{2,4})x(\d{2,4})[.][a-z]{3,4}$/i);
     return !!(d && Number(d[1]) < 200 && Number(d[2]) < 200);
+  };
+
+  // Compare sites by their last two host labels, so www./cdn. subdomains of
+  // the page's own site still count as in-site.
+  const site = (host) => host.replace(/^www\./, '').split('.').slice(-2).join('.');
+  const linksOffSite = (img) => {
+    const href = img.closest('a[href]')?.href;
+    if (!href) return false;
+    try {
+      const u = new URL(href, location.href);
+      return /^https?:$/.test(u.protocol) && site(u.hostname) !== site(location.hostname);
+    } catch {
+      return false;
+    }
   };
 
   const metaCandidates = [
@@ -277,6 +291,12 @@ function scrapeMeta() {
     const w = img.naturalWidth || img.width;
     const h = img.naturalHeight || img.height;
     if (w < 200 || h < 200) continue; // icons, spacers, sprites
+    // Billboard/leaderboard ad strips are huge but banner-shaped; a 4000×1000
+    // ad must not outrank the 950×530 article photo beside it.
+    if (w > h * 3 || h > w * 3) continue;
+    // An image that links off to another site is almost always an ad (its link
+    // goes to an ad server or the advertiser); article photos link in-site.
+    if (linksOffSite(img)) continue;
     const src = img.currentSrc || img.src;
     if (!src || src.startsWith('data:') || isGeneric(src)) continue;
     const area = w * h;
@@ -646,7 +666,42 @@ async function fetchImages({ collectionId, itemId } = {}) {
   const replace = itemId ? true : (await getSettings()).replaceExistingImages;
   const data = await getData();
   const targets = collectImageTargets(data, { collectionId, itemId, replace });
+  if (itemId && targets.length === 1) {
+    const live = await fetchImageFromOpenTab(targets[0]);
+    if (live) return live;
+  }
   return fetchImageTargets(targets);
+}
+
+// Single-item refresh for a page that's open in a tab: scrape the live DOM
+// instead of re-fetching the HTML. The live page knows which images actually
+// rendered and how big they are, so it can fall back to the article's own photo
+// when the meta tags only offer a site logo — raw HTML can't tell that photo
+// from an ad. It also sidesteps bot walls that serve fetch() a challenge page.
+// Returns null when no tab has the page open (or it yields nothing usable).
+async function fetchImageFromOpenTab(target) {
+  const strip = (u) => String(u || '').replace(/#.*$/, '');
+  let tab;
+  try {
+    const tabs = await chrome.tabs.query({});
+    tab = tabs.find((t) => t.id != null && strip(t.url) === strip(target.url));
+  } catch {
+    return null;
+  }
+  if (!tab) return null;
+  const meta = await captureMeta(tab.id);
+  if (!meta.thumbnail) return null;
+  let thumbnail = '';
+  try {
+    thumbnail = await srcToCover(meta.thumbnail, 512);
+  } catch {
+    return null; // found a URL but couldn't load it — let the fetch path try
+  }
+  if (!thumbnail) return null;
+  await applyImageResults([
+    { collectionId: target.collectionId, itemId: target.itemId, thumbnail },
+  ]);
+  return { total: 1, found: 1 };
 }
 
 // ---- Periodic auto-check (opt-in) ------------------------------------------

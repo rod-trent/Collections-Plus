@@ -81,11 +81,26 @@ async function hostWindowId() {
   return win ? win.id : null;
 }
 
+// Switching from the side panel to the pop-up opens the pop-up focused, then the
+// side panel closes itself — and Chrome hands focus back to the browser window
+// the panel was docked in, dropping the new pop-up behind it. For a moment after
+// a switch, pull the pop-up back to the front if a browser window takes focus.
+const HANDOFF_GUARD_MS = 1500;
+let handoffGuardUntil = 0;
+
 chrome.windows?.onFocusChanged.addListener(async (windowId) => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) return;
   try {
     const win = await chrome.windows.get(windowId);
-    if (win.type === 'normal') await chrome.storage.session.set({ hostWindowId: windowId });
+    if (win.type !== 'normal') return;
+    await chrome.storage.session.set({ hostWindowId: windowId });
+    if (Date.now() < handoffGuardUntil) {
+      handoffGuardUntil = 0; // once only, so a deliberate click away still works
+      const { popupWindowId } = await chrome.storage.session.get('popupWindowId');
+      if (typeof popupWindowId === 'number') {
+        await chrome.windows.update(popupWindowId, { focused: true });
+      }
+    }
   } catch {
     /* the window went away between the event and the lookup */
   }
@@ -149,6 +164,8 @@ async function switchOpenMode(mode) {
   await applyOpenMode(mode);
   if (mode === 'popup') {
     await openPopupWindow();
+    // The side panel closes itself once we answer; keep the pop-up in front.
+    handoffGuardUntil = Date.now() + HANDOFF_GUARD_MS;
     return { opened: 'popup' };
   }
   const windowId = await hostWindowId();

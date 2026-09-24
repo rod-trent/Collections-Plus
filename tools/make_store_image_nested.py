@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Store screenshot for the 2.8.0 nested-collections feature.
+"""Store screenshot for the nested-collections feature (2.8).
 
 Reuses the mockup helpers in make_store_images.py (same palette, frame and
 layout) and draws a subcollection's detail view: the path back to its parent,
@@ -37,16 +37,18 @@ def draw_nested(pen, x, y, w):
     cover(pen, cx, ty, 44, COVER_HUES[0])
     pen.rrect(cx + 54, ty + 8, cx + 150, ty + 36, 6, fill=ELEV, outline=BORDER, width=1)
     pen.text(cx + 64, ty + 15, "Change cover…", font(12), TEXT)
+    # "+ Add current page" with "+ Collection" beside it
     ay = ty + 52
-    pen.rrect(cx, ay, cx + cw, ay + 32, 6, fill=ACCENT_STRONG)
-    pen.text(cx + cw / 2, ay + 8, "+ Add current page", font(13, "sb"), WHITE, anchor="ma")
+    bw = 104
+    pen.rrect(cx, ay, cx + cw - bw - 8, ay + 32, 6, fill=ACCENT_STRONG)
+    pen.text(cx + (cw - bw - 8) / 2, ay + 8, "+ Add current page", font(13, "sb"), WHITE, anchor="ma")
+    pen.rrect(cx + cw - bw, ay, cx + cw, ay + 32, 6, fill=ELEV, outline=BORDER, width=1)
+    pen.text(cx + cw - bw / 2, ay + 8, "+ Collection", font(13), TEXT, anchor="ma")
 
     # Collections section header
     sy = ay + 48
     pen.line(x + 1, sy - 8, x + w - 1, sy - 8, BORDER, 1)
     pen.text(cx, sy + 4, "COLLECTIONS", font(11, "sb"), DIM)
-    pen.rrect(cx + cw - 58, sy, cx + cw, sy + 22, 6, fill=ELEV, outline=BORDER, width=1)
-    pen.text(cx + cw - 29, sy + 4, "+ New", font(11), TEXT, anchor="ma")
 
     def sub_card(yy, title, meta, hue, highlight=False):
         ch = 66

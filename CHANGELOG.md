@@ -3,6 +3,19 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.8.1
+
+**A button for new subcollections.** Every collection now has a
+**＋ Collection** button next to **＋ Add current page**. Before, the only way
+to start a collection's first subcollection was ⋯ → Add → "New collection
+inside this one…", because the ＋ New button in the Collections section only
+appeared once a collection already had one. That ＋ New button is gone; use
+＋ Collection instead.
+
+**Bigger folder headers.** Folder rows have a larger icon and name and a
+little more space, so they don't look lost next to collection cards. An empty
+folder no longer shows a "0" count.
+
 ## 2.8.0
 
 **Collections inside collections.** A collection can now hold other

@@ -112,13 +112,15 @@
           <button id="cover-color-btn" class="btn cover-color-btn" title="Cover color">🎨</button>
           <button id="cover-remove-btn" class="btn icon" title="Remove cover" hidden>✕</button>
         </div>
-        <button id="add-current-btn" class="btn primary wide">＋ Add current page</button>
+        <div class="add-row">
+          <button id="add-current-btn" class="btn primary wide">＋ Add current page</button>
+          <button id="add-subcollection-btn" class="btn" title="New collection inside this one">＋ Collection</button>
+        </div>
       </div>
 
       <section id="subcollections" class="subcollections" hidden>
         <div class="subcollections-head">
           <span class="subcollections-title">Collections</span>
-          <button id="new-subcollection-btn" class="btn small" title="New collection inside this one">＋ New</button>
         </div>
         <div id="subcollection-list" class="cards subcollection-list" role="list"></div>
       </section>

@@ -1044,7 +1044,7 @@ function buildFolderHeader(f, count) {
     <button class="folder-toggle" title="Collapse / expand">${f.collapsed ? '▸' : '▾'}</button>
     <span class="folder-icon" aria-hidden="true">📁</span>
     <span class="folder-name">${escapeHtml(f.name)}</span>
-    <span class="folder-count">${count}</span>
+    <span class="folder-count">${count || ''}</span>
     <button class="folder-color" title="Folder color">🎨</button>
     <button class="folder-rename" title="Rename folder">✎</button>
     <button class="folder-del" title="Move folder to Trash">🗑</button>
@@ -3893,7 +3893,7 @@ els.emptyTrashBtn.addEventListener('click', async () => {
 
 // Detail view
 $('#back-btn').addEventListener('click', back);
-$('#new-subcollection-btn').addEventListener('click', addSubcollection);
+$('#add-subcollection-btn').addEventListener('click', addSubcollection);
 $('#add-current-btn').addEventListener('click', addCurrentPage);
 
 $('#cover-change-btn').addEventListener('click', () => {

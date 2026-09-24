@@ -659,7 +659,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 6px 7px;
+  padding: 10px 6px 9px;
   margin-top: 4px;
   border-top: 1px solid var(--border);
 }
@@ -683,7 +683,7 @@ body {
 
 .folder-icon {
   flex: 0 0 auto;
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1;
   cursor: pointer;
   /* Nudge into optical alignment with the larger name text. */
@@ -705,7 +705,7 @@ body {
 .folder-name {
   flex: 1;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2084,9 +2084,16 @@ body.drag-over::after {
   letter-spacing: 0.04em;
 }
 
-.btn.small {
-  padding: 2px 8px;
-  font-size: 12px;
+/* "+ Add current page" with "+ Collection" beside it; the page button keeps
+   the width, the collection button sizes to its label. */
+.add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-row .btn.wide {
+  flex: 1;
+  width: auto;
 }
 
 /* Keep a long run of subcollections from pushing the items off screen. */

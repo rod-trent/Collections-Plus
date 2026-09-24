@@ -20,6 +20,7 @@ import {
 import { srcToCover } from './lib/image.js';
 import { classifyStatus } from './lib/linkcheck.js';
 import { extractImageUrl } from './lib/pagemeta.js';
+import { isPrivateUrl, isPublicHttpUrl } from './lib/netguard.js';
 import { matchRule } from './lib/rules.js';
 import { searchEntries } from './lib/omnibox.js';
 
@@ -614,6 +615,8 @@ async function fetchPageImageUrl(pageUrl) {
     if (!res.ok) return '';
     const type = res.headers.get('content-type') || '';
     if (type && !/text\/html|application\/xhtml\+xml/i.test(type)) return '';
+    // A public page must not be able to redirect us into the user's network.
+    if (res.url && !isPrivateUrl(pageUrl) && !isPublicHttpUrl(res.url)) return '';
     const html = await readHtmlHead(res, MAX_HTML_BYTES);
     return extractImageUrl(html, res.url || pageUrl);
   } catch {
@@ -627,6 +630,10 @@ async function fetchPageImageUrl(pageUrl) {
 async function fetchPageThumbnail(pageUrl) {
   const imgUrl = await fetchPageImageUrl(pageUrl);
   if (!imgUrl) return '';
+  // The image URL is chosen by the page's HTML. Don't let a public page point
+  // the extension at localhost, the LAN or a cloud metadata endpoint (SSRF);
+  // intranet pages may still use intranet images.
+  if (!isPrivateUrl(pageUrl) && !isPublicHttpUrl(imgUrl)) return '';
   try {
     return await srcToCover(imgUrl, 512);
   } catch {
@@ -711,6 +718,7 @@ async function fetchImageFromOpenTab(target) {
   if (!tab) return null;
   const meta = await captureMeta(tab.id);
   if (!meta.thumbnail) return null;
+  if (!isPrivateUrl(target.url) && !isPublicHttpUrl(meta.thumbnail)) return null;
   let thumbnail = '';
   try {
     thumbnail = await srcToCover(meta.thumbnail, 512);

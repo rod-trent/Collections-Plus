@@ -38,7 +38,12 @@
                 <span id="ui-scale-value" class="menu-stepper-value" aria-live="polite">100%</span>
                 <button class="menu-step" data-action="ui-scale-up" title="Larger text" aria-label="Larger text">+</button>
               </div>
-              <button data-action="toggle-theme" id="toggle-theme-btn">Theme: Dark</button>
+              <label class="menu-select-row"><span class="menu-label">Theme</span>
+                <select id="theme-select" class="menu-select" aria-label="Theme">
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                  <option value="system">System</option>
+                </select></label>
             </div>
           </div>
         </div>
@@ -287,17 +292,33 @@
       <button data-action="weekly-digest">Weekly digest…</button>
       <button data-action="ai-settings">AI settings…</button>
     </div>
-    <div id="submenu-tools" class="menu floating submenu" hidden>
+    <div id="submenu-tools" class="menu floating submenu" data-max-width="300" hidden>
+      <div class="menu-note">Images</div>
       <button data-action="fetch-all-images">Fetch all missing images</button>
-      <button data-action="toggle-replace-images" id="toggle-replace-images-btn">Replace existing images: Off</button>
-      <button data-action="toggle-cache" id="toggle-cache-btn">Cache images: Off</button>
+      <button class="menu-toggle" data-action="toggle-replace-images" id="toggle-replace-images-btn" role="switch" aria-checked="false"><span class="menu-label">Replace existing images</span><span class="switch" aria-hidden="true"></span></button>
+      <button class="menu-toggle" data-action="toggle-cache" id="toggle-cache-btn" role="switch" aria-checked="false"><span class="menu-label">Cache images offline</span><span class="switch" aria-hidden="true"></span></button>
+      <div class="menu-sep"></div>
+      <div class="menu-note">Links</div>
       <button data-action="check-all-links">Check all links</button>
-      <button data-action="toggle-autocheck" id="toggle-autocheck-btn">Auto-check links: Off</button>
-      <button data-action="toggle-open-mode" id="toggle-open-mode-btn">Open in: Side panel</button>
-      <button data-action="toggle-close-after-open" id="toggle-close-after-open-btn">Close panel after Open all: Off</button>
-      <button data-action="toggle-reading-list" id="toggle-reading-list-btn">Reading list: On</button>
-      <button data-action="toggle-open-items-in" id="toggle-open-items-in-btn">Open saved pages in: New tab</button>
-      <button data-action="toggle-mark-read-on-open" id="toggle-mark-read-on-open-btn">Mark read when opened: On</button>
+      <button class="menu-toggle" data-action="toggle-autocheck" id="toggle-autocheck-btn" role="switch" aria-checked="false"><span class="menu-label">Auto-check links</span><span class="switch" aria-hidden="true"></span></button>
+      <div class="menu-sep"></div>
+      <div class="menu-note">Opening</div>
+      <label class="menu-select-row"><span class="menu-label">Open in</span>
+        <select id="open-mode-select" class="menu-select" aria-label="Open Collections Plus in">
+          <option value="sidepanel">Side panel</option>
+          <option value="popup">Pop-up window</option>
+        </select></label>
+      <label class="menu-select-row"><span class="menu-label">Open saved pages in</span>
+        <select id="open-items-in-select" class="menu-select" aria-label="Open saved pages in">
+          <option value="newTab">New tab</option>
+          <option value="currentTab">Current tab</option>
+        </select></label>
+      <button class="menu-toggle" data-action="toggle-close-after-open" id="toggle-close-after-open-btn" role="switch" aria-checked="false"><span class="menu-label">Close panel after Open all</span><span class="switch" aria-hidden="true"></span></button>
+      <div class="menu-sep"></div>
+      <div class="menu-note">Reading list</div>
+      <button class="menu-toggle" data-action="toggle-reading-list" id="toggle-reading-list-btn" role="switch" aria-checked="false"><span class="menu-label">Show Reading list</span><span class="switch" aria-hidden="true"></span></button>
+      <button class="menu-toggle" data-action="toggle-mark-read-on-open" id="toggle-mark-read-on-open-btn" role="switch" aria-checked="false"><span class="menu-label">Mark read when opened</span><span class="switch" aria-hidden="true"></span></button>
+      <div class="menu-sep"></div>
       <button data-action="rules">Auto-file rules…</button>
       <button data-action="history">Version history…</button>
     </div>

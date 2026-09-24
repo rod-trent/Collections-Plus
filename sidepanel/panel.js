@@ -3355,35 +3355,25 @@ $('#new-folder-btn').addEventListener('click', async () => {
 
 async function updateSettingLabels() {
   const s = await getSettings();
-  const cacheBtn = $('#toggle-cache-btn');
-  if (cacheBtn) cacheBtn.textContent = `Cache images: ${s.cacheImages ? 'On' : 'Off'}`;
-  const replaceImgBtn = $('#toggle-replace-images-btn');
-  if (replaceImgBtn)
-    replaceImgBtn.textContent = `Replace existing images: ${s.replaceExistingImages ? 'On' : 'Off'}`;
-  const autoCheckBtn = $('#toggle-autocheck-btn');
-  if (autoCheckBtn) autoCheckBtn.textContent = `Auto-check links: ${s.autoCheckLinks ? 'On' : 'Off'}`;
-  const openModeBtn = $('#toggle-open-mode-btn');
-  if (openModeBtn)
-    openModeBtn.textContent = `Open in: ${s.openMode === 'popup' ? 'Pop-up window' : 'Side panel'}`;
-  const closeAfterOpenBtn = $('#toggle-close-after-open-btn');
-  if (closeAfterOpenBtn)
-    closeAfterOpenBtn.textContent = `Close panel after Open all: ${s.closeAfterOpenAll ? 'On' : 'Off'}`;
-  const readingBtn = $('#toggle-reading-list-btn');
-  if (readingBtn)
-    readingBtn.textContent = `Reading list: ${s.readingListEnabled !== false ? 'On' : 'Off'}`;
-  const openItemsBtn = $('#toggle-open-items-in-btn');
-  if (openItemsBtn)
-    openItemsBtn.textContent = `Open saved pages in: ${
-      s.openItemsIn === 'currentTab' ? 'Current tab' : 'New tab'
-    }`;
-  const markReadBtn = $('#toggle-mark-read-on-open-btn');
-  if (markReadBtn)
-    markReadBtn.textContent = `Mark read when opened: ${s.markReadOnOpen !== false ? 'On' : 'Off'}`;
-  const themeBtn = $('#toggle-theme-btn');
-  if (themeBtn) {
-    const label = s.theme === 'light' ? 'Light' : s.theme === 'system' ? 'System' : 'Dark';
-    themeBtn.textContent = `Theme: ${label}`;
+  const on = {
+    '#toggle-cache-btn': !!s.cacheImages,
+    '#toggle-replace-images-btn': !!s.replaceExistingImages,
+    '#toggle-autocheck-btn': !!s.autoCheckLinks,
+    '#toggle-close-after-open-btn': !!s.closeAfterOpenAll,
+    '#toggle-reading-list-btn': s.readingListEnabled !== false,
+    '#toggle-mark-read-on-open-btn': s.markReadOnOpen !== false,
+  };
+  for (const [sel, checked] of Object.entries(on)) {
+    const el = $(sel);
+    if (el) el.setAttribute('aria-checked', String(checked));
   }
+  const pick = (sel, value) => {
+    const el = $(sel);
+    if (el) el.value = value;
+  };
+  pick('#open-mode-select', s.openMode === 'popup' ? 'popup' : 'sidepanel');
+  pick('#open-items-in-select', s.openItemsIn === 'currentTab' ? 'currentTab' : 'newTab');
+  pick('#theme-select', ['light', 'system'].includes(s.theme) ? s.theme : 'dark');
 }
 
 /**
@@ -3450,6 +3440,7 @@ async function cycleTheme() {
   const theme = order[(order.indexOf(cur) + 1) % order.length];
   await setSettings({ theme });
   applyTheme(theme);
+  updateSettingLabels();
   toast(`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`);
 }
 
@@ -3482,6 +3473,36 @@ darkMql.addEventListener('change', async () => {
   if (s.theme === 'system') applyTheme('system');
 });
 
+/**
+ * Switch between the side panel and the pop-up window, moving there now rather
+ * than on the next toolbar click.
+ */
+async function changeOpenMode(mode) {
+  await setSettings({ openMode: mode });
+  closeOverflow();
+  // Move to the new surface right away rather than on the next toolbar click,
+  // and only close this one once we know the other actually opened.
+  let opened = null;
+  try {
+    ({ opened } = (await chrome.runtime.sendMessage({ type: 'setOpenMode', mode })) || {});
+  } catch (e) {
+    /* worker didn't answer — the setting still applies on the next click */
+  }
+  if (opened === mode) {
+    try {
+      window.close(); // the other surface is up; this one is now the stale copy
+    } catch (e) {
+      /* can't close ourselves — harmless, you just have both open */
+    }
+    return;
+  }
+  toast(
+    mode === 'popup'
+      ? 'Opens in a pop-up window — click the toolbar icon'
+      : 'Opens in the side panel — click the toolbar icon'
+  );
+}
+
 /** Run an action from the overflow menu or one of its category submenus. */
 async function runMenuAction(action) {
   if (action === 'export-json') doExport();
@@ -3496,7 +3517,6 @@ async function runMenuAction(action) {
   if (action === 'toggle-cache') {
     const s = await getSettings();
     await setSettings({ cacheImages: !s.cacheImages });
-    toast(`Offline image caching ${!s.cacheImages ? 'on' : 'off'}`);
   }
   if (action === 'check-all-links') {
     toast('Checking all links…');
@@ -3509,68 +3529,30 @@ async function runMenuAction(action) {
   if (action === 'toggle-replace-images') {
     const s = await getSettings();
     await setSettings({ replaceExistingImages: !s.replaceExistingImages });
-    toast(`Replace existing images ${!s.replaceExistingImages ? 'on' : 'off'}`);
   }
   if (action === 'toggle-autocheck') {
     const s = await getSettings();
     await setSettings({ autoCheckLinks: !s.autoCheckLinks });
-    toast(`Auto-check links ${!s.autoCheckLinks ? 'on' : 'off'}`);
-  }
-  if (action === 'toggle-open-mode') {
-    const s = await getSettings();
-    const mode = s.openMode === 'popup' ? 'sidepanel' : 'popup';
-    await setSettings({ openMode: mode });
-    closeOverflow();
-    // Move to the new surface right away rather than on the next toolbar click,
-    // and only close this one once we know the other actually opened.
-    let opened = null;
-    try {
-      ({ opened } = (await chrome.runtime.sendMessage({ type: 'setOpenMode', mode })) || {});
-    } catch (e) {
-      /* worker didn't answer — the setting still applies on the next click */
-    }
-    if (opened === mode) {
-      try {
-        window.close(); // the other surface is up; this one is now the stale copy
-      } catch (e) {
-        /* can't close ourselves — harmless, you just have both open */
-      }
-      return;
-    }
-    toast(
-      mode === 'popup'
-        ? 'Opens in a pop-up window — click the toolbar icon'
-        : 'Opens in the side panel — click the toolbar icon'
-    );
   }
   if (action === 'toggle-close-after-open') {
     const s = await getSettings();
     await setSettings({ closeAfterOpenAll: !s.closeAfterOpenAll });
-    toast(`Close panel after Open all ${!s.closeAfterOpenAll ? 'on' : 'off'}`);
   }
   if (action === 'toggle-reading-list') {
     const enabled = !viewPrefs.readingListEnabled;
     if (!enabled && binMode === 'reading') binMode = null; // leave the reading view
     await setViewPref({ readingListEnabled: enabled }); // persists + re-renders
-    toast(`Reading list ${enabled ? 'on' : 'off'}`);
   }
   if (action === 'open-reading') openBin('reading');
   if (action === 'open-archive') openBin('archive');
   if (action === 'open-trash') openBin('trash');
-  if (action === 'toggle-open-items-in') {
-    const openItemsIn = viewPrefs.openItemsIn === 'currentTab' ? 'newTab' : 'currentTab';
-    await setViewPref({ openItemsIn });
-    toast(`Saved pages open in: ${openItemsIn === 'currentTab' ? 'current tab' : 'new tab'}`);
-  }
   if (action === 'toggle-mark-read-on-open') {
     const markReadOnOpen = !viewPrefs.markReadOnOpen;
     await setViewPref({ markReadOnOpen });
-    toast(`Mark read when opened ${markReadOnOpen ? 'on' : 'off'}`);
   }
   if (action === 'ui-scale-down') await stepUiScale(-1);
   if (action === 'ui-scale-up') await stepUiScale(1);
   if (action === 'rules') await openRules();
-  if (action === 'toggle-theme') await cycleTheme();
   if (action === 'history') openHistoryMenu();
   if (action === 'ai-chat') openChat({ type: 'all' });
   if (action === 'weekly-digest') weeklyDigest();
@@ -3597,8 +3579,18 @@ function closeSubmenus() {
   }
 }
 
-// Actions that adjust something in place, rather than navigating away.
-const MENU_ACTIONS_KEEPING_MENU_OPEN = new Set(['ui-scale-down', 'ui-scale-up']);
+// Actions that adjust something in place, rather than navigating away: the
+// text-size stepper and the on/off switches, which you may flip several of.
+const MENU_ACTIONS_KEEPING_MENU_OPEN = new Set([
+  'ui-scale-down',
+  'ui-scale-up',
+  'toggle-cache',
+  'toggle-replace-images',
+  'toggle-autocheck',
+  'toggle-close-after-open',
+  'toggle-reading-list',
+  'toggle-mark-read-on-open',
+]);
 
 function closeOverflow() {
   // Order matters: closeSubmenus() restores a menu that a drilled-down submenu
@@ -3630,9 +3622,12 @@ function positionFlyout(menu, anchorMenu, trigger) {
   const anchor = anchorMenu.getBoundingClientRect();
   const drill = flyoutNeedsDrillDown(anchorMenu);
   const beside = Math.round(toLocalNum(anchor.left - 10));
+  // A menu of settings rows (label + switch/dropdown) asks for more room.
+  const cap = Number(menu.dataset.maxWidth) || 260;
+  // Drilled down, it stands in for the menu and may use the panel's width.
   const width = drill
-    ? Math.min(Math.round(toLocalNum(anchor.width)), 260)
-    : Math.min(beside, 260);
+    ? Math.min(Math.max(Math.round(toLocalNum(anchor.width)), Math.round(toLocalNum(viewportW() - 16))), cap)
+    : Math.min(beside, cap);
 
   menu.style.maxWidth = `${width}px`;
   menu.style.minWidth = `${Math.min(200, width)}px`;
@@ -3786,6 +3781,7 @@ $('#overflow-menu').addEventListener('click', async (e) => {
   // press would make it unusable.
   if (!MENU_ACTIONS_KEEPING_MENU_OPEN.has(action)) closeOverflow();
   await runMenuAction(action);
+  if (MENU_ACTIONS_KEEPING_MENU_OPEN.has(action)) updateSettingLabels();
 });
 
 // Hover a category to pop its submenu out (and switch between them). The menu
@@ -3813,9 +3809,26 @@ document.querySelectorAll('.submenu:not(.detail-submenu)').forEach((menu) => {
       exitDrillDown();
       return;
     }
+    // A switch flips in place (the menu stays open to show its new state).
+    if (MENU_ACTIONS_KEEPING_MENU_OPEN.has(action)) {
+      e.stopPropagation();
+      await runMenuAction(action);
+      updateSettingLabels();
+      return;
+    }
     closeOverflow();
     await runMenuAction(action);
   });
+});
+
+// Dropdown settings apply on change and leave the menu open, like the switches.
+$('#open-mode-select').addEventListener('change', (e) => changeOpenMode(e.target.value));
+$('#open-items-in-select').addEventListener('change', (e) =>
+  setViewPref({ openItemsIn: e.target.value })
+);
+$('#theme-select').addEventListener('change', async (e) => {
+  await setSettings({ theme: e.target.value });
+  applyTheme(e.target.value);
 });
 
 // Clicking anywhere outside the menus closes the submenus (the generic handler

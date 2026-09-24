@@ -103,6 +103,8 @@
         </div>
       </header>
 
+      <nav id="detail-path" class="detail-path" aria-label="Collection path" hidden></nav>
+
       <div class="detail-toolbar">
         <div class="cover-control">
           <div id="detail-cover" class="cover-preview" title="Collection cover">🗂️</div>
@@ -112,6 +114,14 @@
         </div>
         <button id="add-current-btn" class="btn primary wide">＋ Add current page</button>
       </div>
+
+      <section id="subcollections" class="subcollections" hidden>
+        <div class="subcollections-head">
+          <span class="subcollections-title">Collections</span>
+          <button id="new-subcollection-btn" class="btn small" title="New collection inside this one">＋ New</button>
+        </div>
+        <div id="subcollection-list" class="cards subcollection-list" role="list"></div>
+      </section>
 
       <div id="item-filterbar" class="searchbar" hidden>
         <input
@@ -303,6 +313,7 @@
     <div id="submenu-col-add" class="menu floating submenu detail-submenu" hidden>
       <button data-action="add-note">Add a note</button>
       <button data-action="add-all-tabs">Add all open tabs</button>
+      <button data-action="add-subcollection">New collection inside this one…</button>
     </div>
     <div id="submenu-col-export" class="menu floating submenu detail-submenu" hidden>
       <button data-action="export-collection-xlsx">Export to Excel (.xlsx)</button>

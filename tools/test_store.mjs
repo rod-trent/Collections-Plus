@@ -365,6 +365,152 @@ console.log('\ncreateFolder / setParent ordering:');
   assert(orphan.parentId === null && typeof orphan.order === 'number', 'removeFolder orphans child back to top level with an order');
 }
 
+console.log('\nsubcollections: create / setParent / cycles:');
+{
+  reset();
+  const top = await store.createCollection('Top');
+  const a = await store.createSubCollection(top.id, 'A');
+  const b = await store.createSubCollection(top.id, 'B');
+  const deep = await store.createSubCollection(a.id, 'Deep');
+  let data = await store.getData();
+  assert(a.parentId === top.id && a.order === 0 && b.order === 1, 'subcollections nest under parent in order');
+  assert(data.activeCollectionId === deep.id, 'new subcollection becomes active');
+  assert(store.childCollections(data, top.id).length === 2, 'childCollections lists direct children');
+  const desc = store.descendantIds(data, top.id);
+  assert(desc.length === 3 && desc.includes(deep.id), 'descendantIds reaches every depth');
+  assert(
+    store.collectionPath(data, deep.id).map((c) => c.title).join('/') === 'Top/A',
+    'collectionPath lists ancestors outermost first'
+  );
+  assert((await store.createSubCollection('nope', 'X')) === null, 'createSubCollection rejects a missing parent');
+
+  assert((await store.setParent(top.id, deep.id)) === false, 'cannot nest a collection inside its own descendant');
+  assert((await store.setParent(a.id, a.id)) === false, 'cannot nest a collection inside itself');
+  data = await store.getData();
+  assert(data.collections.find((c) => c.id === top.id).parentId === null, 'refused move leaves parent unchanged');
+
+  assert((await store.setParent(deep.id, b.id)) === true, 'can move a subcollection to another parent');
+  const folder = await store.createFolder('F');
+  await store.setParent(a.id, folder.id);
+  data = await store.getData();
+  assert(data.collections.find((c) => c.id === deep.id).parentId === b.id, 'moved subcollection re-parented');
+  assert(data.collections.find((c) => c.id === a.id).parentId === folder.id, 'subcollection can move out to a folder');
+
+  // A list drag (e.g. from search results) must not un-nest a subcollection.
+  await store.saveArrangement([{ kind: 'collection', id: deep.id, parentId: '', order: 0 }]);
+  data = await store.getData();
+  assert(data.collections.find((c) => c.id === deep.id).parentId === b.id, 'saveArrangement keeps subcollections nested');
+}
+
+console.log('\nmigrate (subcollection parents):');
+{
+  reset();
+  mem.collectionsData = {
+    version: 3,
+    collections: [
+      { id: 'p', title: 'P', items: [] },
+      { id: 'k', title: 'K', parentId: 'p', items: [] },
+      { id: 'gone', title: 'Dangling', parentId: 'missing', items: [] },
+      { id: 'x', title: 'X', parentId: 'y', items: [] },
+      { id: 'y', title: 'Y', parentId: 'x', items: [] },
+    ],
+  };
+  const data = await store.getData();
+  const by = (id) => data.collections.find((c) => c.id === id);
+  assert(by('k').parentId === 'p', 'keeps a parentId that points at a live collection');
+  assert(by('gone').parentId === null, 'drops a parentId that points nowhere');
+  assert(!(by('x').parentId === 'y' && by('y').parentId === 'x'), 'breaks a parent cycle');
+  assert(typeof by('k').order === 'number', 'backfills order for subcollections');
+}
+
+console.log('\nsubcollections: archive / unarchive:');
+{
+  reset();
+  const top = await store.createCollection('Top');
+  const a = await store.createSubCollection(top.id, 'A');
+  const deep = await store.createSubCollection(a.id, 'Deep');
+  await store.archiveCollection(top.id);
+  let data = await store.getData();
+  assert(data.collections.length === 0 && data.archive.length === 3, 'archiving a parent takes the whole subtree');
+  assert(data.archive.filter((c) => store.isTopBinEntry(data, c)).length === 1, 'archive lists only the parent');
+  assert(store.binSubtreeCount(data, data.archive.find((c) => c.id === top.id), false) === 2, 'archive row counts subcollections');
+  await store.unarchiveCollection(top.id);
+  data = await store.getData();
+  const by = (id) => data.collections.find((c) => c.id === id);
+  assert(data.archive.length === 0 && data.collections.length === 3, 'unarchive restores the whole subtree');
+  assert(by(a.id).parentId === top.id && by(deep.id).parentId === a.id, 'nesting survives archive round-trip');
+  assert(!('archivedWith' in by(a.id)) && !('archivedAt' in by(a.id)), 'archive markers cleared on restore');
+
+  // A subcollection archived on its own comes back under its live parent.
+  await store.archiveCollection(a.id);
+  data = await store.getData();
+  assert(data.collections.length === 1 && data.archive.length === 2, 'archiving a subcollection takes its children');
+  await store.unarchiveCollection(a.id);
+  data = await store.getData();
+  assert(data.collections.find((c) => c.id === a.id)?.parentId === top.id, 'restored subcollection returns to its parent');
+}
+
+console.log('\nsubcollections: trash / restore / delete:');
+{
+  reset();
+  const top = await store.createCollection('Top');
+  const a = await store.createSubCollection(top.id, 'A');
+  await store.createSubCollection(a.id, 'Deep');
+  const entryId = await store.trashCollection(top.id);
+  let data = await store.getData();
+  assert(data.collections.length === 0 && data.trash.length === 3, 'trashing a parent takes the whole subtree');
+  const shown = data.trash.filter((e) => store.isTopBinEntry(data, e));
+  assert(shown.length === 1 && shown[0].id === entryId, 'trash lists only the parent entry');
+  assert(store.binSubtreeCount(data, shown[0], true) === 2, 'trash row counts subcollections');
+
+  await store.restoreFromTrash(entryId);
+  data = await store.getData();
+  assert(data.trash.length === 0 && data.collections.length === 3, 'restore brings back the subtree');
+  assert(data.collections.find((c) => c.id === a.id).parentId === top.id, 'nesting survives trash round-trip');
+
+  const again = await store.trashCollection(top.id);
+  await store.deleteTrashEntry(again);
+  data = await store.getData();
+  assert(data.trash.length === 0, 'permanently deleting a parent deletes its subcollections');
+
+  // Removing a parent trashed-with entry leaves orphans visible and restorable.
+  reset();
+  const p = await store.createCollection('P');
+  const kid = await store.createSubCollection(p.id, 'Kid');
+  await store.trashCollection(p.id);
+  data = await store.getData();
+  data.trash = data.trash.filter((e) => e.collection.id !== p.id);
+  await store.setData(data);
+  data = await store.getData();
+  const orphan = data.trash.find((e) => e.collection.id === kid.id);
+  assert(store.isTopBinEntry(data, orphan), 'orphaned subcollection entry becomes visible');
+  await store.restoreFromTrash(orphan.id);
+  data = await store.getData();
+  assert(data.collections.find((c) => c.id === kid.id)?.parentId === null, 'orphan restores to top level');
+}
+
+console.log('\nsubcollections: folders + import:');
+{
+  reset();
+  const folder = await store.createFolder('F');
+  const top = await store.createCollection('Top');
+  await store.setParent(top.id, folder.id);
+  const kid = await store.createSubCollection(top.id, 'Kid');
+  await store.trashFolder(folder.id);
+  let data = await store.getData();
+  assert(data.collections.find((c) => c.id === kid.id).parentId === top.id, 'trashing a folder leaves subcollections nested');
+
+  const json = await store.exportJSON();
+  await store.importJSON(json, 'merge');
+  data = await store.getData();
+  const tops = data.collections.filter((c) => c.title === 'Top');
+  const kids = data.collections.filter((c) => c.title === 'Kid');
+  assert(tops.length === 2 && kids.length === 2, 'merge import appends copies');
+  const imported = kids.find((c) => c.id !== kid.id);
+  const importedTop = tops.find((c) => c.id !== top.id);
+  assert(imported.parentId === importedTop.id, 'merge import keeps subcollections under the re-id’d parent');
+}
+
 console.log('');
 if (failures) {
   console.error(`${failures} assertion(s) failed`);

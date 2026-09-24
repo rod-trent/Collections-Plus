@@ -2,6 +2,12 @@
 import {
   getData,
   createCollection,
+  createSubCollection,
+  childCollections,
+  descendantIds,
+  collectionPath,
+  isTopBinEntry,
+  binSubtreeCount,
   renameCollection,
   insertItem,
   ensureActiveCollection,
@@ -86,6 +92,9 @@ const els = {
   searchbar: $('#searchbar'),
   searchInput: $('#search-input'),
   items: $('#items'),
+  detailPath: $('#detail-path'),
+  subcollections: $('#subcollections'),
+  subcollectionList: $('#subcollection-list'),
   itemFilterbar: $('#item-filterbar'),
   itemFilterInput: $('#item-filter-input'),
   detailNoResults: $('#detail-no-results'),
@@ -126,6 +135,7 @@ const els = {
 
 // View state: which collection (if any) is open, and how the file input is used.
 let openId = null;
+let lastData = null; // the blob the current view was rendered from (for nesting lookups)
 let binMode = null; // 'trash' | 'archive' | null — which holding area is open
 let fileMode = null; // 'csv' | 'json' | 'cover'
 let query = ''; // current list-view search text (lower-cased)
@@ -551,7 +561,9 @@ const moveMenu = $('#move-menu');
 
 async function openMoveMenu(anchor, fromId, itemId) {
   const data = await getData();
-  const others = data.collections.filter((c) => c.id !== fromId);
+  const others = data.collections
+    .filter((c) => c.id !== fromId)
+    .map((c) => ({ id: c.id, title: pathLabel(data, c) }));
   if (!others.length) {
     toast('No other collection to move to');
     return;
@@ -616,19 +628,24 @@ async function openFolderMenu(anchor, collectionId) {
   const data = await getData();
   const folders = data.folders || [];
   const current = data.collections.find((c) => c.id === collectionId)?.parentId || '';
+  // Any collection except this one and its own subcollections can hold it.
+  const blocked = new Set([collectionId, ...descendantIds(data, collectionId)]);
+  const hosts = data.collections
+    .filter((c) => !blocked.has(c.id))
+    .map((c) => ({ id: c.id, label: pathLabel(data, c) }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const pick = (id, label) =>
+    `<button class="folder-pick" data-to="${id}">${current === id ? '✓ ' : ''}${escapeHtml(label)}</button>`;
   folderMenu.dataset.collection = collectionId;
   folderMenu.innerHTML =
     `<div class="menu-note">Move to folder</div>` +
-    `<button class="folder-pick" data-to="">${current ? '' : '✓ '}No folder</button>` +
-    folders
-      .map(
-        (f) =>
-          `<button class="folder-pick" data-to="${f.id}">${current === f.id ? '✓ ' : ''}${escapeHtml(
-            f.name
-          )}</button>`
-      )
-      .join('') +
-    `<div class="menu-sep"></div><button class="folder-pick" data-to="__new">＋ New folder…</button>`;
+    pick('', 'No folder (top level)') +
+    folders.map((f) => pick(f.id, f.name)).join('') +
+    `<button class="folder-pick" data-to="__new">＋ New folder…</button>` +
+    (hosts.length
+      ? `<div class="menu-sep"></div><div class="menu-note">Put inside a collection</div>` +
+        hosts.map((h) => pick(h.id, h.label)).join('')
+      : '');
 
   folderMenu.hidden = false;
   const r = anchor.getBoundingClientRect();
@@ -648,8 +665,15 @@ folderMenu.addEventListener('click', async (e) => {
     if (!name) return;
     to = (await createFolder(name)).id;
   }
-  await setParent(collectionId, to || null);
+  if (!(await setParent(collectionId, to || null))) toast('Can’t move a collection inside itself');
 });
+
+/** "Parent › Child" label for a collection, so nested names stay unambiguous. */
+function pathLabel(data, c) {
+  return [...collectionPath(data, c.id), c]
+    .map((x) => x.title || 'Untitled')
+    .join(' › ');
+}
 
 document.addEventListener('click', (e) => {
   if (!folderMenu.hidden && !folderMenu.contains(e.target) && !e.target.closest('.card-folder')) {
@@ -767,6 +791,7 @@ function closeFloatingMenus() {
 
 async function render() {
   const data = await getData();
+  lastData = data;
   updateBinBadges(data);
   if (aiMode === 'settings') {
     showOnly(els.settingsView);
@@ -887,14 +912,27 @@ async function openAllPages(c) {
   }
 }
 
-function buildCard(c) {
+/**
+ * A collection card. `nested` renders it inside its parent's detail view
+ * (no list drag-reorder there).
+ */
+function buildCard(c, { nested = false } = {}) {
   const card = document.createElement('div');
-  card.className = 'card' + (c.pinned ? ' pinned' : '');
+  card.className = 'card' + (c.pinned ? ' pinned' : '') + (nested ? ' subcollection-card' : '');
   card.setAttribute('role', 'listitem');
   card.dataset.id = c.id;
   // Remember which folder (if any) this card lives in, so a drag that drops
   // onto it can adopt the same grouping.
   card.dataset.parent = c.parentId || '';
+
+  const data = lastData || { collections: [] };
+  const subCount = childCollections(data, c.id).length;
+  const subMeta = subCount ? ` · ${subCount} collection${subCount === 1 ? '' : 's'}` : '';
+  // In flat search results, say where a subcollection lives.
+  const path = !nested && query ? collectionPath(data, c.id) : [];
+  const whereHtml = path.length
+    ? `<div class="card-where">in ${escapeHtml(path.map((p) => p.title || 'Untitled').join(' › '))}</div>`
+    : '';
 
   const coverInner = isColorValue(c.cover)
     ? `<div class="card-cover is-color" style="background:${c.cover}"></div>`
@@ -928,18 +966,19 @@ function buildCard(c) {
   }
 
   card.innerHTML = `
-    <span class="card-handle" title="Drag to reorder">⠿</span>
+    ${nested ? '' : '<span class="card-handle" title="Drag to reorder">⠿</span>'}
     ${coverInner}
     <div class="card-body">
       <div class="card-title">${escapeHtml(c.title)}</div>
-      <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}</div>
+      <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}${subMeta}</div>
+      ${whereHtml}
       ${matchHtml}
       ${tagsHtml}
     </div>
     ${pinBadge}
     <div class="card-actions">
       <button class="card-open" title="Open all pages">▶</button>
-      <button class="card-folder" title="Move to folder">📁</button>
+      <button class="card-folder" title="Move to a folder or collection">📁</button>
       <button class="card-archive" title="Archive collection">📦</button>
       <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
       <button class="card-del" title="Move to Trash">🗑</button>
@@ -985,11 +1024,12 @@ function buildCard(c) {
       e.stopPropagation();
       query = el.textContent.toLowerCase();
       els.searchInput.value = el.textContent;
+      openId = null; // a subcollection card's tag filters the main list
       render();
     });
   });
 
-  wireCardDrag(card);
+  if (!nested) wireCardDrag(card);
   return card;
 }
 
@@ -1139,14 +1179,18 @@ function renderBin(data) {
   $('#mark-all-read-btn').hidden = true;
   const isTrash = binMode === 'trash';
   // Normalize archive collections into the same {kind, …} shape trash uses.
+  // Subcollections trashed/archived with a parent are listed under it.
   const entries = isTrash
-    ? data.trash || []
-    : (data.archive || []).map((c) => ({
-        id: c.id,
-        kind: 'collection',
-        archivedAt: c.archivedAt,
-        collection: c,
-      }));
+    ? (data.trash || []).filter((e) => isTopBinEntry(data, e))
+    : (data.archive || [])
+        .filter((c) => isTopBinEntry(data, c))
+        .map((c) => ({
+          id: c.id,
+          kind: 'collection',
+          archivedAt: c.archivedAt,
+          collection: c,
+          subCount: binSubtreeCount(data, c, false),
+        }));
 
   els.binTitle.textContent = isTrash ? 'Trash' : 'Archive';
   els.emptyTrashBtn.hidden = !(isTrash && entries.length);
@@ -1162,7 +1206,10 @@ function renderBin(data) {
     : 'Collections you archive will appear here.';
   els.binList.hidden = entries.length === 0;
   els.binList.innerHTML = '';
-  for (const e of entries) els.binList.appendChild(buildBinRow(e, isTrash));
+  for (const e of entries) {
+    if (isTrash) e.subCount = binSubtreeCount(data, e, true);
+    els.binList.appendChild(buildBinRow(e, isTrash));
+  }
 }
 
 /** Reading list: unread page items across all collections (reuses bin-view). */
@@ -1232,7 +1279,8 @@ function buildBinRow(entry, isTrash) {
 
   const count = isFolder
     ? `${(entry.childIds || []).length} collection${(entry.childIds || []).length === 1 ? '' : 's'}`
-    : `${obj.items.length} item${obj.items.length === 1 ? '' : 's'}`;
+    : `${obj.items.length} item${obj.items.length === 1 ? '' : 's'}` +
+      (entry.subCount ? ` · ${entry.subCount} collection${entry.subCount === 1 ? '' : 's'}` : '');
   const meta = `${count} · ${isTrash ? 'deleted' : 'archived'} ${relativeTime(when)}`;
 
   row.innerHTML = `
@@ -1428,6 +1476,8 @@ function renderDetail(c) {
     els.detailCover.textContent = '🗂️';
     els.coverRemoveBtn.hidden = true;
   }
+  renderDetailNesting(c);
+
   // Show the item filter only once a collection has enough items to warrant it.
   els.itemFilterbar.hidden = c.items.length < 2;
   if (els.itemFilterbar.hidden) itemFilter = '';
@@ -1435,7 +1485,7 @@ function renderDetail(c) {
   const matched = itemFilter ? matchingItems(c, itemFilter) : c.items;
   const visible = sortItems(matched, viewPrefs.itemSort);
 
-  els.detailEmpty.hidden = c.items.length > 0;
+  els.detailEmpty.hidden = c.items.length > 0 || !els.subcollections.hidden;
   els.detailNoResults.hidden = !(c.items.length > 0 && itemFilter && visible.length === 0);
   els.items.hidden = visible.length === 0;
   // Compact density + drag-disabled (when a non-manual sort is active).
@@ -1450,6 +1500,47 @@ function renderDetail(c) {
     // (scrollHeight reads 0 on a detached node).
     row.querySelectorAll('.field-val').forEach((ta) => autoGrow(ta));
   }
+}
+
+/** Breadcrumb to the collection's ancestors, plus its subcollection cards. */
+function renderDetailNesting(c) {
+  const data = lastData || { collections: [] };
+
+  const path = collectionPath(data, c.id);
+  els.detailPath.hidden = path.length === 0;
+  els.detailPath.innerHTML = '';
+  for (const p of path) {
+    const crumb = document.createElement('button');
+    crumb.textContent = p.title || 'Untitled';
+    crumb.title = `Open "${p.title || 'Untitled'}"`;
+    crumb.addEventListener('click', () => open(p.id));
+    els.detailPath.appendChild(crumb);
+    const sep = document.createElement('span');
+    sep.className = 'path-sep';
+    sep.textContent = '›';
+    els.detailPath.appendChild(sep);
+  }
+
+  // Same ordering rules as the main list: manual order or the chosen sort,
+  // pinned first.
+  const kids = childCollections(data, c.id);
+  const arranged =
+    viewPrefs.collectionSort === 'manual'
+      ? pinnedFirst([...kids].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
+      : pinnedFirst(sortCollections(kids, viewPrefs.collectionSort));
+  els.subcollections.hidden = kids.length === 0;
+  els.subcollectionList.classList.toggle('compact', viewPrefs.collectionDensity === 'compact');
+  els.subcollectionList.innerHTML = '';
+  for (const k of arranged) els.subcollectionList.appendChild(buildCard(k, { nested: true }));
+}
+
+/** Prompt for a name, then create and open a collection inside the open one. */
+async function addSubcollection() {
+  if (!openId) return;
+  const name = await showPrompt('New collection name:', { placeholder: 'New collection', okLabel: 'Create' });
+  if (name === null) return; // cancelled
+  const created = await createSubCollection(openId, name.trim() || 'New collection');
+  if (created) await open(created.id);
 }
 
 /** Reflect the current view prefs onto the toolbar controls. */
@@ -1819,6 +1910,12 @@ function back() {
     render();
     return;
   }
+  // From a subcollection, step up to its parent collection.
+  const parent = openId && !binMode ? collectionPath(lastData || { collections: [] }, openId).pop() : null;
+  if (parent) {
+    open(parent.id);
+    return;
+  }
   openId = null;
   binMode = null;
   render();
@@ -2153,13 +2250,20 @@ async function sendChatMessage() {
 
 // ---- Delete / archive with undo --------------------------------------------
 
+/** " and 2 collections inside it" — so a toast says what went with the parent. */
+function subcollectionNote(data, id) {
+  const n = descendantIds(data, id).length;
+  return n ? ` and ${n} collection${n === 1 ? '' : 's'} inside it` : '';
+}
+
 async function deleteCollectionWithUndo(id) {
   const data = await getData();
   const col = data.collections.find((c) => c.id === id);
   if (!col) return;
+  const withKids = subcollectionNote(data, id);
   const entryId = await trashCollection(id);
   if (!entryId) return;
-  toast(`"${col.title}" moved to Trash`, {
+  toast(`"${col.title}"${withKids} moved to Trash`, {
     label: 'Undo',
     fn: () => restoreFromTrash(entryId),
   });
@@ -2169,8 +2273,9 @@ async function archiveCollectionWithUndo(id) {
   const data = await getData();
   const col = data.collections.find((c) => c.id === id);
   if (!col) return;
+  const withKids = subcollectionNote(data, id);
   await archiveCollection(id);
-  toast(`"${col.title}" archived`, {
+  toast(`"${col.title}"${withKids} archived`, {
     label: 'Undo',
     fn: () => unarchiveCollection(id),
   });
@@ -2667,7 +2772,7 @@ async function buildPaletteCommands() {
   // Jump to any collection by name.
   for (const c of data.collections) {
     const n = (c.items || []).length;
-    add(`Go to: ${c.title || 'Untitled'}`, () => open(c.id), `${n} item${n === 1 ? '' : 's'}`);
+    add(`Go to: ${pathLabel(data, c)}`, () => open(c.id), `${n} item${n === 1 ? '' : 's'}`);
   }
   return cmds;
 }
@@ -3295,8 +3400,8 @@ function updateBinBadges(data) {
     el.textContent = count > 99 ? '99+' : String(count);
   };
   const unread = countUnread(data);
-  set('#archive-badge', (data.archive || []).length);
-  set('#trash-badge', (data.trash || []).length);
+  set('#archive-badge', (data.archive || []).filter((c) => isTopBinEntry(data, c)).length);
+  set('#trash-badge', (data.trash || []).filter((e) => isTopBinEntry(data, e)).length);
   set('#reading-badge', unread);
   set('#overflow-badge', viewPrefs.readingListEnabled ? unread : 0);
   // Hide the Reading-list (📖) entry point entirely when the feature is off.
@@ -3773,7 +3878,7 @@ els.chatText.addEventListener('keydown', (e) => {
 });
 els.emptyTrashBtn.addEventListener('click', async () => {
   const data = await getData();
-  const n = (data.trash || []).length;
+  const n = (data.trash || []).filter((e) => isTopBinEntry(data, e)).length;
   if (!n) return;
   if (
     await showConfirm(
@@ -3788,6 +3893,7 @@ els.emptyTrashBtn.addEventListener('click', async () => {
 
 // Detail view
 $('#back-btn').addEventListener('click', back);
+$('#new-subcollection-btn').addEventListener('click', addSubcollection);
 $('#add-current-btn').addEventListener('click', addCurrentPage);
 
 $('#cover-change-btn').addEventListener('click', () => {
@@ -3871,6 +3977,9 @@ async function runDetailAction(action) {
   }
   if (action === 'add-all-tabs') {
     await addAllTabs();
+  }
+  if (action === 'add-subcollection') {
+    await addSubcollection();
   }
   if (action === 'export-collection-xlsx') {
     await doExportXlsx(openId);

@@ -8,6 +8,7 @@ import {
   addItem,
   createCollection,
   ensureActiveCollection,
+  collectionPath,
   findPageByUrl,
   getSettings,
   setSettings,
@@ -178,7 +179,8 @@ const NEW_SUFFIX = '::new'; // child id suffix for "New collection…"
 
 async function rebuildMenus() {
   await chrome.contextMenus.removeAll();
-  const { collections } = await getData();
+  const data = await getData();
+  const { collections } = data;
 
   for (const parent of PARENTS) {
     chrome.contextMenus.create({
@@ -192,7 +194,8 @@ async function rebuildMenus() {
       chrome.contextMenus.create({
         id: `${parent.id}::${c.id}`,
         parentId: parent.id,
-        title: c.title || 'Untitled',
+        // Subcollections read "Parent › Child" so same-named ones stay distinct.
+        title: [...collectionPath(data, c.id), c].map((x) => x.title || 'Untitled').join(' › '),
         contexts: parent.contexts,
       });
     }

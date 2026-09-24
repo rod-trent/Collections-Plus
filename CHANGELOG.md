@@ -3,6 +3,20 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.8.2
+
+**Switches and dropdowns for settings.** The settings in ⋯ → Tools used to be
+rows you clicked to flip, reading "Cache images: Off", and the longer ones
+wrapped onto two lines. On/off settings now have a switch you can see at a
+glance, and flipping one leaves the menu open so you can change several in a
+row. Open in, Open saved pages in and Theme are now dropdowns. The Tools menu
+is grouped under Images, Links, Opening and Reading list, and in a narrow
+panel it uses the panel's full width so labels stay on one line.
+
+**Fixed: the pop-up window opening behind the browser.** Switching "Open in"
+from the side panel to the pop-up window opened the pop-up, but then the
+browser window took focus back and covered it. The pop-up now stays in front.
+
 ## 2.8.1
 
 **A button for new subcollections.** Every collection now has a

@@ -3,6 +3,35 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.8.0
+
+**Collections inside collections.** A collection can now hold other
+collections, as deep as you like. Folders still work, but they're only one
+level deep and don't hold items of their own, so a big topic like "Travel"
+can now contain "Japan 2026", which contains "Tokyo" and "Kyoto", each with
+its own pages, notes and cover.
+
+- **Create one** from inside a collection: ⋯ → Add → "New collection inside
+  this one…", or the **＋ New** button above its subcollections.
+- **Move an existing collection in or out** with the 📁 button on its card,
+  which now has a "Put inside a collection" section beside the folders. It
+  never offers the collection itself or anything already inside it.
+- **Find your way around.** A nested collection shows its path at the top
+  (click any part to jump there), and the back button steps up one level.
+  Subcollections appear as cards above the parent's items, and the parent's
+  card in the main list says how many it holds. Search still finds nested
+  collections and shows where each one lives.
+- **Whole trees move together.** Archiving or trashing a collection takes
+  everything inside it along, listed as a single entry in the Archive or
+  Trash. Restoring puts the whole tree back where it was, and permanently
+  deleting it deletes the whole tree.
+- The right-click "Save to…" menu labels nested collections by their path,
+  e.g. "Travel › Japan 2026 › Tokyo".
+
+Syncing with a device still on an older version is safe: it shows your
+subcollections as ordinary top-level collections, and nothing is lost.
+Thanks to Josh (joshnoe94), whose pull request proposed this feature.
+
 ## 2.7.1
 
 **Fixed: covers still showing a site logo or an ad.** The 2.7.0 cover fix

@@ -1,6 +1,6 @@
 {
   "name": "collections-extension",
-  "version": "2.8.2",
+  "version": "2.8.3",
   "private": true,
   "type": "module",
   "description": "Open replacement for Microsoft Edge Collections (MV3 browser extension).",

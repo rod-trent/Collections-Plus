@@ -3,6 +3,20 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.8.3
+
+**Security: safer image and AI requests.** When Collections Plus fills in
+missing page images, a web page chooses which picture to load. A page could
+have pointed the extension at your home or office network, or at a service
+running on your own computer. Images named by public pages must now come from
+public addresses, so those requests no longer go out. Pages on your intranet can
+still use intranet images.
+
+The AI chat is tightened too: a provider address must use https (plain http is
+still fine for a local server such as Ollama), addresses with a username or
+password in them are rejected, and the extension no longer follows a redirect
+that would send your API key somewhere else.
+
 ## 2.8.2
 
 **Switches and dropdowns for settings.** The settings in ⋯ → Tools used to be

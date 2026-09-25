@@ -195,13 +195,46 @@ const PARENTS = [
 
 const NEW_SUFFIX = '::new'; // child id suffix for "New collection…"
 
-async function rebuildMenus() {
+// Rebuilds are serialized: onInstalled/onStartup and storage.onChanged often
+// fire together (e.g. on an update), and two interleaved rebuilds would both
+// clear the menu and then both create the same ids ("duplicate id" errors).
+// While one runs, further requests collapse into a single follow-up rebuild.
+let menuBuild = null;
+let menuBuildQueued = false;
+
+function rebuildMenus() {
+  if (menuBuild) {
+    menuBuildQueued = true;
+    return menuBuild;
+  }
+  menuBuild = (async () => {
+    try {
+      do {
+        menuBuildQueued = false;
+        await buildMenus();
+      } while (menuBuildQueued);
+    } catch (e) {
+      console.warn('Collections Plus: could not build context menus', e);
+    } finally {
+      menuBuild = null;
+    }
+  })();
+  return menuBuild;
+}
+
+// create() reports failures via runtime.lastError; read it so a stray one is
+// never logged as "Unchecked runtime.lastError".
+function createMenu(props) {
+  chrome.contextMenus.create(props, () => void chrome.runtime.lastError);
+}
+
+async function buildMenus() {
   await chrome.contextMenus.removeAll();
   const data = await getData();
   const { collections } = data;
 
   for (const parent of PARENTS) {
-    chrome.contextMenus.create({
+    createMenu({
       id: parent.id,
       title: parent.title,
       contexts: parent.contexts,
@@ -209,7 +242,7 @@ async function rebuildMenus() {
 
     // One child per existing collection.
     for (const c of collections) {
-      chrome.contextMenus.create({
+      createMenu({
         id: `${parent.id}::${c.id}`,
         parentId: parent.id,
         // Subcollections read "Parent › Child" so same-named ones stay distinct.
@@ -219,7 +252,7 @@ async function rebuildMenus() {
     }
 
     if (collections.length > 0) {
-      chrome.contextMenus.create({
+      createMenu({
         id: `${parent.id}::sep`,
         parentId: parent.id,
         type: 'separator',
@@ -228,7 +261,7 @@ async function rebuildMenus() {
     }
 
     // Always offer a "new collection" target.
-    chrome.contextMenus.create({
+    createMenu({
       id: `${parent.id}${NEW_SUFFIX}`,
       parentId: parent.id,
       title: '＋ New collection…',
@@ -237,8 +270,8 @@ async function rebuildMenus() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(rebuildMenus);
-chrome.runtime.onStartup.addListener(rebuildMenus);
+chrome.runtime.onInstalled.addListener(() => rebuildMenus());
+chrome.runtime.onStartup.addListener(() => rebuildMenus());
 
 // Keep menus in sync whenever the data changes (e.g. from the panel).
 chrome.storage.onChanged.addListener((changes, area) => {

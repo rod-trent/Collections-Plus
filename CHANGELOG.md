@@ -3,6 +3,15 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.8.4
+
+**Fixed: "duplicate id" errors after updating.** After the extension updated,
+Edge's extension page could list a series of "Cannot create item with
+duplicate id" errors for the right-click menu. Two menu refreshes were running
+at once and tripping over each other. They now run one at a time, so the menu
+is built cleanly and no errors are logged. The right-click menu itself worked
+the whole time.
+
 ## 2.8.3
 
 **Security: safer image and AI requests.** When Collections Plus fills in

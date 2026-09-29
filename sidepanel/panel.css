@@ -654,6 +654,24 @@ body {
   background: var(--bg-elev-2);
 }
 
+/* Quick-add the current tab without opening the collection. */
+.card-add {
+  align-self: center;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 5px;
+  transition: background 0.12s ease;
+}
+
+.card-add:hover {
+  background: var(--bg-elev-2);
+}
+
 /* ---- Folders ---- */
 .folder-header {
   display: flex;
@@ -2192,4 +2210,71 @@ body.drag-over::after {
 #submenu-tools {
   max-width: 300px;
   max-height: calc(80 * var(--vh));
+}
+
+/* ---- Organize mode ----
+   Using (default): cards show only Open all + Add current page, larger; drag
+   handles and managing buttons are hidden. body.organizing brings them back
+   and hides the everyday pair, keeping "using" and "managing" apart. */
+body:not(.organizing) .card-handle,
+body:not(.organizing) .folder-handle,
+body:not(.organizing) .card-folder,
+body:not(.organizing) .card-archive,
+body:not(.organizing) .card-pin,
+body:not(.organizing) .card-del,
+body:not(.organizing) .folder-color,
+body:not(.organizing) .folder-rename,
+body:not(.organizing) .folder-del {
+  display: none;
+}
+
+body:not(.organizing) .card-open,
+body:not(.organizing) .card-add {
+  font-size: 20px;
+  line-height: 1;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 6px 8px;
+}
+
+body:not(.organizing) .card-actions {
+  gap: 4px;
+}
+
+body.organizing .card-open,
+body.organizing .card-add {
+  display: none;
+}
+
+/* While organizing, the handles are always visible so the drag affordance
+   doesn't depend on hover. */
+body.organizing .card-handle,
+body.organizing .folder-handle {
+  opacity: 1;
+}
+
+#organize-btn[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.organize-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.organize-bar[hidden] {
+  display: none;
+}
+
+.organize-bar span {
+  flex: 1;
 }

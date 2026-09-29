@@ -865,8 +865,11 @@ async function openAllPages(c) {
     toast('No pages to open');
     return;
   }
+  // Ask first above the user's threshold (Tools › Opening; 0 = never ask).
+  const limit = Number((await getSettings()).openAllConfirmOver ?? 8);
   if (
-    pages.length > 8 &&
+    limit > 0 &&
+    pages.length > limit &&
     !(await showConfirm(`Open all ${pages.length} pages in new tabs?`, { okLabel: 'Open all' }))
   )
     return;
@@ -978,6 +981,7 @@ function buildCard(c, { nested = false } = {}) {
     ${pinBadge}
     <div class="card-actions">
       <button class="card-open" title="Open all pages">▶</button>
+      <button class="card-add" title="Add current page to this collection">＋</button>
       <button class="card-folder" title="Move to a folder or collection">📁</button>
       <button class="card-archive" title="Archive collection">📦</button>
       <button class="card-pin" title="${c.pinned ? 'Unpin' : 'Pin to top'}">${c.pinned ? '📌' : '📍'}</button>
@@ -992,6 +996,7 @@ function buildCard(c, { nested = false } = {}) {
       e.target.closest('.card-folder') ||
       e.target.closest('.card-archive') ||
       e.target.closest('.card-open') ||
+      e.target.closest('.card-add') ||
       e.target.closest('.card-handle')
     )
       return;
@@ -1001,6 +1006,10 @@ function buildCard(c, { nested = false } = {}) {
   card.querySelector('.card-open').addEventListener('click', async (e) => {
     e.stopPropagation();
     await openAllPages(c);
+  });
+  card.querySelector('.card-add').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await addCurrentPage(c.id);
   });
   card.querySelector('.card-archive').addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -1541,6 +1550,23 @@ async function addSubcollection() {
   if (name === null) return; // cancelled
   const created = await createSubCollection(openId, name.trim() || 'New collection');
   if (created) await open(created.id);
+}
+
+// ---- Organize mode ---------------------------------------------------------
+// The list has two modes. Using (the default) keeps collection cards to the
+// everyday actions — Open all and Add current page — at a bigger size.
+// Organize reveals drag handles and the managing actions (file, archive, pin,
+// delete, folder edits) so they can't be mis-clicked day to day. Not persisted:
+// the panel always opens ready to use.
+let organizing = false;
+
+function setOrganizing(on) {
+  organizing = !!on;
+  document.body.classList.toggle('organizing', organizing);
+  const btn = $('#organize-btn');
+  if (btn) btn.setAttribute('aria-pressed', String(organizing));
+  const bar = $('#organize-bar');
+  if (bar) bar.hidden = !organizing;
 }
 
 /** Reflect the current view prefs onto the toolbar controls. */
@@ -2324,14 +2350,18 @@ async function activePageTab() {
 
 // ---- Add current page ------------------------------------------------------
 
-async function addCurrentPage() {
+/**
+ * Save the active tab into a collection — the open one by default, or
+ * `targetId` when called from a collection card's quick-add button.
+ */
+async function addCurrentPage(targetId = openId) {
   const tab = await activePageTab();
   if (!tab || !tab.url || /^(edge|chrome|about|extension):/i.test(tab.url)) {
     toast("Can't add this page (browser-internal).");
     return;
   }
-  // Skip if this page is already in the open collection.
-  if (openId && (await findPageByUrl(openId, tab.url))) {
+  // Skip if this page is already in the target collection.
+  if (targetId && (await findPageByUrl(targetId, tab.url))) {
     toast('Already in this collection');
     return;
   }
@@ -2352,7 +2382,7 @@ async function addCurrentPage() {
     }
   }
   const settings = await getSettings();
-  const out = await addItem(openId, {
+  const out = await addItem(targetId, {
     type: 'page',
     url: tab.url,
     title: (meta && meta.title) || tab.title || tab.url,
@@ -2363,7 +2393,9 @@ async function addCurrentPage() {
   if (out?.item && settings.cacheImages) {
     await cacheItemImage(out.collection.id, out.item.id);
   }
-  toast('Page added');
+  toast(targetId && targetId !== openId && out?.collection
+    ? `Added to "${out.collection.title}"`
+    : 'Page added');
 }
 
 /** Add every http(s) tab in the current window to the open collection. */
@@ -2736,6 +2768,7 @@ async function buildPaletteCommands() {
     }
   }
 
+  add(organizing ? 'Done organizing' : 'Organize collections', () => setOrganizing(!organizing));
   add('New collection', async () => open((await createCollection('New collection')).id));
   add('New folder', async () => {
     const name = ((await showPrompt('New folder name:')) || '').trim();
@@ -3348,6 +3381,9 @@ els.itemFilterInput.addEventListener('input', () => {
   render();
 });
 
+$('#organize-btn').addEventListener('click', () => setOrganizing(!organizing));
+$('#organize-done-btn').addEventListener('click', () => setOrganizing(false));
+
 $('#new-folder-btn').addEventListener('click', async () => {
   const name = ((await showPrompt('New folder name:')) || '').trim();
   if (name) await createFolder(name);
@@ -3373,6 +3409,7 @@ async function updateSettingLabels() {
   };
   pick('#open-mode-select', s.openMode === 'popup' ? 'popup' : 'sidepanel');
   pick('#open-items-in-select', s.openItemsIn === 'currentTab' ? 'currentTab' : 'newTab');
+  pick('#open-all-confirm-select', String(s.openAllConfirmOver ?? 8));
   pick('#theme-select', ['light', 'system'].includes(s.theme) ? s.theme : 'dark');
 }
 
@@ -3825,6 +3862,9 @@ document.querySelectorAll('.submenu:not(.detail-submenu)').forEach((menu) => {
 $('#open-mode-select').addEventListener('change', (e) => changeOpenMode(e.target.value));
 $('#open-items-in-select').addEventListener('change', (e) =>
   setViewPref({ openItemsIn: e.target.value })
+);
+$('#open-all-confirm-select').addEventListener('change', (e) =>
+  setSettings({ openAllConfirmOver: Number(e.target.value) })
 );
 $('#theme-select').addEventListener('change', async (e) => {
   await setSettings({ theme: e.target.value });

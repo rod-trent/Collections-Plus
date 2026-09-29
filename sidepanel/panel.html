@@ -64,6 +64,12 @@
           <option value="title">A–Z</option>
         </select>
         <button id="collection-density-btn" class="btn icon" title="Toggle compact view" aria-label="Toggle compact view">▥</button>
+        <button id="organize-btn" class="btn icon" title="Organize — reorder, file, pin, archive and delete collections" aria-label="Organize mode" aria-pressed="false">⇅</button>
+      </div>
+
+      <div id="organize-bar" class="organize-bar" hidden>
+        <span>Organizing — drag ⠿ to reorder; hover a collection to file, pin, archive or delete it.</span>
+        <button id="organize-done-btn" class="btn primary">Done</button>
       </div>
 
       <div id="collections" class="cards" role="list"></div>
@@ -312,6 +318,16 @@
         <select id="open-items-in-select" class="menu-select" aria-label="Open saved pages in">
           <option value="newTab">New tab</option>
           <option value="currentTab">Current tab</option>
+        </select></label>
+      <label class="menu-select-row"><span class="menu-label">Ask before Open all of</span>
+        <select id="open-all-confirm-select" class="menu-select" aria-label="Ask before opening more than this many pages">
+          <option value="8">9+ pages</option>
+          <option value="10">11+ pages</option>
+          <option value="15">16+ pages</option>
+          <option value="20">21+ pages</option>
+          <option value="30">31+ pages</option>
+          <option value="50">51+ pages</option>
+          <option value="0">Never ask</option>
         </select></label>
       <button class="menu-toggle" data-action="toggle-close-after-open" id="toggle-close-after-open-btn" role="switch" aria-checked="false"><span class="menu-label">Close panel after Open all</span><span class="switch" aria-hidden="true"></span></button>
       <div class="menu-sep"></div>

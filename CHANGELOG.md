@@ -3,6 +3,25 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.9.0
+
+**Add the current page straight from the list.** Hover a collection and click
+**＋** to save the tab you're on into it, without opening the collection
+first. If the page is already there, you're told so and nothing is added twice.
+
+**Using and organizing are now separate.** Day to day, hovering a collection
+shows just the two things you do most, **▶ Open all** and **＋ Add current
+page**, as bigger buttons. Moving, pinning, archiving and deleting live in a
+new organize mode: click **⇅** next to the search box (or choose "Organize
+collections" in the Ctrl+K palette) to show the drag handles and the managing
+buttons for collections and folders, then click **Done**. The panel always
+opens ready to use.
+
+**Choose when Open all asks first.** Opening a collection with 9 or more pages
+used to always ask for confirmation. Set your own limit under ⋯ → Tools →
+Opening → "Ask before Open all of": 9+, 11+, 16+, 21+, 31+ or 51+ pages, or
+Never ask. The default is still 9+.
+
 ## 2.8.4
 
 **Fixed: "duplicate id" errors after updating.** After the extension updated,

@@ -2,16 +2,20 @@
 """Generate Collections extension icons (no third-party deps).
 
 Draws a rounded blue tile with a stacked-cards glyph (the "collection"
-motif) and writes PNGs at 16/32/48/128 px into ../icons.
+motif) and writes PNGs at 16/32/48/128 px into ../icons, plus the mobile web
+app's install icons into ../pwa: 192/512 px, and a 512 px "maskable" variant
+(full-bleed background, glyph inside the central safe zone) that Android can
+crop to any shape.
 
-Rendering is supersampled 4x and box-downsampled for anti-aliasing.
+Rendering is supersampled (4x small, 2x large) and box-downsampled for
+anti-aliasing.
 """
 import os
 import struct
 import zlib
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "icons")
-SS = 4  # supersample factor
+PWA_OUT = os.path.join(os.path.dirname(__file__), "..", "pwa")
 
 BLUE = (15, 108, 189)       # #0F6CBD  (Edge-collections blue)
 BLUE_DK = (11, 86, 153)     # subtle edge shade
@@ -34,23 +38,37 @@ def rounded_rect_cov(x, y, x0, y0, x1, y1, r):
     return 1.0 if (dx * dx + dy * dy) <= r * r else 0.0
 
 
-def render(size):
+def render(size, maskable=False):
+    SS = 4 if size <= 128 else 2  # supersample factor (big icons: plenty of pixels)
     n = size * SS
     px = [[(0, 0, 0, 0) for _ in range(n)] for _ in range(n)]
 
     # geometry in supersampled space
-    pad = n * 0.02
-    bg = (pad, pad, n - pad, n - pad)
-    bg_r = n * 0.22
+    if maskable:
+        # Full-bleed square: the launcher applies its own mask shape.
+        bg = (0, 0, n, n)
+        bg_r = 0
+    else:
+        pad = n * 0.02
+        bg = (pad, pad, n - pad, n - pad)
+        bg_r = n * 0.22
+
+    # Glyph coordinates are fractions of the tile; a maskable icon shrinks the
+    # glyph toward the center so it stays inside the 80% safe-zone circle.
+    gs = 0.72 if maskable else 1.0
+    go = n * (1 - gs) / 2
+
+    def g(frac):
+        return go + n * gs * frac
 
     # back card (offset up-right), front card (offset down-left)
-    cw = n * 0.46
-    ch = n * 0.56
-    card_r = n * 0.06
-    cx_back = n * 0.30
-    cy_back = n * 0.20
-    cx_front = n * 0.22
-    cy_front = n * 0.28
+    cw = n * gs * 0.46
+    ch = n * gs * 0.56
+    card_r = n * gs * 0.06
+    cx_back = g(0.30)
+    cy_back = g(0.20)
+    cx_front = g(0.22)
+    cy_front = g(0.28)
 
     for y in range(n):
         for x in range(n):
@@ -77,7 +95,7 @@ def render(size):
     line_x1 = cx_front + cw * 0.84
     for i, fy in enumerate((0.26, 0.46, 0.66)):
         ly = cy_front + ch * fy
-        lh = n * 0.025
+        lh = n * gs * 0.025
         lw = (line_x1 - line_x0) * (1.0 if i < 2 else 0.6)
         for y in range(n):
             for x in range(n):
@@ -124,6 +142,13 @@ def main():
         raw = render(size)
         write_png(os.path.join(OUT, f"icon{size}.png"), size, raw)
         print(f"wrote icon{size}.png")
+    for name, size, maskable in (
+        ("icon-192.png", 192, False),
+        ("icon-512.png", 512, False),
+        ("icon-maskable-512.png", 512, True),
+    ):
+        write_png(os.path.join(PWA_OUT, name), size, render(size, maskable))
+        print(f"wrote pwa/{name}")
 
 
 if __name__ == "__main__":

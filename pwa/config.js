@@ -7,4 +7,4 @@
 // https://getcollectionsplus.com/app/ and http://localhost:8000/pwa/ for dev).
 // The key is not a secret — PKCE means no client secret is ever shipped.
 // Leave it empty and the app runs local-only with Dropbox sync hidden.
-export const DROPBOX_APP_KEY = '';
+export const DROPBOX_APP_KEY = 'bbs7pmkemi4qgkq';

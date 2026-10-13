@@ -13,18 +13,33 @@
     -->
     <script>
       (function shimChrome() {
-        const KEY = 'collectionsData';
+        const KEY = 'collectionsData'; // the library (seeded below)
+        // Any key (data, settings, history, sync state…), each in its own
+        // localStorage entry, like chrome.storage.local.
         const listeners = [];
+        const read = (k) => {
+          const raw = localStorage.getItem(k);
+          if (raw == null || raw === 'undefined') return undefined;
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return undefined;
+          }
+        };
         const store = {
           async get(k) {
-            const raw = localStorage.getItem(KEY);
-            return { [KEY]: raw ? JSON.parse(raw) : undefined };
+            return { [k]: read(k) };
           },
           async set(obj) {
-            const oldRaw = localStorage.getItem(KEY);
-            localStorage.setItem(KEY, JSON.stringify(obj[KEY]));
-            const change = { [KEY]: { oldValue: oldRaw && JSON.parse(oldRaw), newValue: obj[KEY] } };
+            const change = {};
+            for (const [k, v] of Object.entries(obj)) {
+              change[k] = { oldValue: read(k), newValue: v };
+              localStorage.setItem(k, JSON.stringify(v));
+            }
             listeners.forEach((fn) => fn(change, 'local'));
+          },
+          async remove(k) {
+            localStorage.removeItem(k);
           },
         };
         window.chrome = {

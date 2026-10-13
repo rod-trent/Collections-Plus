@@ -1719,6 +1719,21 @@ a.aisearch-result-title:hover {
   justify-content: center;
 }
 
+.empty-help {
+  margin: 16px 0 0;
+}
+
+/* A button that reads as an inline link (e.g. "Read the guide"). */
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ---- Toast ---- */
 .toast {
   position: fixed;

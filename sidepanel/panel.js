@@ -297,6 +297,9 @@ function escapeHtml(s = '') {
 // `color` (same hex form). The preset palette below powers the swatch pickers;
 // any value is validated as strict 6-digit hex before it's injected into CSS,
 // so a hand-edited or synced value can never break out of a style attribute.
+// Guides on the website (getting started, sync setup, the mobile app, AI).
+const HELP_URL = 'https://getcollectionsplus.com/help';
+
 const COLOR_PALETTE = [
   '#ef4444', '#f97316', '#f59e0b', '#eab308',
   '#22c55e', '#14b8a6', '#3b82f6', '#6366f1',
@@ -2800,6 +2803,7 @@ async function buildPaletteCommands() {
   add('Import backup (JSON)…', () => pickFile('json'));
   add('Import browser bookmarks…', () => doImportBookmarks());
   add('Auto-file rules…', () => openRules());
+  add('Help & guides', () => openItemUrl(HELP_URL, { forceNewTab: true }), 'getcollectionsplus.com');
   add('Toggle theme', () => cycleTheme());
 
   // Jump to any collection by name.
@@ -3585,6 +3589,7 @@ async function runMenuAction(action) {
     await setViewPref({ readingListEnabled: enabled }); // persists + re-renders
   }
   if (action === 'open-reading') openBin('reading');
+  if (action === 'open-help') openItemUrl(HELP_URL, { forceNewTab: true });
   if (action === 'open-archive') openBin('archive');
   if (action === 'open-trash') openBin('trash');
   if (action === 'toggle-mark-read-on-open') {
@@ -3898,6 +3903,7 @@ els.listEmpty.addEventListener('click', async (e) => {
   }
   if (action === 'import-csv') pickFile('csv');
   if (action === 'import-sqlite') pickFile('sqlite');
+  if (action === 'open-help') openItemUrl(`${HELP_URL}/getting-started`, { forceNewTab: true });
 });
 
 // Trash / Archive view

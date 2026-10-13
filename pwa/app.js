@@ -1840,6 +1840,7 @@ function appMenu() {
       ${menuItem('newfolder', 'folder', 'New folder')}
       ${menuItem('ai', 'sparkle', 'AI settings')}
       ${menuItem('import', 'import', 'Import a backup (JSON)')}
+      <a href="https://getcollectionsplus.com/help/mobile" target="_blank" rel="noopener">${icon('book')}<span>Help &amp; guides</span></a>
       <a href="https://getcollectionsplus.com/" target="_blank" rel="noopener">${icon('desktop')}<span>Get the desktop extension</span></a>
     </div>`,
     {

@@ -39,7 +39,8 @@ export default function RootLayout({ children }) {
               <a href="/#features" className="nav-hide">Features</a>
               <a href="/#sync" className="nav-hide">Sync &amp; mobile</a>
               <a href="/app/">Mobile app</a>
-              <Link href="/account">Account</Link>
+              <Link href="/help">Help</Link>
+              <Link href="/account" className="nav-hide">Account</Link>
             </nav>
           </div>
         </header>
@@ -50,6 +51,7 @@ export default function RootLayout({ children }) {
             <nav aria-label="Footer">
               <a href={STORE_URL}>Chrome Web Store</a>
               <a href="/app/">Mobile app</a>
+              <Link href="/help">Help</Link>
               <Link href="/privacy">Privacy</Link>
               <a href={GITHUB_URL}>GitHub</a>
             </nav>

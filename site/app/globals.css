@@ -163,3 +163,28 @@ section.block { padding: 4rem 0 0; }
 /* ---- Account pages ------------------------------------------------------- */
 .narrow { max-width: 640px; padding-top: 3rem; }
 .center { display: flex; justify-content: center; padding-top: 3rem; }
+
+/* ---- Help ------------------------------------------------------------------ */
+.help { display: grid; gap: 24px; padding-top: 2rem; }
+@media (min-width: 900px) { .help { grid-template-columns: 220px 1fr; gap: 48px; } }
+.help-nav { font-size: 0.95rem; }
+@media (min-width: 900px) { .help-nav { position: sticky; top: 84px; align-self: start; } }
+.help-nav ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+@media (min-width: 900px) { .help-nav ul { display: grid; gap: 2px; } }
+.help-nav a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+.help-nav a:hover, .help-nav a[aria-current='page'] { background: var(--surface); color: var(--text); }
+.help-nav .help-home { font-weight: 700; color: var(--text); padding-left: 10px; }
+.help-body { min-width: 0; }
+.help-title { font-size: clamp(1.8rem, 4vw, 2.4rem); margin: 0 0 0.4rem; }
+.help-card { display: block; text-decoration: none; color: var(--text); }
+.help-card:hover { border-color: var(--brand); }
+.help-article { padding-top: 0; max-width: 46em; }
+.help-article h1 { margin-top: 0; }
+.help-article h2 { scroll-margin-top: 80px; }
+.help-article h3 { margin-top: 1.6rem; font-size: 1.1rem; scroll-margin-top: 80px; }
+.help-article blockquote { margin: 1rem 0; padding: 0.6rem 1rem; border-left: 3px solid var(--brand); background: var(--surface); border-radius: 0 8px 8px 0; }
+.help-article blockquote p { margin: 0; }
+.help-article li { margin: 0.25rem 0; }
+.help-article code { word-break: break-word; }
+.help-pager { display: flex; justify-content: space-between; gap: 1rem; max-width: 46em; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.help-pager a { text-decoration: none; font-weight: 600; }

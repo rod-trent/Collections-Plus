@@ -1466,6 +1466,7 @@ function collectionMenu(c) {
       ${menuItem('share', 'share', 'Share links')}
       ${menuItem('rename', 'edit', 'Rename')}
       ${menuItem('pin', 'pin', c.pinned ? 'Unpin' : 'Pin to top')}
+      ${menuItem('moveto', 'folder', 'Move to…')}
       ${menuItem('archive', 'archive', 'Archive')}
       <div class="menu-sep"></div>
       ${menuItem('delete', 'trash', 'Move to Trash', 'danger')}
@@ -1487,6 +1488,7 @@ function collectionMenu(c) {
         shareCollection(c); // starts inside the tap, so the share sheet is allowed
       },
       pin: () => edit(() => store.setPinned(c.id, !c.pinned)),
+      moveto: () => (moveCollectionSheet(c), true),
       archive: async () => {
         const parent = c.parentId && findCol(c.parentId) ? c.parentId : null;
         await store.archiveCollection(c.id);
@@ -1515,6 +1517,69 @@ function collectionMenu(c) {
       },
     }
   );
+}
+
+/**
+ * Move a collection: to the top level, into a folder (or a new one), or
+ * inside another collection as a subcollection, as the extension's
+ * "Move to folder or collection" does. A collection can't go inside itself
+ * or one of its own subcollections, so those aren't offered.
+ */
+function moveCollectionSheet(c) {
+  const blocked = new Set([c.id, ...store.descendantIds(data, c.id)]);
+  const folders = [...(data.folders || [])].sort(byOrder);
+  const others = data.collections.filter((x) => !blocked.has(x.id));
+  const opt = (value, label, current) =>
+    `<option value="${esc(value)}"${current ? ' selected' : ''}>${esc(label)}</option>`;
+  const here = c.parentId || '';
+  openSheet(
+    `Move “${c.title}”`,
+    `<label class="field"><span>Move to</span><select name="to">
+        ${opt('', 'Top level (not in a folder)', here === '')}
+        ${folders.length ? `<optgroup label="Folders">${folders.map((f) => opt(f.id, f.name, here === f.id)).join('')}</optgroup>` : ''}
+        <optgroup label="New">${opt('__newfolder__', '＋ New folder…', false)}</optgroup>
+        ${others.length ? `<optgroup label="Inside another collection">${others
+          .sort((a, b) => a.title.localeCompare(b.title))
+          .map((x) => opt(x.id, x.title, here === x.id))
+          .join('')}</optgroup>` : ''}
+      </select></label>
+     <label class="field" data-newfolder hidden><span>New folder name</span><input name="folderName" maxlength="200" placeholder="e.g. Work"></label>
+     <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn primary" type="submit">Move</button></div>`,
+    {
+      cancel: () => {},
+      submit: async (f) => {
+        let to = String(f.get('to') || '');
+        let where;
+        if (to === '__newfolder__') {
+          const name = String(f.get('folderName') || '').trim();
+          if (!name) {
+            toast('Give the new folder a name');
+            return true;
+          }
+          const folder = await store.createFolder(name);
+          to = folder.id;
+          where = `the new folder “${name}”`;
+        }
+        if (to === here) return; // nothing to do
+        const ok = await edit(() => store.setParent(c.id, to || null));
+        if (!ok) {
+          toast('Can’t move it there');
+          return true;
+        }
+        const folder = (data.folders || []).find((x) => x.id === to);
+        const parent = findCol(to);
+        where ||= !to ? 'the top level' : folder ? `the folder “${folder.name}”` : `“${parent?.title || 'collection'}”`;
+        toast(`Moved to ${where}`);
+      },
+    }
+  );
+  const select = els.sheetBody.querySelector('select[name="to"]');
+  const nameField = els.sheetBody.querySelector('[data-newfolder]');
+  const sync = () => {
+    nameField.hidden = select.value !== '__newfolder__';
+    if (!nameField.hidden) nameField.querySelector('input').focus();
+  };
+  select.addEventListener('change', sync);
 }
 
 function appMenu() {

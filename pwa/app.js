@@ -12,6 +12,8 @@ import { syncOnce } from '../lib/sync-engine.js';
 import { matchRule } from '../lib/rules.js';
 import { sortItems, sortCollections } from '../lib/sortview.js';
 import { toLinkList } from '../lib/render.js';
+import { AI_PROVIDERS, getAiConfig, setAiConfig, isConfigured, resolveConfig, chat as aiChat } from '../lib/ai.js';
+import { buildCatalog, searchRequest, parseSearchResults } from '../lib/semantic.js';
 import { DROPBOX_APP_KEY } from './config.js';
 
 // MUST run before any store.js call: store.js resolves its backend on each
@@ -80,6 +82,8 @@ const ICON = {
   restore: '<path d="M3 12a9 9 0 109-9 9.7 9.7 0 00-6.7 2.8L3 8M3 3v5h5"/>',
   grip: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
   reorder: '<path d="M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4"/>',
+  sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -156,6 +160,8 @@ let settings = null;
 let query = '';
 let tagFilter = ''; // home: show only collections with this tag
 let reorderMode = false; // drag handles shown (home or a collection)
+let aiSearch = null; // { q, busy, results:[{collectionId,itemId,why}], error, truncated, count }
+let aiController = null;
 let dragging = false; // a drag is in progress: hold re-renders until it ends
 let renderPending = false;
 const COLLAPSED_KEY = 'cp.collapsedFolders'; // per-device, not synced
@@ -571,6 +577,57 @@ els.view.addEventListener('pointerup', endDrag);
 els.view.addEventListener('pointercancel', endDrag);
 
 
+function aiSection() {
+  if (aiSearch && aiSearch.q !== query) aiSearch = null; // the query changed
+  if (!aiSearch) {
+    return `<div class="toolbar"><button class="chip accent" data-act="ai-search">${icon('sparkle')}Search by meaning</button></div>`;
+  }
+  if (aiSearch.busy) {
+    return `<div class="ai-box"><div class="ai-head">${icon('sparkle')}<span>Searching ${plural(aiSearch.count, 'item')} by meaning…</span></div>
+      <button class="btn small" data-act="ai-cancel">Cancel</button></div>`;
+  }
+  if (aiSearch.error) {
+    return `<div class="ai-box"><div class="ai-head">${icon('sparkle')}<span>${esc(aiSearch.error)}</span></div>
+      <div class="row-actions"><button class="btn small" data-act="ai-search">Try again</button><button class="btn small" data-act="ai-settings">AI settings</button></div></div>`;
+  }
+  const rows = aiSearch.results
+    .map((r) => {
+      const c = findCol(r.collectionId);
+      const it = c?.items.find((x) => x.id === r.itemId);
+      return it ? itemRow(it, c, { showCollection: true, why: r.why }) : '';
+    })
+    .filter(Boolean);
+  return `<div class="section-label ai-label">${icon('sparkle')}By meaning${aiSearch.truncated ? ' · first 250 items' : ''}</div>
+    ${rows.length ? `<div class="stack">${rows.join('')}</div>` : '<p class="meta ai-none">Nothing related turned up.</p>'}`;
+}
+
+/** Ask the configured AI to find items related to the query by meaning. */
+async function runAiSearch() {
+  const config = await getAiConfig();
+  if (!isConfigured(config)) return aiSettingsSheet({ thenSearch: true });
+  const { entries, text, truncated } = buildCatalog(data.collections);
+  if (!entries.length) return toast('Nothing saved to search yet');
+  const q = query;
+  aiController?.abort();
+  aiController = new AbortController();
+  aiSearch = { q, busy: true, count: entries.length };
+  renderSearch();
+  try {
+    const { system, messages } = searchRequest(q, text);
+    const reply = await aiChat({ config, system, messages, signal: aiController.signal });
+    const byN = new Map(entries.map((e) => [e.n, e]));
+    const results = parseSearchResults(reply, new Set(byN.keys())).map(({ n, why }) => ({ ...byN.get(n), why }));
+    if (aiSearch?.q === q) aiSearch = { q, results, truncated };
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      aiSearch = null;
+    } else if (aiSearch?.q === q) {
+      aiSearch = { q, error: navigator.onLine ? err.message || 'AI search failed' : 'You’re offline. AI search needs a connection.' };
+    }
+  }
+  if (route().name === 'home' && query) renderSearch();
+}
+
 function renderSearch() {
   const q = query.toLowerCase();
   const hit = (s) => String(s || '').toLowerCase().includes(q);
@@ -583,11 +640,13 @@ function renderSearch() {
       }
     }
   }
+  const ai = aiSection();
   if (!cols.length && !items.length) {
-    els.view.innerHTML = `<div class="empty"><h2>No matches</h2><p>Nothing matches “${esc(query)}”.</p></div>`;
+    els.view.innerHTML = `${ai}${aiSearch?.results || aiSearch?.busy ? '' : `<div class="empty"><h2>No matches</h2><p>Nothing contains “${esc(query)}”. Try searching by meaning above.</p></div>`}`;
     return;
   }
   els.view.innerHTML =
+    ai +
     (cols.length ? `<div class="section-label">Collections</div><div class="stack">${cols.map(collectionCard).join('')}</div>` : '') +
     (items.length
       ? `<div class="section-label">Pages &amp; notes</div><div class="stack">${items
@@ -606,9 +665,11 @@ function fieldsHtml(it) {
     .join('')}</span>`;
 }
 
-function itemRow(it, c, { showCollection = false, checks = false, drag = false } = {}) {
+function itemRow(it, c, { showCollection = false, checks = false, drag = false, why = '' } = {}) {
   let more = `<button class="icon-btn more-btn" data-act="item-menu" data-col="${esc(c.id)}" data-id="${esc(it.id)}" aria-label="Item options">${icon('moreV')}</button>`;
-  const from = showCollection ? `<div class="from">in ${esc(c.title)}</div>` : '';
+  const from =
+    (why ? `<div class="why">${icon('sparkle')}${esc(why)}</div>` : '') +
+    (showCollection ? `<div class="from">in ${esc(c.title)}</div>` : '');
   const done = it.done ? ' done' : '';
   let check = checks
     ? `<button class="check${it.done ? ' on' : ''}" data-act="toggle-done" data-col="${esc(c.id)}" data-id="${esc(it.id)}" role="checkbox" aria-checked="${!!it.done}" aria-label="Done">${icon('check')}</button>`
@@ -1582,6 +1643,63 @@ function moveCollectionSheet(c) {
   select.addEventListener('change', sync);
 }
 
+// Providers that accept calls straight from a web page. Ollama runs on a
+// computer the phone can't reach; Azure needs server-side CORS set up first.
+const PHONE_AI = ['anthropic', 'openai', 'grok', 'gemini', 'custom'];
+
+async function aiSettingsSheet({ thenSearch = false } = {}) {
+  const config = await getAiConfig();
+  const provider = PHONE_AI.includes(config.provider) ? config.provider : 'anthropic';
+  const preset = (id) => AI_PROVIDERS[id];
+  openSheet(
+    'AI settings',
+    `<p class="sheet-note">AI search uses your own account with an AI provider. When you search by meaning, your search and the titles, links and notes of up to 250 saved items go from this phone straight to the provider you pick. Your key stays on this phone and never syncs.</p>
+     <label class="field"><span>Provider</span><select name="provider">${PHONE_AI.map(
+       (id) => `<option value="${id}"${id === provider ? ' selected' : ''}>${esc(preset(id).label)}</option>`
+     ).join('')}</select></label>
+     <label class="field" data-base><span>API address</span><input name="baseUrl" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(config.provider === provider ? config.baseUrl : '')}"></label>
+     <label class="field"><span>Model</span><input name="model" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(config.provider === provider ? config.model : '')}"></label>
+     <label class="field"><span>API key</span><input name="apiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(config.provider === provider ? config.apiKey : '')}"></label>
+     <div class="sheet-actions">
+       ${config.apiKey ? '<button class="btn danger" type="button" data-sheet="forget">Remove key</button>' : '<button class="btn" type="button" data-sheet="cancel">Cancel</button>'}
+       <button class="btn primary" type="submit">${thenSearch ? 'Save and search' : 'Save'}</button>
+     </div>`,
+    {
+      cancel: () => {},
+      forget: async () => {
+        await setAiConfig({ apiKey: '' });
+        toast('API key removed from this phone');
+      },
+      submit: async (f) => {
+        const next = {
+          provider: String(f.get('provider')),
+          baseUrl: String(f.get('baseUrl') || '').trim(),
+          model: String(f.get('model') || '').trim(),
+          apiKey: String(f.get('apiKey') || '').trim(),
+        };
+        if (!isConfigured(next)) {
+          toast(next.provider === 'custom' && !next.baseUrl ? 'Add the API address' : 'Add your API key');
+          return true;
+        }
+        await setAiConfig(next);
+        toast('AI settings saved');
+        if (thenSearch && query) setTimeout(runAiSearch, 0);
+      },
+    }
+  );
+  // Fill the preset's model as a hint, and show the address only for "Other".
+  const sel = els.sheetBody.querySelector('select[name="provider"]');
+  const sync = () => {
+    const p = preset(sel.value);
+    els.sheetBody.querySelector('[data-base]').hidden = !p.needsBase;
+    els.sheetBody.querySelector('input[name="baseUrl"]').placeholder = p.baseHint || p.baseUrl || '';
+    els.sheetBody.querySelector('input[name="model"]').placeholder = resolveConfig({ provider: sel.value }).model || 'Model name';
+    els.sheetBody.querySelector('input[name="apiKey"]').placeholder = p.keyHint || 'API key';
+  };
+  sel.addEventListener('change', sync);
+  sync();
+}
+
 function appMenu() {
   const connected = dropbox?.isConnected();
   const syncPart = dropbox
@@ -1601,6 +1719,7 @@ function appMenu() {
       ${menuItem('archive', 'archive', `Archive${binCount(false) ? ` (${binCount(false)})` : ''}`)}
       ${menuItem('trash', 'trash', `Trash${binCount(true) ? ` (${binCount(true)})` : ''}`)}
       ${menuItem('new', 'plus', 'New collection')}
+      ${menuItem('ai', 'sparkle', 'AI settings')}
       ${menuItem('import', 'import', 'Import a backup (JSON)')}
       <a href="https://getcollectionsplus.com/" target="_blank" rel="noopener">${icon('desktop')}<span>Get the desktop extension</span></a>
     </div>`,
@@ -1628,6 +1747,7 @@ function appMenu() {
       archive: () => go('#/archive'),
       trash: () => go('#/trash'),
       new: () => (newCollectionSheet(), true),
+      ai: () => (aiSettingsSheet(), true),
       import: () => els.importFile.click(),
     }
   );
@@ -1662,6 +1782,9 @@ els.view.addEventListener('click', async (e) => {
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
   else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
   else if (act === 'reorder') enterReorder();
+  else if (act === 'ai-search') runAiSearch();
+  else if (act === 'ai-cancel') aiController?.abort();
+  else if (act === 'ai-settings') aiSettingsSheet({ thenSearch: true });
   else if (act === 'reorder-done') {
     reorderMode = false;
     render();

@@ -494,3 +494,12 @@ main {
 .dragging { box-shadow: var(--shadow); opacity: 0.96; pointer-events: none; }
 .dragging .card, .dragging.item { border-color: var(--accent); }
 .drag-placeholder { border: 2px dashed var(--border); border-radius: var(--radius); background: var(--accent-soft); }
+
+/* ---- AI search ------------------------------------------------------------- */
+.ai-box { display: grid; gap: 10px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--accent-soft); }
+.ai-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ai-head svg, .ai-label svg, .why svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
+.ai-box .row-actions { margin: 0; }
+.ai-label { display: flex; align-items: center; gap: 6px; color: var(--accent); }
+.ai-none { margin: 0 4px 12px; }
+.why { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.82rem; color: var(--accent); }

@@ -1,0 +1,21 @@
+{
+  "name": "getcollectionsplus-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "getcollectionsplus.com: landing page, the mobile web app (/app), and Plus Sync accounts.",
+  "scripts": {
+    "copy-pwa": "node scripts/copy-pwa.mjs",
+    "predev": "node scripts/copy-pwa.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/copy-pwa.mjs",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "7.9.6",
+    "marked": "18.0.13",
+    "next": "16.3.8",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.env*.local
+.vercel
+# Copied in from the repo by scripts/copy-pwa.mjs on every dev/build
+public/app/
+public/lib/
+public/icons/
+public/img/

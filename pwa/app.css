@@ -520,6 +520,10 @@ main {
 }
 .color-swatch.on { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--text); }
 .color-swatch svg { stroke-width: 3; }
+.cover-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+.cover-pick { aspect-ratio: 1; padding: 0; border: 0; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.cover-pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover-pick.on { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--text); }
 
 /* ---- Archive: tap to look inside ------------------------------------------- */
 .bin-open { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; text-decoration: none; }

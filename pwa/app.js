@@ -15,6 +15,7 @@ import { sortCollectionResults, sortItemResults } from '../lib/searchrank.js';
 import { toLinkList } from '../lib/render.js';
 import { AI_PROVIDERS, getAiConfig, setAiConfig, isConfigured, resolveConfig, chat as aiChat } from '../lib/ai.js';
 import { buildCatalog, searchRequest, parseSearchResults } from '../lib/semantic.js';
+import { fileToCover } from '../lib/image.js';
 import { DROPBOX_APP_KEY } from './config.js';
 
 // MUST run before any store.js call: store.js resolves its backend on each
@@ -296,13 +297,23 @@ function coverOf(c) {
   return safeImg(c.cover) || safeImg(first?.thumbnail || first?.src);
 }
 
+/** A cover can be a solid color ("#rrggbb"), as the extension's color picker sets. */
+const isColorCover = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+
+/** A collection's tile: its color, its picture, or a letter on a stable color. */
+function coverArt(c) {
+  const letter = esc((c.title || '?').trim().charAt(0).toUpperCase());
+  if (isColorCover(c.cover)) return `<span class="cover letter" style="background:${c.cover}">${letter}</span>`;
+  const img = coverOf(c);
+  return img
+    ? `<img class="cover" src="${esc(img)}" ${imgAttrs}>`
+    : `<span class="cover letter" style="background:${tileColor(c.id)}">${letter}</span>`;
+}
+
 function collectionCard(c) {
-  const cover = coverOf(c);
   const kids = data.collections.filter((x) => x.parentId === c.id).length;
   const meta = [plural(c.items.length, 'item'), kids ? plural(kids, 'collection') : ''].filter(Boolean).join(' · ');
-  const art = cover
-    ? `<img class="cover" src="${esc(cover)}" ${imgAttrs}>`
-    : `<span class="cover letter" style="background:${tileColor(c.id)}">${esc((c.title || '?').trim().charAt(0).toUpperCase())}</span>`;
+  const art = coverArt(c);
   const tags = (c.tags || [])
     .slice(0, 3)
     .map((t) => `<span class="tag" data-act="tag" data-tag="${esc(t)}" role="button">${esc(t)}</span>`)
@@ -867,12 +878,7 @@ function renderBin(isTrash) {
         : plural(obj.items.length, 'item') + (e.subCount ? ` · ${plural(e.subCount, 'collection')}` : '');
       const when = isTrash ? e.deletedAt : e.archivedAt;
       const left = isTrash ? Math.max(1, TRASH_DAYS - Math.floor((Date.now() - when) / DAY)) : 0;
-      const cover = folder ? '' : coverOf(obj);
-      const art = folder
-        ? `<span class="cover bin-icon">${icon('folder')}</span>`
-        : cover
-          ? `<img class="cover" src="${esc(cover)}" ${imgAttrs}>`
-          : `<span class="cover letter" style="background:${tileColor(obj.id)}">${esc((title || '?').trim().charAt(0).toUpperCase())}</span>`;
+      const art = folder ? `<span class="cover bin-icon">${icon('folder')}</span>` : coverArt(obj);
       const main = `${art}
           <span class="card-main">
             <span class="card-title"><span>${esc(title)}</span></span>
@@ -924,7 +930,7 @@ function renderBinCollection(bin, id) {
   const kidRow = (k) => {
     const n = pool.filter((x) => x.parentId === k.id).length;
     const meta = [plural(k.items.length, 'item'), n ? plural(n, 'collection') : ''].filter(Boolean).join(' · ');
-    const main = `<span class="cover letter" style="background:${tileColor(k.id)}">${esc((k.title || '?').trim().charAt(0).toUpperCase())}</span>
+    const main = `${coverArt(k)}
       <span class="card-main"><span class="card-title"><span>${esc(k.title)}</span></span><span class="meta">${meta}</span></span>`;
     return reorderMode
       ? `<div class="drag-node" data-kind="collection" data-id="${esc(k.id)}"><div class="card"><span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>${main}</div></div>`
@@ -1708,6 +1714,7 @@ function collectionMenu(c) {
     `<div class="menu-list">
       ${menuItem('share', 'share', 'Share links')}
       ${menuItem('rename', 'edit', 'Rename')}
+      ${menuItem('cover', 'image', 'Cover')}
       ${menuItem('pin', 'pin', c.pinned ? 'Unpin' : 'Pin to top')}
       ${menuItem('moveto', 'folder', 'Move to…')}
       ${menuItem('archive', 'archive', 'Archive')}
@@ -1730,6 +1737,7 @@ function collectionMenu(c) {
       share: () => {
         shareCollection(c); // starts inside the tap, so the share sheet is allowed
       },
+      cover: () => (coverSheet(c), true),
       pin: () => edit(() => store.setPinned(c.id, !c.pinned)),
       moveto: () => (moveCollectionSheet(c), true),
       archive: async () => {
@@ -1760,6 +1768,78 @@ function collectionMenu(c) {
       },
     }
   );
+}
+
+/**
+ * Change a collection's cover, as the extension can: a photo from the phone,
+ * the picture of one of its pages, or a solid color. Covers sync, so the
+ * desktop shows the same one.
+ */
+function coverSheet(c) {
+  const pics = [
+    ...new Set(
+      c.items
+        .map((it) => safeImg(it.type === 'image' ? it.src : it.type === 'page' ? it.thumbnail : ''))
+        .filter(Boolean)
+    ),
+  ].slice(0, 12);
+  const cur = String(c.cover || '').toLowerCase();
+  const handlers = {
+    photo: () => pickCoverPhoto(c), // opens the picker inside the tap
+    remove: async () => {
+      await edit(() => store.setCover(c.id, null));
+      toast('Cover removed');
+    },
+  };
+  pics.forEach((src, i) => (handlers[`p${i}`] = () => edit(() => store.setCover(c.id, src))));
+  FOLDER_COLORS.forEach((hex, i) => (handlers[`c${i}`] = () => edit(() => store.setCover(c.id, hex))));
+  openSheet(
+    'Cover',
+    `<div class="menu-list">
+      ${menuItem('photo', 'image', 'Choose a photo…')}
+      ${c.cover ? menuItem('remove', 'close', 'Remove cover') : ''}
+    </div>
+    ${pics.length ? `<div class="section-label">From this collection</div>
+    <div class="cover-grid">${pics
+      .map(
+        (src, i) =>
+          `<button type="button" class="cover-pick${c.cover === src ? ' on' : ''}" data-sheet="p${i}" aria-label="Use this picture"><img src="${esc(src)}" ${imgAttrs}></button>`
+      )
+      .join('')}</div>` : ''}
+    <div class="section-label">Color</div>
+    <div class="swatch-grid">${FOLDER_COLORS.map(
+      (hex, i) =>
+        `<button type="button" class="color-swatch${cur === hex ? ' on' : ''}" data-sheet="c${i}" style="background:${hex}" aria-label="Color ${hex}">${cur === hex ? icon('check') : ''}</button>`
+    ).join('')}</div>`,
+    handlers
+  );
+}
+
+/** Pick a photo for a cover; it's shrunk first so the sync file stays small. */
+function pickCoverPhoto(c) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.hidden = true;
+  document.body.append(input);
+  input.addEventListener(
+    'change',
+    async () => {
+      const file = input.files[0];
+      input.remove();
+      if (!file) return;
+      try {
+        const url = await fileToCover(file);
+        await edit(() => store.setCover(c.id, url));
+        toast('Cover updated');
+      } catch {
+        toast('Couldn’t read that image');
+      }
+    },
+    { once: true }
+  );
+  input.addEventListener('cancel', () => input.remove(), { once: true });
+  input.click();
 }
 
 /**

@@ -71,6 +71,7 @@ On your computer, **Open all** opens a whole collection as tabs. Phones open one
 - **Move a collection:** in the collection, **⋯ → Move to…** puts it in a folder (or a new one), inside another collection, or back at the top.
 - **Folders:** tap the **⋮** beside a folder to rename it, give it a color, start a new collection inside it, or delete it. Deleting a folder keeps its collections.
 - **Pin**, **Rename**, **Archive** or **Move to Trash** a collection from its **⋯** menu.
+- **Change a cover:** in the collection, **⋯ → Cover** lets you choose a photo from your phone, use the picture from one of its pages, or pick a color. **Remove cover** goes back to the automatic one. Covers sync, so your computer shows the same one.
 - **Share links:** **⋯ → Share links** sends every link in a collection to another app, such as Messages or email.
 
 ## Archive and Trash

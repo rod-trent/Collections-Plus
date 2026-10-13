@@ -224,6 +224,7 @@ function route() {
   if (h.startsWith('c/')) return { name: 'collection', id: decodeURIComponent(h.slice(2)) };
   if (h === 'reading') return { name: 'reading' };
   if (h === 'archive') return { name: 'archive' };
+  if (h.startsWith('archive/')) return { name: 'archived', id: decodeURIComponent(h.slice(8)) };
   if (h === 'trash') return { name: 'trash' };
   if (h.startsWith('read/')) {
     const [, key = '', n = '0'] = h.split('/');
@@ -273,15 +274,17 @@ async function render() {
   const r = route();
   if (r.name === 'collection' && !findCol(r.id)) return go('#/');
   if (r.name === 'read' && r.key !== 'reading' && !findCol(r.key)) return go('#/');
+  if (r.name === 'archived' && !(data.archive || []).some((c) => c.id === r.id)) return go('#/archive');
   els.back.hidden = r.name === 'home';
   els.searchBtn.hidden = r.name !== 'home';
-  els.menuBtn.hidden = r.name === 'read';
+  els.menuBtn.hidden = r.name === 'read' || r.name === 'archived';
   els.searchbar.hidden = r.name !== 'home' || !(query || document.activeElement === els.search || els.searchbar.dataset.open);
-  els.fab.hidden = reorderMode || ['reading', 'read', 'archive', 'trash'].includes(r.name);
+  els.fab.hidden = reorderMode || ['reading', 'read', 'archive', 'trash', 'archived'].includes(r.name);
   if (r.name === 'home') renderHome();
   else if (r.name === 'collection') renderCollection(findCol(r.id));
   else if (r.name === 'read') renderRead(r);
   else if (r.name === 'archive' || r.name === 'trash') renderBin(r.name === 'trash');
+  else if (r.name === 'archived') renderArchived(r.id);
   else renderReading();
 }
 
@@ -485,7 +488,7 @@ function homeArrangement() {
 
 async function enterReorder() {
   const r = route();
-  const keys = r.name === 'home' ? ['collectionSort'] : ['itemSort', 'collectionSort'];
+  const keys = r.name === 'home' ? ['collectionSort'] : r.name === 'collection' ? ['itemSort', 'collectionSort'] : [];
   const sorted = keys.filter((k) => (settings[k] || 'manual') !== 'manual');
   if (sorted.length) {
     await store.setSettings(Object.fromEntries(sorted.map((k) => [k, 'manual'])));
@@ -518,7 +521,7 @@ els.view.addEventListener('pointerdown', (e) => {
   row.after(ph);
   Object.assign(row.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, zIndex: 30 });
   row.classList.add('dragging');
-  drag = { row, ph, container, offset: e.clientY - rect.top, y: e.clientY, id: e.pointerId, before: [...container.children].filter((x) => x !== ph).map((x) => x.dataset.id).join() };
+  drag = { row, ph, container, offset: e.clientY - rect.top, y: e.clientY, startY: e.clientY, moved: false, id: e.pointerId, before: [...container.children].filter((x) => x !== ph).map((x) => x.dataset.id).join() };
   dragging = true;
   try {
     handle.setPointerCapture(e.pointerId); // keep getting moves if the finger leaves the handle
@@ -531,6 +534,7 @@ els.view.addEventListener('pointerdown', (e) => {
 els.view.addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   drag.y = e.clientY;
+  if (Math.abs(drag.y - drag.startY) > 8) drag.moved = true;
   placeDrag();
 });
 
@@ -552,6 +556,7 @@ function placeDrag() {
 
 function autoScroll() {
   if (!drag) return;
+  if (!drag.moved) return requestAnimationFrame(autoScroll); // not until the finger moves
   const edge = 70;
   const top = els.view.getBoundingClientRect().top < 0 ? 0 : 120; // below the app bar
   let dy = 0;
@@ -577,6 +582,7 @@ async function endDrag(e) {
     const r = route();
     if (container.dataset.sortable === 'items') await edit(() => store.reorderItems(container.dataset.col, order));
     else if (container.dataset.sortable === 'subs') await edit(() => store.reorderSubcollections(container.dataset.parent, order));
+    else if (container.dataset.sortable === 'archive') await edit(() => store.reorderArchive(order));
     else if (r.name === 'home') await edit(() => store.saveArrangement(homeArrangement()));
   } else if (renderPending) {
     renderPending = false;
@@ -675,8 +681,8 @@ function fieldsHtml(it) {
     .join('')}</span>`;
 }
 
-function itemRow(it, c, { showCollection = false, checks = false, drag = false, why = '' } = {}) {
-  let more = `<button class="icon-btn more-btn" data-act="item-menu" data-col="${esc(c.id)}" data-id="${esc(it.id)}" aria-label="Item options">${icon('moreV')}</button>`;
+function itemRow(it, c, { showCollection = false, checks = false, drag = false, why = '', readOnly = false } = {}) {
+  let more = readOnly ? '' : `<button class="icon-btn more-btn" data-act="item-menu" data-col="${esc(c.id)}" data-id="${esc(it.id)}" aria-label="Item options">${icon('moreV')}</button>`;
   const from =
     (why ? `<div class="why">${icon('sparkle')}${esc(why)}</div>` : '') +
     (showCollection ? `<div class="from">in ${esc(c.title)}</div>` : '');
@@ -813,8 +819,8 @@ function binEntries(isTrash) {
       .filter((e) => store.isTopBinEntry(data, e))
       .map((e) => ({ ...e, subCount: store.binSubtreeCount(data, e, true) }));
   }
-  return (data.archive || [])
-    .filter((c) => store.isTopBinEntry(data, c))
+  return store
+    .archiveInOrder(data)
     .map((c) => ({ id: c.id, kind: 'collection', archivedAt: c.archivedAt, collection: c, subCount: store.binSubtreeCount(data, c, false) }));
 }
 
@@ -844,21 +850,66 @@ function renderBin(isTrash) {
         : cover
           ? `<img class="cover" src="${esc(cover)}" ${imgAttrs}>`
           : `<span class="cover letter" style="background:${tileColor(obj.id)}">${esc((title || '?').trim().charAt(0).toUpperCase())}</span>`;
-      return `<div class="card bin-row">
-          ${art}
+      const main = `${art}
           <span class="card-main">
             <span class="card-title"><span>${esc(title)}</span></span>
             <span class="meta">${count}</span>
             <span class="meta">${isTrash ? `Deleted ${whenAgo(when)} · gone in ${plural(left, 'day')}` : `Archived ${whenAgo(when)}`}</span>
-          </span>
+          </span>`;
+      if (!isTrash && reorderMode) {
+        return `<div class="drag-node" data-kind="archive" data-id="${esc(e.id)}"><div class="card bin-row"><span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>${main}</div></div>`;
+      }
+      return `<div class="card bin-row">
+          ${isTrash ? main : `<a class="bin-open" href="#/archive/${encodeURIComponent(obj.id)}">${main}</a>`}
           <button class="btn small" data-act="bin-restore" data-id="${esc(e.id)}">Restore</button>
           <button class="icon-btn more-btn" data-act="bin-menu" data-id="${esc(e.id)}" aria-label="More options">${icon('moreV')}</button>
         </div>`;
     })
     .join('');
-  els.view.innerHTML = `${isTrash ? `<div class="toolbar"><button class="chip danger" data-act="empty-trash">${icon('trash')}Empty Trash</button></div>` : ''}
-    <p class="bin-note meta">${isTrash ? 'Deleted collections and folders are removed for good after 30 days.' : 'Archived collections stay out of your main list until you restore them.'}</p>
+  if (!isTrash && reorderMode) {
+    els.view.innerHTML = `${reorderBar('Drag ⠿ to rearrange your archived collections.')}
+      <div class="stack" data-sortable="archive">${rows}</div>`;
+    return;
+  }
+  els.view.innerHTML = `${isTrash
+      ? `<div class="toolbar"><button class="chip danger" data-act="empty-trash">${icon('trash')}Empty Trash</button></div>`
+      : entries.length > 1
+        ? `<div class="toolbar"><button class="chip" data-act="reorder">${icon('reorder')}Reorder</button></div>`
+        : ''}
+    <p class="bin-note meta">${isTrash ? 'Deleted collections and folders are removed for good after 30 days.' : 'Archived collections stay out of your main list until you restore them. Tap one to look inside.'}</p>
     <div class="stack">${rows}</div>`;
+}
+
+/**
+ * Look inside an archived collection: read-only, with Restore. Its archived
+ * subcollections can be put in order (Reorder) and opened the same way.
+ */
+function renderArchived(id) {
+  const c = data.archive.find((x) => x.id === id);
+  setTitle(c.title);
+  const kids = data.archive.filter((x) => x.parentId === c.id).sort(byOrder);
+  const kidRow = (k) => {
+    const n = data.archive.filter((x) => x.parentId === k.id).length;
+    const meta = [plural(k.items.length, 'item'), n ? plural(n, 'collection') : ''].filter(Boolean).join(' · ');
+    const main = `<span class="cover letter" style="background:${tileColor(k.id)}">${esc((k.title || '?').trim().charAt(0).toUpperCase())}</span>
+      <span class="card-main"><span class="card-title"><span>${esc(k.title)}</span></span><span class="meta">${meta}</span></span>`;
+    return reorderMode
+      ? `<div class="drag-node" data-kind="collection" data-id="${esc(k.id)}"><div class="card"><span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>${main}</div></div>`
+      : `<a class="card" href="#/archive/${encodeURIComponent(k.id)}">${main}<span class="chev">${icon('chev')}</span></a>`;
+  };
+  if (reorderMode) {
+    els.view.innerHTML = `${reorderBar('Drag ⠿ to rearrange the collections in this archived collection.')}
+      <div class="stack" data-sortable="subs" data-parent="${esc(c.id)}">${kids.map(kidRow).join('')}</div>`;
+    return;
+  }
+  els.view.innerHTML = `<div class="ai-box archived-note">
+      <div class="ai-head">${icon('archive')}<span>Archived ${esc(whenAgo(c.archivedAt))} · read-only</span></div>
+      <div class="row-actions"><button class="btn small primary" data-act="archived-restore" data-id="${esc(c.id)}">Restore</button></div>
+    </div>
+    ${kids.length > 1 ? `<div class="toolbar"><button class="chip" data-act="reorder">${icon('reorder')}Reorder</button></div>` : ''}
+    ${kids.length ? `<div class="section-label">Collections</div><div class="stack">${kids.map(kidRow).join('')}</div>` : ''}
+    ${c.items.length ? `<div class="section-label">Items</div><div class="stack">${c.items.map((it) => itemRow(it, c, { readOnly: true })).join('')}</div>` : ''}
+    ${!kids.length && !c.items.length ? '<div class="empty"><h2>Nothing in here</h2></div>' : ''}`;
 }
 
 function binEntry(isTrash, id) {
@@ -1914,6 +1965,12 @@ els.view.addEventListener('click', async (e) => {
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
   else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
   else if (act === 'reorder') enterReorder();
+  else if (act === 'archived-restore') {
+    const c = data.archive.find((x) => x.id === el.dataset.id);
+    await edit(() => store.unarchiveCollection(el.dataset.id));
+    go(`#/c/${encodeURIComponent(el.dataset.id)}`);
+    toast(`“${c?.title || 'Collection'}” restored`);
+  }
   else if (act === 'folder-menu') folderMenu(el.dataset.id);
   else if (act === 'ai-search') runAiSearch();
   else if (act === 'ai-cancel') aiController?.abort();
@@ -1968,6 +2025,11 @@ els.view.addEventListener('click', async (e) => {
 els.back.addEventListener('click', () => {
   const r = route();
   if (r.name === 'read') return go(r.key === 'reading' ? '#/reading' : `#/c/${encodeURIComponent(r.key)}`);
+  if (r.name === 'archived') {
+    const c = data.archive.find((x) => x.id === r.id);
+    const up = c && data.archive.find((x) => x.id === c.parentId);
+    return go(up ? `#/archive/${encodeURIComponent(up.id)}` : '#/archive');
+  }
   const c = r.name === 'collection' ? findCol(r.id) : null;
   const parent = c?.parentId && findCol(c.parentId);
   go(parent ? `#/c/${encodeURIComponent(parent.id)}` : '#/');

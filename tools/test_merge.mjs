@@ -258,6 +258,22 @@ console.log('\nsubcollection order syncs:');
   assert(JSON.stringify(await order('B')) === '["Three","One","Two"]', 'and B keeps it');
 }
 
+console.log('\nArchive order syncs:');
+{
+  await seed();
+  const ids = [];
+  for (const t of ['X', 'Y', 'Z']) {
+    const c = await on('A', () => store.createCollection(t));
+    await on('A', () => store.archiveCollection(c.id));
+    ids.push(c.id);
+  }
+  await sync();
+  await on('B', () => store.reorderArchive([ids[1], ids[2], ids[0]]));
+  await sync();
+  const shown = async (dev) => store.archiveInOrder(await on(dev, store.getData)).map((c) => c.title);
+  assert(JSON.stringify(await shown('A')) === '["Y","Z","X"]', "B's Archive order reaches A");
+}
+
 console.log('\nmerge properties:');
 {
   const { col } = await seed();

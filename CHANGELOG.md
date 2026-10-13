@@ -18,6 +18,13 @@ switch to organize mode (**Ctrl+K → Organize collections**), and drag their
 **⠿** handles. The new order syncs to your other devices, including the mobile
 app, where **Reorder** inside a collection now covers its collections too.
 
+**Arrange your Archive, and look inside it.** Drag the **⠿** handles in
+**⋯ → Archive** to put archived collections in the order you want; anything you
+archive later appears at the top. Click an archived collection to look inside
+it without restoring it: its pages, notes and the collections archived with it,
+which you can put in order too, ready for when you bring it back. **Restore it**
+is right there when you need it.
+
 ## 2.10.0
 
 **Sync no longer overwrites your other device's changes.** File sync used to

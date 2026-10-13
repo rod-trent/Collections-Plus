@@ -541,6 +541,60 @@ console.log('\nreorderSubcollections:');
   );
 }
 
+console.log('\nArchive order:');
+{
+  reset();
+  const wait = () => new Promise((r) => setTimeout(r, 3));
+  const mk = async (t) => {
+    const c = await store.createCollection(t);
+    await wait();
+    return c;
+  };
+  const a = await mk('A');
+  const b = await mk('B');
+  const c = await mk('C');
+  for (const x of [a, b, c]) {
+    await store.archiveCollection(x.id);
+    await wait();
+  }
+  const shown = async () => store.archiveInOrder(await store.getData()).map((x) => x.title);
+  assert(JSON.stringify(await shown()) === '["C","B","A"]', 'unarranged Archive shows newest first');
+  await store.reorderArchive([a.id, c.id, b.id]);
+  assert(JSON.stringify(await shown()) === '["A","C","B"]', 'reorderArchive sets the order');
+  const d = await mk('D');
+  await store.archiveCollection(d.id);
+  assert(JSON.stringify(await shown()) === '["D","A","C","B"]', 'something archived later lands on top');
+  await store.unarchiveCollection(c.id);
+  const restored = (await store.getData()).collections.find((x) => x.id === c.id);
+  assert(restored && !('archiveOrder' in restored), 'restoring clears the archive position');
+  assert(JSON.stringify(await shown()) === '["D","A","B"]', 'the rest keep their order');
+
+  // Subcollections of an archived collection reorder inside the Archive.
+  const p = await mk('Parent');
+  const k1 = await store.createSubCollection(p.id, 'K1');
+  const k2 = await store.createSubCollection(p.id, 'K2');
+  const k3 = await store.createSubCollection(p.id, 'K3');
+  await store.archiveCollection(p.id);
+  await store.reorderSubcollections(p.id, [k3.id, k1.id, k2.id]);
+  const archivedKids = (await store.getData()).archive
+    .filter((x) => x.parentId === p.id)
+    .sort((x, y) => x.order - y.order)
+    .map((x) => x.title);
+  assert(JSON.stringify(archivedKids) === '["K3","K1","K2"]', 'archived subcollections reorder in the Archive');
+  assert(JSON.stringify(await shown()) === '["Parent","D","A","B"]', 'archived subcollections stay listed under their parent');
+
+  // An active parent with one archived child: only active children reorder.
+  const q = await mk('Q');
+  const q1 = await store.createSubCollection(q.id, 'Q1');
+  const q2 = await store.createSubCollection(q.id, 'Q2');
+  await store.archiveCollection(q1.id);
+  const archivedOrderBefore = (await store.getData()).archive.find((x) => x.id === q1.id).order;
+  await store.reorderSubcollections(q.id, [q2.id, q1.id]);
+  const after = await store.getData();
+  assert(after.archive.find((x) => x.id === q1.id).order === archivedOrderBefore, 'an archived child is untouched by its active parent’s reorder');
+  assert(after.collections.find((x) => x.id === q2.id).order === 0, 'active children still reorder');
+}
+
 console.log('');
 if (failures) {
   console.error(`${failures} assertion(s) failed`);

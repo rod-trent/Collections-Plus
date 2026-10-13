@@ -839,6 +839,57 @@ body {
   opacity: 1;
 }
 
+/* Archive: drag handle, clickable rows, and the read-only look inside. */
+.bin-handle {
+  flex: none;
+  align-self: center;
+  padding: 4px 2px;
+  color: var(--text-faint);
+  cursor: grab;
+  user-select: none;
+}
+.bin-peekable {
+  cursor: pointer;
+}
+.bin-peekable:hover {
+  border-color: var(--accent);
+}
+.peek-label {
+  padding: 12px 4px 4px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.peek-subs {
+  display: grid;
+  gap: 8px;
+}
+.peek-item {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.peek-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.peek-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.peek-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.peek-empty {
+  padding: 16px;
+}
+
 /* ---- Detail view ---- */
 .title-input {
   flex: 1;

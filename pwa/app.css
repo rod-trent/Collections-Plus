@@ -520,3 +520,8 @@ main {
 }
 .color-swatch.on { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--text); }
 .color-swatch svg { stroke-width: 3; }
+
+/* ---- Archive: tap to look inside ------------------------------------------- */
+.bin-open { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; text-decoration: none; }
+.bin-open:active { opacity: 0.7; }
+.archived-note { margin-top: 4px; }

@@ -8,6 +8,8 @@ import {
   collectionPath,
   isTopBinEntry,
   binSubtreeCount,
+  archiveInOrder,
+  reorderArchive,
   renameCollection,
   insertItem,
   ensureActiveCollection,
@@ -138,6 +140,7 @@ const els = {
 let openId = null;
 let lastData = null; // the blob the current view was rendered from (for nesting lookups)
 let binMode = null; // 'trash' | 'archive' | null — which holding area is open
+let archivePeek = null; // id of the archived collection being looked inside (read-only)
 let fileMode = null; // 'csv' | 'json' | 'cover'
 let query = ''; // current list-view search text (lower-cased)
 let itemFilter = ''; // current in-collection item filter (lower-cased)
@@ -1191,13 +1194,15 @@ function renderBin(data) {
 
   $('#mark-all-read-btn').hidden = true;
   const isTrash = binMode === 'trash';
+  if (!isTrash && archivePeek) {
+    if ((data.archive || []).some((c) => c.id === archivePeek)) return renderArchivePeek(data);
+    archivePeek = null; // restored or deleted meanwhile
+  }
   // Normalize archive collections into the same {kind, …} shape trash uses.
   // Subcollections trashed/archived with a parent are listed under it.
   const entries = isTrash
     ? (data.trash || []).filter((e) => isTopBinEntry(data, e))
-    : (data.archive || [])
-        .filter((c) => isTopBinEntry(data, c))
-        .map((c) => ({
+    : archiveInOrder(data).map((c) => ({
           id: c.id,
           kind: 'collection',
           archivedAt: c.archivedAt,
@@ -1222,6 +1227,10 @@ function renderBin(data) {
   for (const e of entries) {
     if (isTrash) e.subCount = binSubtreeCount(data, e, true);
     els.binList.appendChild(buildBinRow(e, isTrash));
+  }
+  if (!isTrash && entries.length) {
+    els.binNote.textContent =
+      'Archived collections stay out of your main list until you restore them. Click one to look inside; drag ⠿ to rearrange.';
   }
 }
 
@@ -1296,7 +1305,9 @@ function buildBinRow(entry, isTrash) {
       (entry.subCount ? ` · ${entry.subCount} collection${entry.subCount === 1 ? '' : 's'}` : '');
   const meta = `${count} · ${isTrash ? 'deleted' : 'archived'} ${relativeTime(when)}`;
 
+  row.dataset.id = entry.id;
   row.innerHTML = `
+    ${isTrash ? '' : '<span class="bin-handle" title="Drag to reorder">⠿</span>'}
     ${cover}
     <div class="card-body">
       <div class="card-title">${escapeHtml(title)}</div>
@@ -1342,7 +1353,151 @@ function buildBinRow(entry, isTrash) {
     }
   });
 
+  if (!isTrash) {
+    row.classList.add('bin-peekable');
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button, .bin-handle') || row.dataset.dragged) return;
+      archivePeek = obj.id;
+      render();
+    });
+    wireRowDrag(row, els.binList, '.bin-handle', (ids) => reorderArchive(ids));
+  }
+
   return row;
+}
+
+// ---- Looking inside an archived collection -------------------------------
+// Read-only: its items and the subcollections archived with it. The
+// subcollections can be put in order (ready for when it's restored), and
+// clicking one looks inside it.
+
+function renderArchivePeek(data) {
+  const c = data.archive.find((x) => x.id === archivePeek);
+  els.binTitle.textContent = c.title;
+  els.emptyTrashBtn.hidden = true;
+  $('#mark-all-read-btn').hidden = true;
+  els.binEmpty.hidden = true;
+
+  els.binNote.hidden = false;
+  els.binNote.innerHTML = `Archived ${escapeHtml(relativeTime(c.archivedAt))} · read-only. <button class="link-btn" data-peek-restore>Restore it</button> to make changes.`;
+  els.binNote.querySelector('[data-peek-restore]').addEventListener('click', async () => {
+    await unarchiveCollection(c.id);
+    archivePeek = null;
+    toast(`"${c.title}" restored`);
+    open(c.id);
+  });
+
+  const kids = data.archive
+    .filter((x) => x.parentId === c.id)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  els.binList.hidden = false;
+  els.binList.innerHTML = '';
+
+  if (kids.length) {
+    const label = document.createElement('div');
+    label.className = 'peek-label';
+    label.textContent = 'Collections';
+    els.binList.appendChild(label);
+    const list = document.createElement('div');
+    list.className = 'peek-subs';
+    for (const k of kids) {
+      const row = document.createElement('div');
+      row.className = 'card bin-row bin-peekable';
+      row.dataset.id = k.id;
+      const n = k.items.length;
+      const inner = data.archive.filter((x) => x.parentId === k.id).length;
+      row.innerHTML = `
+        ${kids.length > 1 ? '<span class="bin-handle" title="Drag to reorder">⠿</span>' : ''}
+        <div class="card-cover">🗂️</div>
+        <div class="card-body">
+          <div class="card-title">${escapeHtml(k.title)}</div>
+          <div class="card-meta">${n} item${n === 1 ? '' : 's'}${inner ? ` · ${inner} collection${inner === 1 ? '' : 's'}` : ''}</div>
+        </div>`;
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.bin-handle') || row.dataset.dragged) return;
+        archivePeek = k.id;
+        render();
+      });
+      if (kids.length > 1) wireRowDrag(row, list, '.bin-handle', (ids) => reorderSubcollections(c.id, ids));
+      list.appendChild(row);
+    }
+    els.binList.appendChild(list);
+  }
+
+  if (c.items.length) {
+    const label = document.createElement('div');
+    label.className = 'peek-label';
+    label.textContent = kids.length ? 'Items' : `${c.items.length} item${c.items.length === 1 ? '' : 's'}`;
+    els.binList.appendChild(label);
+    for (const it of c.items) {
+      const row = document.createElement('div');
+      row.className = 'peek-item';
+      const url = it.type === 'page' || it.type === 'highlight' ? it.url : it.type === 'image' ? it.srcPageUrl : '';
+      const safe = /^https?:\/\//i.test(url || '') ? url : '';
+      const text =
+        it.type === 'note' ? it.text : it.type === 'highlight' ? `“${it.text}”` : it.type === 'image' ? it.alt || 'Image' : it.title || it.url;
+      row.innerHTML = safe
+        ? `<a href="${escapeHtml(safe)}" class="peek-link">${escapeHtml(text || safe)}</a><span class="card-meta">${escapeHtml(hostOf(safe))}</span>`
+        : `<span class="peek-text">${escapeHtml(text || '')}</span>`;
+      if (safe) {
+        row.querySelector('a').addEventListener('click', (e) => {
+          e.preventDefault();
+          openItemUrl(safe, { forceNewTab: true });
+        });
+      }
+      els.binList.appendChild(row);
+    }
+  }
+
+  if (!kids.length && !c.items.length) {
+    els.binList.innerHTML = '<p class="empty-sub peek-empty">This collection is empty.</p>';
+  }
+}
+
+/**
+ * Drag rows within `list` by their handle (HTML5 drag and drop). Dropping on
+ * a row's upper half lands before it, its lower half after it. `onDrop`
+ * receives the ids in their new order.
+ */
+function wireRowDrag(row, list, handleSel, onDrop) {
+  const handle = row.querySelector(handleSel);
+  if (!handle) return;
+  handle.addEventListener('mousedown', () => {
+    row.draggable = true;
+  });
+  row.addEventListener('mouseup', () => {
+    row.draggable = false;
+  });
+  row.addEventListener('dragstart', (e) => {
+    list.dataset.dragging = row.dataset.id;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  row.addEventListener('dragend', () => {
+    delete list.dataset.dragging;
+    row.draggable = false;
+    row.classList.remove('dragging');
+    list.querySelectorAll('.drop-target').forEach((x) => x.classList.remove('drop-target'));
+    row.dataset.dragged = '1'; // swallow the click some browsers fire after a drag
+    setTimeout(() => delete row.dataset.dragged, 0);
+  });
+  row.addEventListener('dragover', (e) => {
+    if (!list.dataset.dragging) return;
+    e.preventDefault();
+    if (row.dataset.id !== list.dataset.dragging) row.classList.add('drop-target');
+  });
+  row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+  row.addEventListener('drop', async (e) => {
+    const id = list.dataset.dragging;
+    if (!id) return;
+    e.preventDefault();
+    row.classList.remove('drop-target');
+    const dragged = [...list.children].find((x) => x.dataset.id === id);
+    if (!dragged || dragged === row) return;
+    const r = row.getBoundingClientRect();
+    list.insertBefore(dragged, e.clientY > r.top + r.height / 2 ? row.nextSibling : row);
+    await onDrop([...list.children].map((x) => x.dataset.id).filter(Boolean));
+  });
 }
 
 // ---- Drag & drop reorder (collection list) ---------------------------------
@@ -1941,6 +2096,7 @@ function wireDrag(row, collectionId) {
 
 async function open(id) {
   binMode = null;
+  archivePeek = null;
   openId = id;
   itemFilter = '';
   if (els.itemFilterInput) els.itemFilterInput.value = '';
@@ -1952,6 +2108,14 @@ function back() {
   // From an AI view, go back to wherever the user was (a collection or the list).
   if (aiMode) {
     aiMode = null;
+    render();
+    return;
+  }
+  // Looking inside an archived collection: up to its archived parent, then the Archive.
+  if (binMode === 'archive' && archivePeek) {
+    const c = (lastData?.archive || []).find((x) => x.id === archivePeek);
+    const up = c && (lastData.archive || []).find((x) => x.id === c.parentId);
+    archivePeek = up ? up.id : null;
     render();
     return;
   }
@@ -1968,6 +2132,7 @@ function back() {
 
 function openBin(mode) {
   binMode = mode;
+  archivePeek = null;
   openId = null;
   aiMode = null;
   render();

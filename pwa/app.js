@@ -11,6 +11,7 @@ import { createDropboxAdapter } from '../lib/dropbox-adapter.js';
 import { syncOnce } from '../lib/sync-engine.js';
 import { matchRule } from '../lib/rules.js';
 import { sortItems, sortCollections } from '../lib/sortview.js';
+import { sortCollectionResults, sortItemResults } from '../lib/searchrank.js';
 import { toLinkList } from '../lib/render.js';
 import { AI_PROVIDERS, getAiConfig, setAiConfig, isConfigured, resolveConfig, chat as aiChat } from '../lib/ai.js';
 import { buildCatalog, searchRequest, parseSearchResults } from '../lib/semantic.js';
@@ -169,6 +170,7 @@ const CHECKS_KEY = 'cp.checklists'; // per-device: { [collectionId]: true|false 
 
 const ITEM_SORTS = { manual: 'Your order', newest: 'Newest first', oldest: 'Oldest first', title: 'A–Z' };
 const COLLECTION_SORTS = { manual: 'Your order', newest: 'Recently updated', title: 'A–Z' };
+const SEARCH_SORTS = { best: 'Best match', newest: 'Newest', oldest: 'Oldest', title: 'A–Z', collection: 'By collection' };
 
 function checkPrefs() {
   try {
@@ -598,7 +600,7 @@ els.view.addEventListener('pointercancel', endDrag);
 function aiSection() {
   if (aiSearch && aiSearch.q !== query) aiSearch = null; // the query changed
   if (!aiSearch) {
-    return `<div class="toolbar"><button class="chip accent" data-act="ai-search">${icon('sparkle')}Search by meaning</button></div>`;
+    return `<div class="toolbar"><button class="chip accent" data-act="ai-search">${icon('sparkle')}Search by meaning</button>${searchSortChip()}</div>`;
   }
   if (aiSearch.busy) {
     return `<div class="ai-box"><div class="ai-head">${icon('sparkle')}<span>Searching ${plural(aiSearch.count, 'item')} by meaning…</span></div>
@@ -615,7 +617,7 @@ function aiSection() {
       return it ? itemRow(it, c, { showCollection: true, why: r.why }) : '';
     })
     .filter(Boolean);
-  return `<div class="section-label ai-label">${icon('sparkle')}By meaning${aiSearch.truncated ? ' · first 250 items' : ''}</div>
+  return `<div class="toolbar">${searchSortChip()}</div><div class="section-label ai-label">${icon('sparkle')}By meaning${aiSearch.truncated ? ' · first 250 items' : ''}</div>
     ${rows.length ? `<div class="stack">${rows.join('')}</div>` : '<p class="meta ai-none">Nothing related turned up.</p>'}`;
 }
 
@@ -646,11 +648,16 @@ async function runAiSearch() {
   if (route().name === 'home' && query) renderSearch();
 }
 
+function searchSortChip() {
+  const mode = SEARCH_SORTS[settings.searchSort] ? settings.searchSort : 'best';
+  return `<button class="chip" data-act="sort-search">${icon('sort')}${esc(SEARCH_SORTS[mode])}</button>`;
+}
+
 function renderSearch() {
   const q = query.toLowerCase();
   const hit = (s) => String(s || '').toLowerCase().includes(q);
-  const cols = data.collections.filter((c) => hit(c.title) || (c.tags || []).some(hit));
-  const items = [];
+  const mode = SEARCH_SORTS[settings.searchSort] ? settings.searchSort : 'best';
+  let items = [];
   for (const c of data.collections) {
     for (const it of c.items) {
       if (hit(itemText(it)) || hit(it.url) || hit(it.note) || Object.values(it.fields || {}).some(hit)) {
@@ -658,6 +665,15 @@ function renderSearch() {
       }
     }
   }
+  const counts = new Map();
+  for (const { c } of items) counts.set(c.id, (counts.get(c.id) || 0) + 1);
+  const cols = sortCollectionResults(
+    data.collections.filter((c) => hit(c.title) || (c.tags || []).some(hit)),
+    q,
+    mode,
+    (c) => counts.get(c.id) || 0
+  );
+  items = sortItemResults(items, q, mode);
   const ai = aiSection();
   if (!cols.length && !items.length) {
     els.view.innerHTML = `${ai}${aiSearch?.results || aiSearch?.busy ? '' : `<div class="empty"><h2>No matches</h2><p>Nothing contains “${esc(query)}”. Try searching by meaning above.</p></div>`}`;
@@ -1115,9 +1131,9 @@ async function shareCollection(c) {
 }
 
 function sortSheet(kind) {
-  const options = kind === 'items' ? ITEM_SORTS : COLLECTION_SORTS;
-  const key = kind === 'items' ? 'itemSort' : 'collectionSort';
-  const current = settings[key] || 'manual';
+  const options = kind === 'items' ? ITEM_SORTS : kind === 'search' ? SEARCH_SORTS : COLLECTION_SORTS;
+  const key = kind === 'items' ? 'itemSort' : kind === 'search' ? 'searchSort' : 'collectionSort';
+  const current = settings[key] || (kind === 'search' ? 'best' : 'manual');
   const handlers = {};
   for (const mode of Object.keys(options)) {
     handlers[mode] = async () => {
@@ -1126,7 +1142,7 @@ function sortSheet(kind) {
     };
   }
   openSheet(
-    kind === 'items' ? 'Sort items' : 'Sort collections',
+    kind === 'items' ? 'Sort items' : kind === 'search' ? 'Sort search results' : 'Sort collections',
     `<div class="menu-list">${Object.entries(options)
       .map(([mode, label]) => menuItem(mode, mode === current ? 'check' : 'sort', label, mode === current ? 'current' : ''))
       .join('')}</div>`,
@@ -2021,6 +2037,7 @@ els.view.addEventListener('click', async (e) => {
     else render();
   } else if (act === 'sort-collections') sortSheet('collections');
   else if (act === 'sort-items') sortSheet('items');
+  else if (act === 'sort-search') sortSheet('search');
   else if (act === 'read-through') {
     const r = route();
     startReadThrough(r.name === 'collection' ? r.id : 'reading');

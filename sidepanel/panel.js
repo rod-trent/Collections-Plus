@@ -85,6 +85,7 @@ import {
   digestRequest,
 } from '../lib/ai-organize.js';
 import { buildCatalog, searchRequest, parseSearchResults } from '../lib/semantic.js';
+import { sortCollectionResults, sortItemResults } from '../lib/searchrank.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -151,6 +152,7 @@ let viewPrefs = {
   itemSort: 'manual',
   itemDensity: 'comfortable',
   collectionSort: 'manual',
+  searchSort: 'best',
   collectionDensity: 'comfortable',
   readingListEnabled: true,
   openItemsIn: 'newTab',
@@ -967,7 +969,11 @@ function buildCard(c, { nested = false } = {}) {
   // result is obviously useful (and confirms the search reached item contents).
   let matchHtml = '';
   if (query) {
-    const m = matchingItems(c, query);
+    const m = sortItemResults(
+      matchingItems(c, query).map((it) => ({ it, c })),
+      query,
+      viewPrefs.searchSort === 'best' ? 'best' : 'collection'
+    ).map((r) => r.it);
     if (m.length) {
       const shown = m.slice(0, 3).map((it) => escapeHtml(itemDisplayName(it)));
       const extra = m.length > 3 ? ` +${m.length - 3} more` : '';
@@ -1149,7 +1155,10 @@ function renderList(data) {
 
   // While searching, show a flat list (no folder grouping).
   if (query) {
-    for (const c of arrange(filtered)) els.collections.appendChild(buildCard(c));
+    // Search results follow the search sort (Best match by default), not the
+    // list's own sort, so a search never disturbs your arrangement.
+    const ranked = sortCollectionResults(filtered, query, viewPrefs.searchSort, (c) => matchingItems(c, query).length);
+    for (const c of ranked) els.collections.appendChild(buildCard(c));
     return;
   }
 
@@ -1772,6 +1781,9 @@ function setOrganizing(on) {
   if (bar) bar.hidden = !organizing;
 }
 
+const LIST_SORTS = { manual: 'Manual', newest: 'Newest', title: 'A–Z' };
+const SEARCH_SORTS = { best: 'Best match', newest: 'Recently updated', title: 'A–Z' };
+
 /** Reflect the current view prefs onto the toolbar controls. */
 function syncViewControls() {
   const is = $('#item-sort');
@@ -1779,7 +1791,20 @@ function syncViewControls() {
   const dens = $('#item-density-btn');
   if (dens) dens.textContent = viewPrefs.itemDensity === 'compact' ? '▤' : '▥';
   const cs = $('#collection-sort');
-  if (cs) cs.value = viewPrefs.collectionSort;
+  if (cs) {
+    // While searching, the same control sorts the results instead.
+    const mode = query ? 'search' : 'list';
+    if (cs.dataset.mode !== mode) {
+      const opts = query ? SEARCH_SORTS : LIST_SORTS;
+      cs.innerHTML = Object.entries(opts)
+        .map(([v, label]) => `<option value="${v}">${label}</option>`)
+        .join('');
+      cs.dataset.mode = mode;
+      cs.title = query ? 'Sort search results' : 'Sort collections';
+      cs.setAttribute('aria-label', cs.title);
+    }
+    cs.value = query ? viewPrefs.searchSort : viewPrefs.collectionSort;
+  }
   const cdens = $('#collection-density-btn');
   if (cdens) cdens.textContent = viewPrefs.collectionDensity === 'compact' ? '▤' : '▥';
 }
@@ -3585,7 +3610,9 @@ async function setViewPref(patch) {
   render();
   await setSettings(patch);
 }
-$('#collection-sort').addEventListener('change', (e) => setViewPref({ collectionSort: e.target.value }));
+$('#collection-sort').addEventListener('change', (e) =>
+  setViewPref(e.target.dataset.mode === 'search' ? { searchSort: e.target.value } : { collectionSort: e.target.value })
+);
 $('#item-sort').addEventListener('change', (e) => setViewPref({ itemSort: e.target.value }));
 $('#item-density-btn').addEventListener('click', () =>
   setViewPref({ itemDensity: viewPrefs.itemDensity === 'compact' ? 'comfortable' : 'compact' })
@@ -4390,6 +4417,7 @@ getSettings().then((s) => {
     itemSort: s.itemSort || 'manual',
     itemDensity: s.itemDensity || 'comfortable',
     collectionSort: s.collectionSort || 'manual',
+    searchSort: SEARCH_SORTS[s.searchSort] ? s.searchSort : 'best',
     collectionDensity: s.collectionDensity || 'comfortable',
     readingListEnabled: s.readingListEnabled !== false,
     openItemsIn: s.openItemsIn === 'currentTab' ? 'currentTab' : 'newTab',

@@ -59,7 +59,7 @@ On your computer, **Open all** opens a whole collection as tabs. Phones open one
 
 ## Find things
 
-- Tap **🔍** on the home screen to search every collection, including notes, tags and custom fields.
+- Tap **🔍** on the home screen to search every collection, including notes, tags and custom fields. Results come back **best match** first; tap the sort button to see them **newest**, **oldest**, **A–Z** or grouped **by collection**.
 - Tap a **tag** (on the home screen or on a collection) to see just the collections with that tag.
 - **Search by meaning** uses AI to find things that match what you mean, not just the words you typed. See [AI search](/help/ai).
 

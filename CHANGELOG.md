@@ -35,6 +35,13 @@ to line pages up in the order you plan to read them. Pages you save later appear
 at the top, and a page you mark unread again comes back on top too. The order
 syncs, so the mobile app's Reading list and **Read through** follow it.
 
+**Search results, best match first.** Searching now puts the closest matches on
+top: a collection whose name matches beats one with a matching tag, which beats
+one that only matches through a page inside it, and a name that *starts* with
+what you typed beats one that just contains it. While you're searching, the
+sort menu beside the search box switches to **Best match**, **Recently
+updated** or **A–Z**, and your list's own sort is left alone.
+
 ## 2.10.0
 
 **Sync no longer overwrites your other device's changes.** File sync used to

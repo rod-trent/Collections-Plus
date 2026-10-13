@@ -36,7 +36,7 @@ Hover a collection and click **▶ Open all** to open every page in it at once, 
 
 ## Finding things
 
-- **Search** at the top of the panel looks through every collection: titles, addresses, notes, tags and custom fields.
+- **Search** at the top of the panel looks through every collection: titles, addresses, notes, tags and custom fields. Results come back **best match** first (a match in a collection's name beats one in a tag or a page inside it); while you're searching, the sort menu beside the box switches to **Best match**, **Recently updated** or **A–Z** without changing how your list is normally sorted.
 - **AI search (✨)** finds things by meaning rather than exact words. It's optional. See [AI search](/help/ai).
 - **Ctrl+K** opens the command palette, to jump to any collection or run any command.
 - In the address bar, type **col**, a space, and a few words to search your saved pages.

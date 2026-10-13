@@ -9,7 +9,7 @@
 // Phase 3 will extend this worker with the share-target handler and a
 // Background-Sync queue for offline saves.
 
-const CACHE = 'cp-shell-v5';
+const CACHE = 'cp-shell-v6';
 const SHELL = ['./', './index.html', './app.css', './app.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

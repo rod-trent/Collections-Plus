@@ -76,6 +76,8 @@ const ICON = {
   prev: '<path d="M15 18l-6-6 6-6"/>',
   next: '<path d="M9 6l6 6-6 6"/>',
   tag: '<path d="M3 12V4a1 1 0 011-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/>',
+  archive: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9M10 13h4"/>',
+  restore: '<path d="M3 12a9 9 0 109-9 9.7 9.7 0 00-6.7 2.8L3 8M3 3v5h5"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -210,6 +212,8 @@ function route() {
   const h = location.hash.replace(/^#\/?/, '');
   if (h.startsWith('c/')) return { name: 'collection', id: decodeURIComponent(h.slice(2)) };
   if (h === 'reading') return { name: 'reading' };
+  if (h === 'archive') return { name: 'archive' };
+  if (h === 'trash') return { name: 'trash' };
   if (h.startsWith('read/')) {
     const [, key = '', n = '0'] = h.split('/');
     return { name: 'read', key: decodeURIComponent(key), n: Math.max(0, parseInt(n, 10) || 0) };
@@ -258,10 +262,11 @@ async function render() {
   els.searchBtn.hidden = r.name !== 'home';
   els.menuBtn.hidden = r.name === 'read';
   els.searchbar.hidden = r.name !== 'home' || !(query || document.activeElement === els.search || els.searchbar.dataset.open);
-  els.fab.hidden = r.name === 'reading' || r.name === 'read';
+  els.fab.hidden = ['reading', 'read', 'archive', 'trash'].includes(r.name);
   if (r.name === 'home') renderHome();
   else if (r.name === 'collection') renderCollection(findCol(r.id));
   else if (r.name === 'read') renderRead(r);
+  else if (r.name === 'archive' || r.name === 'trash') renderBin(r.name === 'trash');
   else renderReading();
 }
 
@@ -523,6 +528,145 @@ function renderReading() {
       <button class="chip" data-act="mark-all-read">${icon('check')}Mark all read</button>
     </div>
     <div class="stack">${unread.map(({ it, c }) => itemRow(it, c, { showCollection: true })).join('')}</div>`;
+}
+
+// ---- Archive & Trash ---------------------------------------------------------
+// Same holding areas as the extension (they sync): Archive keeps collections
+// out of the way but intact; Trash holds deleted collections and folders and
+// empties itself after 30 days. Subcollections that went along with a parent
+// are listed under it, as on the desktop.
+
+const TRASH_DAYS = 30;
+const DAY = 24 * 60 * 60 * 1000;
+
+function whenAgo(t) {
+  const days = Math.floor((Date.now() - (t || 0)) / DAY);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  return new Date(t).toLocaleDateString();
+}
+
+/** Top-level rows of a bin, in a shape both bins share. */
+function binEntries(isTrash) {
+  if (isTrash) {
+    return (data.trash || [])
+      .filter((e) => store.isTopBinEntry(data, e))
+      .map((e) => ({ ...e, subCount: store.binSubtreeCount(data, e, true) }));
+  }
+  return (data.archive || [])
+    .filter((c) => store.isTopBinEntry(data, c))
+    .map((c) => ({ id: c.id, kind: 'collection', archivedAt: c.archivedAt, collection: c, subCount: store.binSubtreeCount(data, c, false) }));
+}
+
+const binCount = (isTrash) => binEntries(isTrash).length;
+
+function renderBin(isTrash) {
+  setTitle(isTrash ? 'Trash' : 'Archive');
+  const entries = binEntries(isTrash);
+  if (!entries.length) {
+    els.view.innerHTML = `<div class="empty"><h2>${isTrash ? 'Trash is empty' : 'Nothing archived'}</h2>
+      <p>${isTrash ? 'Collections and folders you delete wait here for 30 days, in case you change your mind.' : 'Archive a collection from its ⋯ menu to keep it out of your main list without deleting it.'}</p></div>`;
+    return;
+  }
+  const rows = entries
+    .map((e) => {
+      const folder = e.kind === 'folder';
+      const obj = folder ? e.folder : e.collection;
+      const title = folder ? obj.name : obj.title;
+      const count = folder
+        ? plural((e.childIds || []).length, 'collection')
+        : plural(obj.items.length, 'item') + (e.subCount ? ` · ${plural(e.subCount, 'collection')}` : '');
+      const when = isTrash ? e.deletedAt : e.archivedAt;
+      const left = isTrash ? Math.max(1, TRASH_DAYS - Math.floor((Date.now() - when) / DAY)) : 0;
+      const cover = folder ? '' : coverOf(obj);
+      const art = folder
+        ? `<span class="cover bin-icon">${icon('folder')}</span>`
+        : cover
+          ? `<img class="cover" src="${esc(cover)}" ${imgAttrs}>`
+          : `<span class="cover letter" style="background:${tileColor(obj.id)}">${esc((title || '?').trim().charAt(0).toUpperCase())}</span>`;
+      return `<div class="card bin-row">
+          ${art}
+          <span class="card-main">
+            <span class="card-title"><span>${esc(title)}</span></span>
+            <span class="meta">${count}</span>
+            <span class="meta">${isTrash ? `Deleted ${whenAgo(when)} · gone in ${plural(left, 'day')}` : `Archived ${whenAgo(when)}`}</span>
+          </span>
+          <button class="btn small" data-act="bin-restore" data-id="${esc(e.id)}">Restore</button>
+          <button class="icon-btn more-btn" data-act="bin-menu" data-id="${esc(e.id)}" aria-label="More options">${icon('moreV')}</button>
+        </div>`;
+    })
+    .join('');
+  els.view.innerHTML = `${isTrash ? `<div class="toolbar"><button class="chip danger" data-act="empty-trash">${icon('trash')}Empty Trash</button></div>` : ''}
+    <p class="bin-note meta">${isTrash ? 'Deleted collections and folders are removed for good after 30 days.' : 'Archived collections stay out of your main list until you restore them.'}</p>
+    <div class="stack">${rows}</div>`;
+}
+
+function binEntry(isTrash, id) {
+  return binEntries(isTrash).find((e) => e.id === id) || null;
+}
+
+async function restoreBinEntry(isTrash, e) {
+  const folder = e.kind === 'folder';
+  const title = folder ? e.folder.name : e.collection.title;
+  if (isTrash) await edit(() => store.restoreFromTrash(e.id));
+  else await edit(() => store.unarchiveCollection(e.collection.id));
+  toast(`“${title}” restored`, folder ? null : { label: 'View', fn: () => go(`#/c/${encodeURIComponent(e.collection.id)}`) });
+}
+
+function binMenu(isTrash, id) {
+  const e = binEntry(isTrash, id);
+  if (!e) return;
+  const folder = e.kind === 'folder';
+  const title = folder ? e.folder.name : e.collection.title;
+  openSheet(
+    title,
+    `<div class="menu-list">
+      ${menuItem('restore', 'restore', 'Restore')}
+      <div class="menu-sep"></div>
+      ${isTrash ? menuItem('delete', 'trash', 'Delete forever', 'danger') : menuItem('trash', 'trash', 'Move to Trash', 'danger')}
+    </div>`,
+    {
+      restore: () => restoreBinEntry(isTrash, e),
+      trash: async () => {
+        // Archive → Trash: bring it back, then soft-delete it (as the desktop does).
+        await store.unarchiveCollection(e.collection.id);
+        const entryId = await edit(() => store.trashCollection(e.collection.id));
+        toast(`“${title}” moved to Trash`, { label: 'Undo', fn: () => edit(() => store.restoreFromTrash(entryId)) });
+      },
+      delete: () => {
+        openSheet(
+          `Delete “${title}” forever?`,
+          `<p class="sheet-note">${folder ? 'The folder is deleted. Its collections were already moved out of it.' : `This deletes the collection${e.subCount ? ' and the collections inside it' : ''}, with everything in ${e.subCount ? 'them' : 'it'}, on all your devices. This can’t be undone.`}</p>
+           <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn danger" type="submit">Delete forever</button></div>`,
+          {
+            cancel: () => {},
+            submit: async () => {
+              await edit(() => store.deleteTrashEntry(e.id));
+              toast('Deleted forever');
+            },
+          }
+        );
+        return true;
+      },
+    }
+  );
+}
+
+function emptyTrashSheet() {
+  const n = binCount(true);
+  openSheet(
+    'Empty the Trash?',
+    `<p class="sheet-note">${plural(n, 'item')} will be deleted forever, on all your devices. This can’t be undone.</p>
+     <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn danger" type="submit">Empty Trash</button></div>`,
+    {
+      cancel: () => {},
+      submit: async () => {
+        await edit(() => store.emptyTrash());
+        toast('Trash emptied');
+      },
+    }
+  );
 }
 
 // ---- Read through ------------------------------------------------------------
@@ -1038,6 +1182,7 @@ function collectionMenu(c) {
       ${menuItem('share', 'share', 'Share links')}
       ${menuItem('rename', 'edit', 'Rename')}
       ${menuItem('pin', 'pin', c.pinned ? 'Unpin' : 'Pin to top')}
+      ${menuItem('archive', 'archive', 'Archive')}
       <div class="menu-sep"></div>
       ${menuItem('delete', 'trash', 'Move to Trash', 'danger')}
     </div>`,
@@ -1058,6 +1203,19 @@ function collectionMenu(c) {
         shareCollection(c); // starts inside the tap, so the share sheet is allowed
       },
       pin: () => edit(() => store.setPinned(c.id, !c.pinned)),
+      archive: async () => {
+        const parent = c.parentId && findCol(c.parentId) ? c.parentId : null;
+        await store.archiveCollection(c.id);
+        go(parent ? `#/c/${encodeURIComponent(parent)}` : '#/');
+        scheduleSync();
+        toast('Archived', {
+          label: 'Undo',
+          fn: async () => {
+            await edit(() => store.unarchiveCollection(c.id));
+            go(`#/c/${encodeURIComponent(c.id)}`);
+          },
+        });
+      },
       delete: async () => {
         const parent = c.parentId && findCol(c.parentId) ? c.parentId : null;
         const entryId = await store.trashCollection(c.id);
@@ -1091,6 +1249,8 @@ function appMenu() {
       ${syncPart}
       ${syncPart ? '<div class="menu-sep"></div>' : ''}
       ${settings.readingListEnabled ? menuItem('reading', 'book', 'Reading list') : ''}
+      ${menuItem('archive', 'archive', `Archive${binCount(false) ? ` (${binCount(false)})` : ''}`)}
+      ${menuItem('trash', 'trash', `Trash${binCount(true) ? ` (${binCount(true)})` : ''}`)}
       ${menuItem('new', 'plus', 'New collection')}
       ${menuItem('import', 'import', 'Import a backup (JSON)')}
       <a href="https://getcollectionsplus.com/" target="_blank" rel="noopener">${icon('desktop')}<span>Get the desktop extension</span></a>
@@ -1116,6 +1276,8 @@ function appMenu() {
         return true;
       },
       reading: () => go('#/reading'),
+      archive: () => go('#/archive'),
+      trash: () => go('#/trash'),
       new: () => (newCollectionSheet(), true),
       import: () => els.importFile.click(),
     }
@@ -1148,6 +1310,13 @@ els.view.addEventListener('click', async (e) => {
   e.preventDefault();
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
   else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
+  else if (act === 'bin-restore' || act === 'bin-menu') {
+    const isTrash = route().name === 'trash';
+    const entry = binEntry(isTrash, el.dataset.id);
+    if (!entry) return;
+    if (act === 'bin-restore') restoreBinEntry(isTrash, entry);
+    else binMenu(isTrash, el.dataset.id);
+  } else if (act === 'empty-trash') emptyTrashSheet();
   else if (act === 'toggle-checks') {
     const c = findCol(route().id);
     setChecks(c, !showChecks(c));

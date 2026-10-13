@@ -443,3 +443,13 @@ main {
 .reader-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .reader-nav .btn svg { width: 18px; height: 18px; }
 .btn[disabled] { opacity: 0.4; }
+
+/* ---- Archive & Trash -------------------------------------------------------- */
+.bin-row { align-items: center; }
+.bin-row .card-main { display: grid; gap: 1px; }
+.bin-row .btn.small { flex: none; }
+.bin-row .more-btn { margin: 0; }
+.bin-icon { display: grid; place-items: center; color: var(--muted); }
+.bin-note { margin: 0 4px 10px; }
+.chip.danger { color: var(--danger); }
+.chip.danger svg { color: var(--danger); }

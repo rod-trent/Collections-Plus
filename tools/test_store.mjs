@@ -47,7 +47,7 @@ console.log('migrate (v1 → v2 backfill):');
   };
   const data = await store.getData();
   const c = data.collections[0];
-  assert(data.version === 3, 'bumps version to 3');
+  assert(data.version === 4, 'bumps version to 4');
   assert(Array.isArray(data.archive) && Array.isArray(data.trash), 'backfills archive + trash arrays');
   assert(c.pinned === false && Array.isArray(c.tags) && c.parentId === null, 'collection gets pinned/tags/parentId');
   assert(c.items[0].done === false && typeof c.items[0].fields === 'object', 'page item gets done/fields');

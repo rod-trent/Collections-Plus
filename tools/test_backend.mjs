@@ -62,7 +62,7 @@ console.log('\nstore.js runs on the injected backend:');
 
   const data = await store.getData();
   assert(data.collections.length === 1, 'getData reads it back through the seam');
-  assert(data.version === 3, 'schema/migrate still applies on the injected backend');
+  assert(data.version === 4, 'schema/migrate still applies on the injected backend');
 
   await store.addItem(col.id, { type: 'page', url: 'https://ex.com', title: 'Ex' });
   const after = await store.getData();

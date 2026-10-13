@@ -5,7 +5,11 @@ Microsoft has now retired. Collections Plus is the way to get that workflow
 back — and, if you never exported before the feature disappeared, the way to
 recover the collections Edge left behind on disk. It's a small Manifest V3
 browser extension for **Chromium-based browsers**: no account, no server, no
-build step. Your data stays in your browser.
+build step. Your data stays in your browser. A companion **mobile web app** at
+[getcollectionsplus.com/app](https://getcollectionsplus.com/app/) puts the same
+collections on your phone, synced through your own Dropbox.
+
+📖 **Guides:** [getcollectionsplus.com/help](https://getcollectionsplus.com/help)
 
 ![icon](icons/icon128.png)
 
@@ -21,9 +25,11 @@ build step. Your data stays in your browser.
   (or create a new one on the spot). Select text → *Save selection as note*, or
   *Save selection as highlight* to keep the quote with a link back to its source
   and your own annotation.
-- **Add all open tabs** in the window to a collection at once.
+- **Add all open tabs** in the window to a collection at once (inside a
+  collection, ⋯ → *Add* → *Add all open tabs*).
 - **Auto-file rules:** route quick-saves (`Ctrl+Shift+S`) into a collection
-  automatically by domain, URL or title (⋯ → *Auto-file rules…*).
+  automatically by domain, URL or title (⋯ → *Tools* → *Auto-file rules…*).
+  They also apply to links shared to the mobile app.
 - **Drag a link or image** straight onto the panel to save it.
 - **Duplicate-aware:** saving a page already in the collection is skipped.
 - When a page has no preview image, a **local screenshot** is captured as the
@@ -61,8 +67,9 @@ build step. Your data stays in your browser.
   read**. Bulk imports stay read so they don't flood it. Don't want the
   mark-on-open? **Mark read when opened: Off** (⋯ → Tools). Don't use the feature
   at all? **Reading list: Off** turns it off entirely.
-- **Light / dark / system theme:** cycle in the ⋯ menu. **System** follows your
-  OS / Chrome light-dark setting and switches live (e.g. at sunrise/sunset).
+- **Light / dark / system theme:** pick one under **Theme** in the ⋯ menu.
+  **System** follows your OS / Chrome light-dark setting and switches live (e.g.
+  at sunrise/sunset).
 - **Adjustable text size:** the **Text size** row in the ⋯ menu steps the whole
   panel through 90–150% — type, spacing and thumbnails together — for large
   monitors. **−** / **+** adjust it either way, and the menu stays open as you do.
@@ -107,7 +114,8 @@ build step. Your data stays in your browser.
   **📄 snapshot** button on a page saves a readable copy of the article text so
   the content survives even if the original goes offline — read it back anytime.
 - **Optional cross-device sync** through a single file you keep in any
-  cloud-synced folder (see [Syncing across devices](#syncing-across-devices)).
+  cloud-synced folder, merged item by item so edits on different devices never
+  overwrite each other (see [Syncing across devices](#syncing-across-devices)).
 
 **Ask your collections (optional AI)**
 
@@ -171,6 +179,12 @@ it auto-updates, with no manual reloading.
 To update after pulling changes, click the **reload** ↻ button on the
 extension's card in `edge://extensions`.
 
+### On your phone
+
+Open **[getcollectionsplus.com/app](https://getcollectionsplus.com/app/)** and add
+it to your home screen (Android: Chrome's **Install app**; iPhone: Safari's
+**Share → Add to Home Screen**). See [Mobile app](#mobile-app) below.
+
 ### Keyboard shortcut
 
 `Ctrl+Shift+S` saves the current page to the active collection. To change it,
@@ -179,15 +193,15 @@ and rebind *"Save the current page to Collections Plus."*
 
 ### Updating across devices
 
-An unpacked extension does **not** auto-update; each browser keeps running the
-code it last loaded until you hit **reload ↻** on its card. So whenever you pull
+The Chrome Web Store version updates itself in the background. An **unpacked**
+extension does **not**: each browser keeps running the code it last loaded until
+you hit **reload ↻** on its card. So if you run it unpacked, whenever you pull
 new code (or apply a fix), **reload the extension on _every_ device**, not just
 one. This matters especially for sync: a device still running older code can not
 only miss changes but also **push** with the old logic, so reload all of your
 devices around the same time after an update. Reloading only reloads the *code*:
-your collections and the sync file are untouched. (Publishing to the Chrome Web
-Store / Edge Add-ons would enable background auto-updates; until then, reloading
-per device is just how unpacked extensions work.)
+your collections and the sync file are untouched. The mobile app updates itself
+the next time it's opened.
 
 ## Migrating from Edge Collections
 
@@ -201,7 +215,7 @@ likely still on disk. Edge leaves its database behind when the feature goes:
 %LOCALAPPDATA%\Microsoft\Edge\User Data\<profile>\Collections\collectionsSQLite
 ```
 
-> ⋯ (top-right) → **Import Edge database (SQLite)…** → choose `collectionsSQLite`
+> ⋯ (top-right) → **Import** → **Import Edge database (SQLite)…** → choose `collectionsSQLite`
 
 That rebuilds your collections **with each page's thumbnail and favicon**, which
 the CSV never carried. The file has no extension, so browse straight to it (set
@@ -212,11 +226,12 @@ there may be nothing left to read.
 **If you did export** while Collections still existed, you have
 `collections_export.csv` in your Documents folder:
 
-> ⋯ (top-right) → **Import Edge CSV…** → choose `collections_export.csv`
+> ⋯ (top-right) → **Import** → **Import Edge CSV…** → choose `collections_export.csv`
 
 The CSV only contains saved pages (Edge's export drops images and notes), so
 that import is pages-only — prefer the SQLite route above if you still have the
-database. Going forward, use **Export backup (JSON)** for a complete backup.
+database. Going forward, use ⋯ → **Export** → **Export backup (JSON)** for a
+complete backup.
 
 ## Organizing & exporting
 
@@ -254,13 +269,17 @@ closes the panel itself, so you never have to reach for the X.
 
 ### Reorder collections and items
 
-Drag the **⠿ handle** on a collection card to reorder your list, and the handle
-on an item to reorder it within a collection. The new order is saved instantly.
+Day to day, hovering a collection shows just the two things you do most:
+**▶ Open all** and **＋ Add current page**. To rearrange, click **⇅** next to the
+search box to switch to **organize mode**: every card shows its **⠿** drag handle,
+and hovering a card shows the managing buttons (**📁** move to a folder or
+collection, **📦** archive, **📍** pin, **🗑** move to Trash). Folder headers show
+their color, rename and delete buttons. Click **Done** (or ⇅ again) to go back.
+The panel always opens in the everyday mode.
 
-Each card's actions (**▶** open, **📁** move to folder, **📦** archive,
-**📍** pin, **🗑** trash) stay hidden until you hover the card, so long
-collection names get the full width and wrap in full instead of being clipped.
-Pinned collections show a small **📌** badge at rest.
+Drag a card's handle to reorder your list, and an item's handle to reorder it
+within a collection. The new order is saved instantly. Pinned collections show a
+small **📌** badge.
 
 ### Custom covers
 
@@ -276,35 +295,38 @@ change it:
 
 ### Trash & Archive
 
-Two holding areas keep your main list tidy without losing anything. Both are
-reachable from the **📦 Archive** and **🗑 Trash** icons at the top of the panel
-(each shows a small count badge when it has something in it).
+Two holding areas keep your main list tidy without losing anything. Both are in
+the **⋯** menu (**📦 Archive** and **🗑 Trash**, each with a count when it has
+something in it).
 
-- **Trash** is for things you've deleted. The 🗑 button on a collection card —
-  or **⋯ → Move to Trash** inside a collection, or 🗑 on a folder header — moves
-  it to the Trash instead of deleting it outright, with an **Undo** toast. From
-  the Trash view you can **Restore** any entry, **delete one permanently**, or
-  **Empty Trash**. Anything left in the Trash is permanently removed
-  **30 days** after it was deleted.
-- **Archive** is for collections you want out of the way but intact. The 📦
-  button on a card (or **⋯ → Archive collection**) moves a collection to the
-  Archive; nothing there is ever auto-deleted. **Restore** brings it back to the
-  top of your list.
+- **Trash** is for things you've deleted. **🗑** on a collection card in organize
+  mode, **⋯ → Move to Trash** inside a collection, or deleting a folder moves it
+  to the Trash instead of deleting it outright, with an **Undo** toast. From the
+  Trash view you can **Restore** any entry, **delete one permanently**, or
+  **Empty Trash**. Anything left in the Trash is permanently removed **30 days**
+  after it was deleted.
+- **Archive** is for collections you want out of the way but intact. **📦** on a
+  card in organize mode (or **⋯ → Archive collection** inside a collection)
+  moves a collection to the Archive; nothing there is ever auto-deleted.
+  **Restore** brings it back.
 - Deleting a folder sends it to the Trash too, and **restoring it re-adopts its
   original collections** (which fall back to the top level while it's trashed).
 - Both Trash and Archive **sync across devices** and are included in JSON
   backups, just like your collections.
 
-### Export to Excel (CSV)
+### Export to Excel and CSV
 
-- ⋯ (top-right) → **Export to Excel (CSV)** exports *every* collection.
-- Inside a collection, ⋯ → **Export to Excel (CSV)** exports *just that one*.
+- ⋯ (top-right) → **Export** → **Export to Excel (.xlsx)** or **Export as CSV**
+  exports *every* collection.
+- Inside a collection, ⋯ → **Export & share** → **Export to Excel (.xlsx)** or
+  **Export as CSV** exports *just that one*.
 
-The file opens straight in Excel / Google Sheets / Numbers: one row per item,
-with columns **Collection, Type, Title, URL, Note, Added**. It's a UTF-8 CSV
-(with a BOM) so accented characters and emoji survive. Handy for part lists,
-shopping lists, research sources, or anything you want to sort, filter, or total
-in a spreadsheet.
+The `.xlsx` workbook has one sheet per collection with clickable links. The CSV
+opens straight in Excel / Google Sheets / Numbers: one row per item, with
+columns **Collection, Type, Title, URL, Note, Added**. It's UTF-8 (with a BOM) so
+accented characters and emoji survive. Handy for part lists, shopping lists,
+research sources, or anything you want to sort, filter, or total in a
+spreadsheet.
 
 ## Ask your collections (AI)
 
@@ -314,9 +336,9 @@ API key** — there's no shared service and no developer-run backend.
 
 **Set it up:**
 
-> ⋯ (top-right) → **AI settings…** → pick a provider, paste your API key, and
-> (optionally) adjust the base URL or model → **Save**. Use **Test connection**
-> to confirm it works.
+> ⋯ (top-right) → **AI** → **AI settings…** → pick a provider, paste your API
+> key, and (optionally) adjust the base URL or model → **Save**. Use **Test
+> connection** to confirm it works.
 
 Supported providers (pick whichever you already have):
 
@@ -332,9 +354,9 @@ Supported providers (pick whichever you already have):
 
 **Chat:**
 
-> ⋯ → **Chat with collections (AI)…** for all collections, or inside a
-> collection ⋯ → **Chat about this collection (AI)…** to scope the context to
-> just that one.
+> ⋯ → **AI** → **Chat with collections…** for all collections, or inside a
+> collection ⋯ → **AI** → **Chat about this collection…** to scope the context
+> to just that one.
 
 When you send a message, the extension builds a snapshot of the in-scope
 collection(s) — titles, URLs, notes, tags and custom fields — and sends it,
@@ -349,66 +371,80 @@ provider and is handled under **that provider's** privacy policy and terms —
 review them before enabling this. Nothing is sent anywhere until you actively
 send a chat message. Full details in the [Privacy Policy](PRIVACY.md).
 
+**On your phone:** the mobile app has **AI search** too (⋯ → **AI settings** to
+add a key, then **Search by meaning** in search), with Claude, OpenAI, Grok,
+Gemini or another OpenAI-compatible service. Keys are per device and never
+synced.
+
 ## Syncing across devices
 
-Sync is **optional and provider-agnostic**: there's no account and no API keys.
-Instead of integrating with one cloud (OneDrive vs. Google Drive vs. …), the
-extension reads and writes a single `collections-sync.json` file that **you**
-place inside a folder your computer already keeps synced: OneDrive, Google
-Drive, Dropbox, iCloud Drive, etc. Your cloud client does the actual syncing;
-the extension just keeps that one file up to date.
+Sync is **optional and provider-agnostic**: there's no account. Instead of
+integrating with one cloud, the extension reads and writes a single
+`collections-sync.json` file that **you** place inside a folder your computer
+already keeps synced: OneDrive, Google Drive, Dropbox, iCloud Drive, etc. Your
+cloud client does the actual syncing; the extension just keeps that one file up
+to date. The [mobile app](#mobile-app) reads and writes the same file through
+Dropbox.
+
+> 📖 Step-by-step setup, including your phone:
+> [getcollectionsplus.com/help/sync](https://getcollectionsplus.com/help/sync)
 
 **On your first device:**
 
-> ⋯ (top-right) → **Create sync file…** → save `collections-sync.json` inside
-> your synced folder.
+> ⋯ (top-right) → **Sync** → **Create sync file…** → save `collections-sync.json`
+> inside your synced folder.
 
 **On every other device:**
 
-> ⋯ (top-right) → **Use existing sync file…** → open the *same*
+> ⋯ (top-right) → **Sync** → **Use existing sync file…** → open the *same*
 > `collections-sync.json` once your cloud has finished downloading it.
 
 The second step opens a normal **Open** dialog (not a save/overwrite prompt),
 the device adopts the synced data, and it asks for permission to write so its own
 future edits sync too.
 
+**With your phone:** connect the mobile app to Dropbox first. It creates
+`Dropbox/Apps/Collections Plus/collections-sync.json`, and that's the file every
+computer should use (via **Use existing sync file…**). The app can only see that
+folder, so a sync file anywhere else won't reach your phone.
+
 ### How it stays in sync
 
-Two simple operations run against that one file:
-
 - **Push:** when you change anything, a moment later the extension writes your
-  collections to the file. Your cloud client carries the file to your other
-  devices.
-- **Pull:** the extension reads the file back and adopts it if it changed.
-  An open panel checks **on focus, when it becomes visible again, and every ~20
+  collections to the file. If another device changed the file since this one
+  last synced, its changes are **merged in first**, so nothing is overwritten.
+- **Pull:** the extension reads the file back and merges in what changed. An
+  open panel checks **on focus, when it becomes visible again, and every ~20
   seconds**, so changes from another device show up on their own. **Sync now**
   and **Pull from sync file** force a push / pull immediately.
 
 "Did the file change?" is decided by the file's **modification time as this
-device sees it locally**: the timestamp your own filesystem records when the
-cloud client drops in a new copy. Crucially, this does **not** depend on your two
-computers' clocks agreeing, so a change made on one machine can't be mistaken for
-"older" and skipped on another. (Earlier builds compared a clock value embedded
-by the writing device, which could silently drop changes when clocks drifted;
-that's fixed.)
+device sees it locally**, so it doesn't depend on your computers' clocks
+agreeing.
 
-### Conflicts & safety
+### Merging (2.10+)
 
-Reconciliation is **last-write-wins**: whichever device writes the file *last*
-is the version everyone converges on. That's exactly right for one person moving
-between a laptop and a desktop. It is **not** built for two people (or two
-offline devices) editing the *same* collection at once: if you edit on two
-devices while both are offline, the one whose file syncs last wins and the
-other's un-synced edits are overwritten. So let the cloud catch up before editing
-elsewhere, and keep **Export backup (JSON)** as a guaranteed-complete snapshot.
+Since 2.10, sync merges **item by item** instead of keeping whichever copy was
+saved last:
+
+- Pages, notes and collections added on any device are all kept.
+- If the same item was edited on two devices, the most recent edit wins.
+- An item moved to another collection lands once, not twice.
+- **Deletes sync too:** each delete leaves a small marker (kept for 90 days) so
+  the item doesn't come back from another device.
+- Archive, Trash, folders, tags, checkmarks, custom fields and auto-file rules
+  all sync.
+
+Every device needs **2.10 or later**. Files written by older versions carry no
+delete markers, so they still reconcile the old way (last write wins); if one
+arrives while you have unsaved edits, the extension keeps your changes and
+offers *"Use file instead."*
 
 When you connect a device to a file that already has data, it asks before doing
 anything destructive: load the file (replace this device's data) or overwrite
-the file with this device's data, so you can't accidentally clobber the good
-copy. And if a device has **un-pushed local edits** when the file changes
-elsewhere, it won't silently overwrite them; it keeps your changes and offers
-*"Use file instead."* The sync menu shows when you last synced, and a local
-**version history** (⋯ → *Version history…*) lets you roll back recent states.
+the file with this device's data. Keep **Export backup (JSON)** as a
+guaranteed-complete snapshot, and **version history** (⋯ → **Tools** →
+*Version history…*) lets you roll back recent states on one device.
 
 ### Resuming after a browser restart
 
@@ -416,58 +452,91 @@ Browsers don't keep the file's **write** permission across a restart or an
 extension reload (a security rule of the File System Access API). When that
 happens, Collections Plus pauses background saving instead of erroring: the sync
 menu shows **Sync paused**, and a toast offers **Resume**. Click **Resume**
-(or ⋯ → **Resume sync** / **Sync now**) once, approve the prompt, and your
-pending changes are written immediately and sync continues. Your data is never
-lost in the meantime; it's just held locally until you resume.
+(or ⋯ → **Sync** → **Resume sync** / **Sync now**) once, approve the prompt, and
+your pending changes are written immediately and sync continues. Your data is
+never lost in the meantime; it's just held locally until you resume.
 
 > Requires a Chromium browser with the **File System Access API** (Chrome/Edge
 > have it). If it's unavailable, the sync menu says so and the rest of the
 > extension works unchanged.
 
+## Mobile app
+
+**[getcollectionsplus.com/app](https://getcollectionsplus.com/app/)** is a web
+app you install from your phone's browser, with no app store. It runs the same
+data layer as the extension (`lib/store.js` on IndexedDB) and syncs with it
+through your own Dropbox.
+
+- Browse, search and edit your collections, folders, Reading list, Archive and
+  Trash; **Read through** a collection a page at a time (the phone's take on
+  Open all); checklists, custom fields, tags, sorting and drag to reorder.
+- **Share to save** on Android: share a page, text, or a selected quote from any
+  app to Collections Plus.
+- Works offline and updates itself.
+
+Guide: [getcollectionsplus.com/help/mobile](https://getcollectionsplus.com/help/mobile).
+
 ## Data & privacy
 
-Everything is stored locally via `chrome.storage.local` on your machine.
-Nothing is sent to us or any server; the optional sync file lives in a folder
-*you* chose, and only your own cloud client touches it. Saved page/image
+Everything is stored locally via `chrome.storage.local` on your machine (and,
+in the mobile app, in your phone's browser storage). Nothing is sent to us or any
+server; the optional sync file lives in a folder *you* chose (or your own
+Dropbox, for the phone), and only your own cloud touches it. Saved page/image
 thumbnails are stored as references to their original URLs (not copied), so they
 display as long as the source stays online; **uploaded covers**, **captured
 screenshots**, and **cached images** are downscaled and stored inline so they
 always render. Offline image caching, cross-device sync, and the AI chat are all
-**off until you turn them on**. The AI chat is the only feature that can send your
-collection contents off-device, and only to the provider whose key **you**
-entered — your key is stored locally and never synced or exported. See the
+**off until you turn them on**. Apart from sync to your own cloud, the AI features
+are the only ones that can send your collection contents off-device, and only to
+the provider whose key **you** entered — your key is stored locally and never
+synced or exported. See the
 [Privacy Policy](PRIVACY.md) for the full breakdown.
 
 ## Project layout
 
 ```
-manifest.json        MV3 manifest (+ keyboard command)
-background.js        service worker: panel/pop-up opening, context menus, shortcut
-sidepanel/           panel.html / panel.css / panel.js (the UI)
-lib/store.js         data layer (chrome.storage.local), schema, settings, history
-lib/csv.js           tolerant CSV parser + Edge-export mapper (pure, testable)
-lib/export.js        collections → CSV + .xlsx sheet structures (pure, testable)
-lib/render.js        collections → Markdown / HTML / link list (pure, testable)
-lib/ai.js            generative-AI provider adapters + context builder (pure parts testable)
-lib/xlsx.js          dependency-free .xlsx writer (pure, testable)
-lib/image.js         downscale a file/URL/screenshot into a small data URL
-lib/sync.js          optional synced-file sync (File System Access API)
-icons/               generated PNG icons
-tools/make_icons.py  regenerate the icons
-tools/test_*.mjs     pure-logic test harnesses (no browser needed)
-fixtures/            sample Edge CSV for testing the importer
+manifest.json          MV3 manifest (+ keyboard command)
+background.js          service worker: panel/pop-up opening, context menus, shortcut
+sidepanel/             panel.html / panel.css / panel.js (the UI)
+lib/store.js           data layer, schema + migrations, settings, history
+lib/backend.js         storage seam: chrome.storage.local (extension) or injected
+lib/merge.js           item-level sync merge with tombstones (pure, testable)
+lib/sync.js            extension file sync (File System Access API) using merge.js
+lib/csv.js             tolerant CSV parser + Edge-export mapper (pure, testable)
+lib/export.js          collections → CSV + .xlsx sheet structures (pure, testable)
+lib/render.js          collections → Markdown / HTML / link list (pure, testable)
+lib/ai.js              generative-AI provider adapters + context builder
+lib/semantic.js        AI search catalog + result parsing (pure, testable)
+lib/xlsx.js            dependency-free .xlsx writer (pure, testable)
+lib/image.js           downscale a file/URL/screenshot into a small data URL
+lib/idb-backend.js     IndexedDB storage backend (mobile app)
+lib/remote-adapter.js  the sync transport contract
+lib/sync-engine.js     pull → merge → push over any adapter (mobile app)
+lib/dropbox-adapter.js Dropbox transport: OAuth PKCE, rev-checked uploads
+pwa/                   the mobile web app (served at getcollectionsplus.com/app)
+site/                  getcollectionsplus.com (Next.js on Vercel), incl. /help
+icons/                 generated PNG icons
+tools/make_icons.py    regenerate the extension + app icons
+tools/test_*.mjs       pure-logic test harnesses (no browser needed)
+fixtures/              sample Edge CSV / SQLite for testing the importers
 ```
+
+The store package (`npm run package`) leaves out the mobile-only modules.
 
 ## Development
 
 - No build step: edit files and hit reload on the extension card.
 - Run the pure-logic tests without a browser:
   ```
-  npm test            # csv import, csv/xlsx export, render, store/migrate
+  npm test            # store/migrate, merge, sync, Dropbox, import/export, AI…
   ```
 - Regenerate icons:
   ```
   python tools/make_icons.py
+  ```
+- Run the website (and the mobile app at `/app/`) locally:
+  ```
+  cd site && npm install && npm run dev
   ```
 - Build a Chrome Web Store / Edge Add-ons upload ZIP (runtime files only):
   ```

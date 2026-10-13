@@ -606,6 +606,31 @@ console.log('\nArchive order:');
   await store.unarchiveCollection(r.id);
   const restoredR = (await store.getData()).collections.find((x) => x.id === r.id);
   assert(JSON.stringify(restoredR.items.map((x) => x.text)) === '["three","one","two"]', 'and keep that order when restored');
+
+  // Trashed collections: items and subcollections reorder in the Trash too.
+  const t = await mk('T');
+  const t1 = (await store.addItem(t.id, { type: 'note', text: 'a' })).item;
+  const t2 = (await store.addItem(t.id, { type: 'note', text: 'b' })).item;
+  const s1 = await store.createSubCollection(t.id, 'S1');
+  const s2 = await store.createSubCollection(t.id, 'S2');
+  const entryId = await store.trashCollection(t.id);
+  await store.reorderItems(t.id, [t2.id, t1.id]);
+  await store.reorderSubcollections(t.id, [s2.id, s1.id]);
+  let dt = await store.getData();
+  const trashedT = dt.trash.find((e) => e.id === entryId).collection;
+  assert(JSON.stringify(trashedT.items.map((x) => x.text)) === '["b","a"]', 'items in a trashed collection reorder');
+  const trashedKids = dt.trash
+    .filter((e) => e.collection?.parentId === t.id)
+    .map((e) => e.collection)
+    .sort((x, y) => x.order - y.order)
+    .map((x) => x.title);
+  assert(JSON.stringify(trashedKids) === '["S2","S1"]', 'subcollections trashed with it reorder too');
+  await store.restoreFromTrash(entryId);
+  dt = await store.getData();
+  assert(
+    JSON.stringify(dt.collections.find((x) => x.id === t.id).items.map((x) => x.text)) === '["b","a"]',
+    'the trashed order is kept on restore'
+  );
 }
 
 console.log('');

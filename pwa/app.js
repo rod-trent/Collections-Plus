@@ -224,7 +224,8 @@ function route() {
   if (h.startsWith('c/')) return { name: 'collection', id: decodeURIComponent(h.slice(2)) };
   if (h === 'reading') return { name: 'reading' };
   if (h === 'archive') return { name: 'archive' };
-  if (h.startsWith('archive/')) return { name: 'archived', id: decodeURIComponent(h.slice(8)) };
+  if (h.startsWith('archive/')) return { name: 'bincol', bin: 'archive', id: decodeURIComponent(h.slice(8)) };
+  if (h.startsWith('trash/')) return { name: 'bincol', bin: 'trash', id: decodeURIComponent(h.slice(6)) };
   if (h === 'trash') return { name: 'trash' };
   if (h.startsWith('read/')) {
     const [, key = '', n = '0'] = h.split('/');
@@ -274,17 +275,17 @@ async function render() {
   const r = route();
   if (r.name === 'collection' && !findCol(r.id)) return go('#/');
   if (r.name === 'read' && r.key !== 'reading' && !findCol(r.key)) return go('#/');
-  if (r.name === 'archived' && !(data.archive || []).some((c) => c.id === r.id)) return go('#/archive');
+  if (r.name === 'bincol' && !binPool(r.bin).some((c) => c.id === r.id)) return go(`#/${r.bin}`);
   els.back.hidden = r.name === 'home';
   els.searchBtn.hidden = r.name !== 'home';
-  els.menuBtn.hidden = r.name === 'read' || r.name === 'archived';
+  els.menuBtn.hidden = r.name === 'read' || r.name === 'bincol';
   els.searchbar.hidden = r.name !== 'home' || !(query || document.activeElement === els.search || els.searchbar.dataset.open);
-  els.fab.hidden = reorderMode || ['reading', 'read', 'archive', 'trash', 'archived'].includes(r.name);
+  els.fab.hidden = reorderMode || ['reading', 'read', 'archive', 'trash', 'bincol'].includes(r.name);
   if (r.name === 'home') renderHome();
   else if (r.name === 'collection') renderCollection(findCol(r.id));
   else if (r.name === 'read') renderRead(r);
   else if (r.name === 'archive' || r.name === 'trash') renderBin(r.name === 'trash');
-  else if (r.name === 'archived') renderArchived(r.id);
+  else if (r.name === 'bincol') renderBinCollection(r.bin, r.id);
   else renderReading();
 }
 
@@ -860,7 +861,7 @@ function renderBin(isTrash) {
         return `<div class="drag-node" data-kind="archive" data-id="${esc(e.id)}"><div class="card bin-row"><span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>${main}</div></div>`;
       }
       return `<div class="card bin-row">
-          ${isTrash ? main : `<a class="bin-open" href="#/archive/${encodeURIComponent(obj.id)}">${main}</a>`}
+          ${folder ? main : `<a class="bin-open" href="#/${isTrash ? 'trash' : 'archive'}/${encodeURIComponent(obj.id)}">${main}</a>`}
           <button class="btn small" data-act="bin-restore" data-id="${esc(e.id)}">Restore</button>
           <button class="icon-btn more-btn" data-act="bin-menu" data-id="${esc(e.id)}" aria-label="More options">${icon('moreV')}</button>
         </div>`;
@@ -876,37 +877,49 @@ function renderBin(isTrash) {
       : entries.length > 1
         ? `<div class="toolbar"><button class="chip" data-act="reorder">${icon('reorder')}Reorder</button></div>`
         : ''}
-    <p class="bin-note meta">${isTrash ? 'Deleted collections and folders are removed for good after 30 days.' : 'Archived collections stay out of your main list until you restore them. Tap one to look inside.'}</p>
+    <p class="bin-note meta">${isTrash ? 'Deleted collections and folders are removed for good after 30 days. Tap a collection to look inside.' : 'Archived collections stay out of your main list until you restore them. Tap one to look inside.'}</p>
     <div class="stack">${rows}</div>`;
 }
 
+/** The collections held in the Archive or the Trash. */
+function binPool(bin) {
+  return bin === 'trash'
+    ? (data.trash || []).filter((e) => e.kind === 'collection' && e.collection).map((e) => e.collection)
+    : data.archive || [];
+}
+
 /**
- * Look inside an archived collection: read-only, with Restore. Its archived
- * subcollections can be put in order (Reorder) and opened the same way.
+ * Look inside an archived or trashed collection without restoring it. Nothing
+ * can be edited there, but its items and the subcollections held with it can
+ * be put in order (Reorder), and its subcollections opened the same way.
  */
-function renderArchived(id) {
-  const c = data.archive.find((x) => x.id === id);
+function renderBinCollection(bin, id) {
+  const pool = binPool(bin);
+  const c = pool.find((x) => x.id === id);
+  const entry = bin === 'trash' ? data.trash.find((e) => e.collection?.id === c.id) : null;
   setTitle(c.title);
-  const kids = data.archive.filter((x) => x.parentId === c.id).sort(byOrder);
+  const kids = pool.filter((x) => x.parentId === c.id).sort(byOrder);
   const kidRow = (k) => {
-    const n = data.archive.filter((x) => x.parentId === k.id).length;
+    const n = pool.filter((x) => x.parentId === k.id).length;
     const meta = [plural(k.items.length, 'item'), n ? plural(n, 'collection') : ''].filter(Boolean).join(' · ');
     const main = `<span class="cover letter" style="background:${tileColor(k.id)}">${esc((k.title || '?').trim().charAt(0).toUpperCase())}</span>
       <span class="card-main"><span class="card-title"><span>${esc(k.title)}</span></span><span class="meta">${meta}</span></span>`;
     return reorderMode
       ? `<div class="drag-node" data-kind="collection" data-id="${esc(k.id)}"><div class="card"><span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>${main}</div></div>`
-      : `<a class="card" href="#/archive/${encodeURIComponent(k.id)}">${main}<span class="chev">${icon('chev')}</span></a>`;
+      : `<a class="card" href="#/${bin}/${encodeURIComponent(k.id)}">${main}<span class="chev">${icon('chev')}</span></a>`;
   };
   if (reorderMode) {
     const what = [kids.length > 1 ? 'collections' : '', c.items.length > 1 ? 'items' : ''].filter(Boolean).join(' and ');
-    els.view.innerHTML = `${reorderBar(`Drag ⠿ to rearrange the ${what || 'items'} in this archived collection.`)}
+    els.view.innerHTML = `${reorderBar(`Drag ⠿ to rearrange the ${what || 'items'} in this ${bin === 'trash' ? 'deleted' : 'archived'} collection.`)}
       ${kids.length > 1 ? `<div class="section-label">Collections</div><div class="stack" data-sortable="subs" data-parent="${esc(c.id)}">${kids.map(kidRow).join('')}</div>` : ''}
       ${c.items.length > 1 ? `${kids.length > 1 ? '<div class="section-label">Items</div>' : ''}<div class="stack" data-sortable="items" data-col="${esc(c.id)}">${c.items.map((it) => itemRow(it, c, { drag: true })).join('')}</div>` : ''}`;
     return;
   }
+  const left = entry ? Math.max(1, TRASH_DAYS - Math.floor((Date.now() - entry.deletedAt) / DAY)) : 0;
+  const when = entry ? `Deleted ${whenAgo(entry.deletedAt)} · gone in ${plural(left, 'day')}` : `Archived ${whenAgo(c.archivedAt)}`;
   els.view.innerHTML = `<div class="ai-box archived-note">
-      <div class="ai-head">${icon('archive')}<span>Archived ${esc(whenAgo(c.archivedAt))} · restore it to edit</span></div>
-      <div class="row-actions"><button class="btn small primary" data-act="archived-restore" data-id="${esc(c.id)}">Restore</button></div>
+      <div class="ai-head">${icon(entry ? 'trash' : 'archive')}<span>${esc(when)} · restore it to edit</span></div>
+      <div class="row-actions"><button class="btn small primary" data-act="bincol-restore" data-bin="${bin}" data-id="${esc(c.id)}">Restore</button></div>
     </div>
     ${kids.length > 1 || c.items.length > 1 ? `<div class="toolbar"><button class="chip" data-act="reorder">${icon('reorder')}Reorder</button></div>` : ''}
     ${kids.length ? `<div class="section-label">Collections</div><div class="stack">${kids.map(kidRow).join('')}</div>` : ''}
@@ -1967,9 +1980,14 @@ els.view.addEventListener('click', async (e) => {
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
   else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
   else if (act === 'reorder') enterReorder();
-  else if (act === 'archived-restore') {
-    const c = data.archive.find((x) => x.id === el.dataset.id);
-    await edit(() => store.unarchiveCollection(el.dataset.id));
+  else if (act === 'bincol-restore') {
+    const c = binPool(el.dataset.bin).find((x) => x.id === el.dataset.id);
+    if (el.dataset.bin === 'trash') {
+      const entry = data.trash.find((e) => e.collection?.id === el.dataset.id);
+      await edit(() => store.restoreFromTrash(entry.id));
+    } else {
+      await edit(() => store.unarchiveCollection(el.dataset.id));
+    }
     go(`#/c/${encodeURIComponent(el.dataset.id)}`);
     toast(`“${c?.title || 'Collection'}” restored`);
   }
@@ -2027,10 +2045,11 @@ els.view.addEventListener('click', async (e) => {
 els.back.addEventListener('click', () => {
   const r = route();
   if (r.name === 'read') return go(r.key === 'reading' ? '#/reading' : `#/c/${encodeURIComponent(r.key)}`);
-  if (r.name === 'archived') {
-    const c = data.archive.find((x) => x.id === r.id);
-    const up = c && data.archive.find((x) => x.id === c.parentId);
-    return go(up ? `#/archive/${encodeURIComponent(up.id)}` : '#/archive');
+  if (r.name === 'bincol') {
+    const pool = binPool(r.bin);
+    const c = pool.find((x) => x.id === r.id);
+    const up = c && pool.find((x) => x.id === c.parentId);
+    return go(up ? `#/${r.bin}/${encodeURIComponent(up.id)}` : `#/${r.bin}`);
   }
   const c = r.name === 'collection' ? findCol(r.id) : null;
   const parent = c?.parentId && findCol(c.parentId);

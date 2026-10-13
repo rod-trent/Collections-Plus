@@ -25,6 +25,11 @@ it without restoring it: its pages, notes and the collections archived with it.
 You can't edit it there, but you can drag its pages and collections into order,
 ready for when you bring it back. **Restore it** is right there when you need it.
 
+**Look inside the Trash, too.** Click a deleted collection in **⋯ → Trash** to
+see what's in it before you restore it or let it go, with how many days are
+left before it's removed. As in the Archive, you can drag its pages and the
+collections deleted with it into order, and **Restore it** brings it all back.
+
 ## 2.10.0
 
 **Sync no longer overwrites your other device's changes.** File sync used to

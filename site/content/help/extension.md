@@ -48,7 +48,7 @@ Pages you save start out **unread** and gather in **⋯ → Reading list**. Open
 ## Archive and Trash
 
 - **Archive** keeps a collection out of your main list without deleting it. Find it again under **⋯ → Archive**, and **Restore** it any time. Drag the **⠿** handles to put the Archive in the order you want, and click an archived collection to look inside it without restoring it. You can't edit it there, but you can drag its pages and the collections inside it into order, ready for when you restore it.
-- **Trash:** deleting a collection or folder moves it to **⋯ → Trash**, with **Undo** right away. Anything in the Trash is deleted for good after **30 days**, unless you restore it first.
+- **Trash:** deleting a collection or folder moves it to **⋯ → Trash**, with **Undo** right away. Anything in the Trash is deleted for good after **30 days**, unless you restore it first. Click a deleted collection to look inside it before deciding; you can drag its pages and collections into order there too.
 
 ## Keeping pages from disappearing
 

@@ -77,7 +77,7 @@ On your computer, **Open all** opens a whole collection as tabs. Phones open one
 Both are in the home screen's **⋯** menu.
 
 - **Archive** holds collections you've set aside. **Restore** brings one back. Tap **Reorder** to rearrange the Archive, or tap an archived collection to look inside it without restoring it. You can't edit it there, but **Reorder** rearranges its pages and the collections archived with it.
-- **Trash** holds deleted collections and folders for **30 days**, with a countdown. **Restore** brings one back; **Delete forever** removes it now; **Empty Trash** clears everything.
+- **Trash** holds deleted collections and folders for **30 days**, with a countdown. **Restore** brings one back; **Delete forever** removes it now; **Empty Trash** clears everything. Tap a deleted collection to look inside it first; **Reorder** works there too.
 
 ## Updates and offline use
 

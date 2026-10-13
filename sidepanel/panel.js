@@ -140,7 +140,7 @@ const els = {
 let openId = null;
 let lastData = null; // the blob the current view was rendered from (for nesting lookups)
 let binMode = null; // 'trash' | 'archive' | null — which holding area is open
-let archivePeek = null; // id of the archived collection being looked inside (read-only)
+let binPeek = null; // id of the archived/trashed collection being looked inside
 let fileMode = null; // 'csv' | 'json' | 'cover'
 let query = ''; // current list-view search text (lower-cased)
 let itemFilter = ''; // current in-collection item filter (lower-cased)
@@ -1194,9 +1194,9 @@ function renderBin(data) {
 
   $('#mark-all-read-btn').hidden = true;
   const isTrash = binMode === 'trash';
-  if (!isTrash && archivePeek) {
-    if ((data.archive || []).some((c) => c.id === archivePeek)) return renderArchivePeek(data);
-    archivePeek = null; // restored or deleted meanwhile
+  if (binPeek) {
+    if (binPool(data, isTrash).some((c) => c.id === binPeek)) return renderBinPeek(data, isTrash);
+    binPeek = null; // restored or deleted meanwhile
   }
   // Normalize archive collections into the same {kind, …} shape trash uses.
   // Subcollections trashed/archived with a parent are listed under it.
@@ -1214,7 +1214,7 @@ function renderBin(data) {
   els.emptyTrashBtn.hidden = !(isTrash && entries.length);
 
   els.binNote.textContent = isTrash
-    ? 'Items are permanently deleted 30 days after they’re trashed.'
+    ? 'Items are permanently deleted 30 days after they’re trashed. Click a collection to look inside.'
     : 'Archived collections stay out of your main list until you restore them.';
   els.binNote.hidden = entries.length === 0;
 
@@ -1353,41 +1353,56 @@ function buildBinRow(entry, isTrash) {
     }
   });
 
-  if (!isTrash) {
+  if (!isFolder) {
+    // Click a collection to look inside it (archive or trash).
     row.classList.add('bin-peekable');
     row.addEventListener('click', (e) => {
       if (e.target.closest('button, .bin-handle') || row.dataset.dragged) return;
-      archivePeek = obj.id;
+      binPeek = obj.id;
       render();
     });
-    wireRowDrag(row, els.binList, '.bin-handle', (ids) => reorderArchive(ids));
   }
+  if (!isTrash) wireRowDrag(row, els.binList, '.bin-handle', (ids) => reorderArchive(ids));
 
   return row;
 }
 
-// ---- Looking inside an archived collection -------------------------------
-// Its items and the subcollections archived with it, without restoring it.
-// Nothing can be edited, but both can be put in order (ready for when it's
-// restored), and clicking a subcollection looks inside it.
+// ---- Looking inside an archived or trashed collection ---------------------
+// Its items and the subcollections archived/trashed with it, without
+// restoring it. Nothing can be edited, but both can be put in order (ready
+// for when it's restored), and clicking a subcollection looks inside it.
 
-function renderArchivePeek(data) {
-  const c = data.archive.find((x) => x.id === archivePeek);
+/** The collections held in the Archive or the Trash. */
+function binPool(data, isTrash) {
+  return isTrash
+    ? (data.trash || []).filter((e) => e.kind === 'collection' && e.collection).map((e) => e.collection)
+    : data.archive || [];
+}
+
+function renderBinPeek(data, isTrash) {
+  const pool = binPool(data, isTrash);
+  const c = pool.find((x) => x.id === binPeek);
+  const entry = isTrash ? data.trash.find((e) => e.collection?.id === c.id) : null;
   els.binTitle.textContent = c.title;
   els.emptyTrashBtn.hidden = true;
   $('#mark-all-read-btn').hidden = true;
   els.binEmpty.hidden = true;
 
   els.binNote.hidden = false;
-  els.binNote.innerHTML = `Archived ${escapeHtml(relativeTime(c.archivedAt))}. <button class="link-btn" data-peek-restore>Restore it</button> to edit; drag ⠿ to rearrange.`;
+  const daysLeft = entry ? Math.max(1, 30 - Math.floor((Date.now() - entry.deletedAt) / 86400000)) : 0;
+  const when = isTrash
+    ? `Deleted ${escapeHtml(relativeTime(entry.deletedAt))}, gone in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`
+    : `Archived ${escapeHtml(relativeTime(c.archivedAt))}`;
+  els.binNote.innerHTML = `${when}. <button class="link-btn" data-peek-restore>Restore it</button> to edit; drag ⠿ to rearrange.`;
   els.binNote.querySelector('[data-peek-restore]').addEventListener('click', async () => {
-    await unarchiveCollection(c.id);
-    archivePeek = null;
+    if (isTrash) await restoreFromTrash(entry.id);
+    else await unarchiveCollection(c.id);
+    binPeek = null;
     toast(`"${c.title}" restored`);
     open(c.id);
   });
 
-  const kids = data.archive
+  const kids = pool
     .filter((x) => x.parentId === c.id)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   els.binList.hidden = false;
@@ -1405,7 +1420,7 @@ function renderArchivePeek(data) {
       row.className = 'card bin-row bin-peekable';
       row.dataset.id = k.id;
       const n = k.items.length;
-      const inner = data.archive.filter((x) => x.parentId === k.id).length;
+      const inner = pool.filter((x) => x.parentId === k.id).length;
       row.innerHTML = `
         ${kids.length > 1 ? '<span class="bin-handle" title="Drag to reorder">⠿</span>' : ''}
         <div class="card-cover">🗂️</div>
@@ -1415,7 +1430,7 @@ function renderArchivePeek(data) {
         </div>`;
       row.addEventListener('click', (e) => {
         if (e.target.closest('.bin-handle') || row.dataset.dragged) return;
-        archivePeek = k.id;
+        binPeek = k.id;
         render();
       });
       if (kids.length > 1) wireRowDrag(row, list, '.bin-handle', (ids) => reorderSubcollections(c.id, ids));
@@ -2105,7 +2120,7 @@ function wireDrag(row, collectionId) {
 
 async function open(id) {
   binMode = null;
-  archivePeek = null;
+  binPeek = null;
   openId = id;
   itemFilter = '';
   if (els.itemFilterInput) els.itemFilterInput.value = '';
@@ -2120,11 +2135,13 @@ function back() {
     render();
     return;
   }
-  // Looking inside an archived collection: up to its archived parent, then the Archive.
-  if (binMode === 'archive' && archivePeek) {
-    const c = (lastData?.archive || []).find((x) => x.id === archivePeek);
-    const up = c && (lastData.archive || []).find((x) => x.id === c.parentId);
-    archivePeek = up ? up.id : null;
+  // Looking inside an archived/trashed collection: up to its parent there,
+  // then back to the Archive or Trash list.
+  if ((binMode === 'archive' || binMode === 'trash') && binPeek) {
+    const pool = binPool(lastData || {}, binMode === 'trash');
+    const c = pool.find((x) => x.id === binPeek);
+    const up = c && pool.find((x) => x.id === c.parentId);
+    binPeek = up ? up.id : null;
     render();
     return;
   }
@@ -2141,7 +2158,7 @@ function back() {
 
 function openBin(mode) {
   binMode = mode;
-  archivePeek = null;
+  binPeek = null;
   openId = null;
   aiMode = null;
   render();

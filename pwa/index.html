@@ -21,6 +21,15 @@
     </div>
   </header>
 
+  <section class="sync-bar" id="sync-bar" hidden>
+    <span class="sync-state" id="sync-state">Not syncing</span>
+    <span class="sync-actions">
+      <button id="sync-connect" hidden>Connect Dropbox</button>
+      <button id="sync-now" hidden>Sync now</button>
+      <button id="sync-disconnect" class="quiet" hidden>Disconnect</button>
+    </span>
+  </section>
+
   <main id="app">
     <p class="empty" id="empty" hidden>No collections yet. Create one, or import a JSON export from the desktop extension.</p>
     <ul id="collections" class="collections"></ul>

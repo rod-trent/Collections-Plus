@@ -9,7 +9,7 @@
 // Phase 3 will extend this worker with the share-target handler and a
 // Background-Sync queue for offline saves.
 
-const CACHE = 'cp-shell-v1';
+const CACHE = 'cp-shell-v2';
 const SHELL = ['./', './index.html', './app.css', './app.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -27,20 +27,20 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET') return;
-  // Cache-first for the shell; fall back to network and cache what we fetch.
+  // Only our own files; Dropbox API calls etc. go straight to the network.
+  if (new URL(request.url).origin !== self.location.origin) return;
+  // Network-first: a deploy reaches installed apps on their next launch, and
+  // the cached copy keeps the app working offline. (Cache-first would pin
+  // every installed app to the version it first downloaded.)
   e.respondWith(
-    caches.match(request).then(
-      (hit) =>
-        hit ||
-        fetch(request)
-          .then((res) => {
-            if (res.ok && new URL(request.url).origin === self.location.origin) {
-              const copy = res.clone();
-              caches.open(CACHE).then((c) => c.put(request, copy));
-            }
-            return res;
-          })
-          .catch(() => hit)
-    )
+    fetch(request)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(request).then((hit) => hit || Response.error()))
   );
 });

@@ -59,6 +59,23 @@ button, .import {
 button:active, .import:active { transform: translateY(1px); }
 #new-collection { background: var(--accent); color: var(--accent-text); border-color: transparent; }
 
+.sync-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.sync-bar[hidden] { display: none; }
+.sync-state { color: var(--muted); }
+.sync-state.error { color: #dc2626; }
+.sync-actions { display: flex; gap: 0.4rem; }
+#sync-connect { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+button.quiet { color: var(--muted); }
+
 main { padding: 0.75rem 1rem 4rem; }
 .empty { color: var(--muted); text-align: center; margin: 3rem 1rem; }
 

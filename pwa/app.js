@@ -10,6 +10,8 @@ import { createIdbBackend } from '../lib/idb-backend.js';
 import { createDropboxAdapter } from '../lib/dropbox-adapter.js';
 import { syncOnce } from '../lib/sync-engine.js';
 import { matchRule } from '../lib/rules.js';
+import { sortItems, sortCollections } from '../lib/sortview.js';
+import { toLinkList } from '../lib/render.js';
 import { DROPBOX_APP_KEY } from './config.js';
 
 // MUST run before any store.js call: store.js resolves its backend on each
@@ -67,6 +69,13 @@ const ICON = {
   link: '<path d="M10 14a4 4 0 006 0l3-3a4 4 0 00-6-6l-1 1M14 10a4 4 0 00-6 0l-3 3a4 4 0 006 6l1-1"/>',
   folder: '<path d="M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>',
+  play: '<path d="M7 5l12 7-12 7z"/>',
+  sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+  prev: '<path d="M15 18l-6-6 6-6"/>',
+  next: '<path d="M9 6l6 6-6 6"/>',
+  tag: '<path d="M3 12V4a1 1 0 011-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -141,7 +150,43 @@ const imgAttrs = 'loading="lazy" decoding="async" referrerpolicy="no-referrer" a
 let data = null; // last read of store.getData()
 let settings = null;
 let query = '';
+let tagFilter = ''; // home: show only collections with this tag
 const COLLAPSED_KEY = 'cp.collapsedFolders'; // per-device, not synced
+const CHECKS_KEY = 'cp.checklists'; // per-device: { [collectionId]: true|false }
+
+const ITEM_SORTS = { manual: 'Your order', newest: 'Newest first', oldest: 'Oldest first', title: 'A–Z' };
+const COLLECTION_SORTS = { manual: 'Your order', newest: 'Recently updated', title: 'A–Z' };
+
+function checkPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(CHECKS_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Checkboxes show when you've turned them on for a collection, or, until you
+ * say otherwise, whenever something in it is already checked off (it's being
+ * used as a checklist, maybe from the desktop).
+ */
+function showChecks(c) {
+  const pref = checkPrefs()[c.id];
+  return pref === undefined ? c.items.some((it) => it.done) : !!pref;
+}
+
+function setChecks(c, on) {
+  const prefs = checkPrefs();
+  prefs[c.id] = on;
+  try {
+    localStorage.setItem(CHECKS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* private mode: the choice just won't be remembered */
+  }
+}
+
+const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
+const pinnedFirst = (list) => [...list.filter((c) => c.pinned), ...list.filter((c) => !c.pinned)];
 
 function collapsedFolders() {
   try {
@@ -165,6 +210,10 @@ function route() {
   const h = location.hash.replace(/^#\/?/, '');
   if (h.startsWith('c/')) return { name: 'collection', id: decodeURIComponent(h.slice(2)) };
   if (h === 'reading') return { name: 'reading' };
+  if (h.startsWith('read/')) {
+    const [, key = '', n = '0'] = h.split('/');
+    return { name: 'read', key: decodeURIComponent(key), n: Math.max(0, parseInt(n, 10) || 0) };
+  }
   return { name: 'home' };
 }
 
@@ -204,12 +253,15 @@ async function render() {
   [data, settings] = await Promise.all([store.getData(), store.getSettings()]);
   const r = route();
   if (r.name === 'collection' && !findCol(r.id)) return go('#/');
+  if (r.name === 'read' && r.key !== 'reading' && !findCol(r.key)) return go('#/');
   els.back.hidden = r.name === 'home';
   els.searchBtn.hidden = r.name !== 'home';
+  els.menuBtn.hidden = r.name === 'read';
   els.searchbar.hidden = r.name !== 'home' || !(query || document.activeElement === els.search || els.searchbar.dataset.open);
-  els.fab.hidden = r.name === 'reading';
+  els.fab.hidden = r.name === 'reading' || r.name === 'read';
   if (r.name === 'home') renderHome();
   else if (r.name === 'collection') renderCollection(findCol(r.id));
+  else if (r.name === 'read') renderRead(r);
   else renderReading();
 }
 
@@ -225,7 +277,10 @@ function collectionCard(c) {
   const art = cover
     ? `<img class="cover" src="${esc(cover)}" ${imgAttrs}>`
     : `<span class="cover letter" style="background:${tileColor(c.id)}">${esc((c.title || '?').trim().charAt(0).toUpperCase())}</span>`;
-  const tags = (c.tags || []).slice(0, 3).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
+  const tags = (c.tags || [])
+    .slice(0, 3)
+    .map((t) => `<span class="tag" data-act="tag" data-tag="${esc(t)}" role="button">${esc(t)}</span>`)
+    .join('');
   return `<a class="card" href="#/c/${encodeURIComponent(c.id)}">
     ${art}
     <span class="card-main">
@@ -247,6 +302,7 @@ function renderHome() {
   const cols = data.collections;
 
   if (query) return renderSearch();
+  if (tagFilter && !cols.some((c) => (c.tags || []).includes(tagFilter))) tagFilter = '';
 
   if (!cols.length) {
     const canSync = dropbox && !dropbox.isConnected();
@@ -269,31 +325,71 @@ function renderHome() {
         <span class="chev">${icon('chev')}</span></a>`
     : '';
 
+  const toolbar = homeToolbar();
+  if (tagFilter) {
+    const tagged = arrangeCollections(cols.filter((c) => (c.tags || []).includes(tagFilter)));
+    els.view.innerHTML = `${toolbar}<div class="stack">${tagged.map(collectionCard).join('')}</div>`;
+    return;
+  }
+
+  const mode = settings.collectionSort || 'manual';
+  const folders = data.folders || [];
+  const collapsed = collapsedFolders();
+  const folderBlock = (f) => {
+    const kids = arrangeCollections(cols.filter((c) => c.parentId === f.id));
+    const shut = collapsed.has(f.id);
+    return `<button class="folder${shut ? ' collapsed' : ''}" data-act="folder" data-id="${esc(f.id)}" aria-expanded="${!shut}">
+          ${icon('down')}<span class="swatch" style="${f.color ? `background:${esc(f.color)}` : ''}"></span>${esc(f.name)}<span class="count">${kids.length}</span>
+        </button>
+        ${shut || !kids.length ? '' : `<div class="folder-kids">${kids.map(collectionCard).join('')}</div>`}`;
+  };
+
+  if (mode !== 'manual') {
+    // Sorted: top-level collections first, then folders (in their own order),
+    // each with its collections sorted the same way, like the extension.
+    const tops = arrangeCollections(cols.filter((c) => !c.parentId));
+    els.view.innerHTML = `${toolbar}<div class="stack">${reading}${tops.map(collectionCard).join('')}${[...folders]
+      .sort(byOrder)
+      .map(folderBlock)
+      .join('')}</div>`;
+    return;
+  }
+
   // Same arrangement as the extension's manual order: folders and top-level
   // collections share one order; pinned collections rise to the top.
-  const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
-  const folders = data.folders || [];
   const nodes = [
     ...folders.map((f) => ({ kind: 'folder', order: f.order ?? 0, f })),
     ...cols.filter((c) => !c.parentId).map((c) => ({ kind: 'col', order: c.order ?? 0, c })),
   ].sort(byOrder);
   const pinned = nodes.filter((n) => n.kind === 'col' && n.c.pinned);
   const rest = nodes.filter((n) => !(n.kind === 'col' && n.c.pinned));
-  const collapsed = collapsedFolders();
+  const html = [...pinned, ...rest].map((n) => (n.kind === 'col' ? collectionCard(n.c) : folderBlock(n.f))).join('');
 
-  const html = [...pinned, ...rest]
-    .map((n) => {
-      if (n.kind === 'col') return collectionCard(n.c);
-      const kids = cols.filter((c) => c.parentId === n.f.id).sort(byOrder);
-      const shut = collapsed.has(n.f.id);
-      return `<button class="folder${shut ? ' collapsed' : ''}" data-act="folder" data-id="${esc(n.f.id)}" aria-expanded="${!shut}">
-          ${icon('down')}<span class="swatch" style="${n.f.color ? `background:${esc(n.f.color)}` : ''}"></span>${esc(n.f.name)}<span class="count">${kids.length}</span>
-        </button>
-        ${shut || !kids.length ? '' : `<div class="folder-kids">${kids.map(collectionCard).join('')}</div>`}`;
-    })
+  els.view.innerHTML = `${toolbar}<div class="stack">${reading}${html}</div>`;
+}
+
+/** Collections in the chosen display order, pinned first. */
+function arrangeCollections(list) {
+  const mode = settings.collectionSort || 'manual';
+  return pinnedFirst(mode === 'manual' ? [...list].sort(byOrder) : sortCollections(list, mode));
+}
+
+/** Sort button plus a chip for every tag in use (most used first). */
+function homeToolbar() {
+  const counts = new Map();
+  for (const c of data.collections) for (const t of c.tags || []) counts.set(t, (counts.get(t) || 0) + 1);
+  const tags = [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b));
+  const mode = settings.collectionSort || 'manual';
+  const chips = tags
+    .map(
+      (t) =>
+        `<button class="chip${t === tagFilter ? ' on' : ''}" data-act="tag" data-tag="${esc(t)}" aria-pressed="${t === tagFilter}">${esc(t)}</button>`
+    )
     .join('');
-
-  els.view.innerHTML = `<div class="stack">${reading}${html}</div>`;
+  return `<div class="toolbar">
+      <button class="chip" data-act="sort-collections">${icon('sort')}${esc(COLLECTION_SORTS[mode] || COLLECTION_SORTS.manual)}</button>
+      ${chips}
+    </div>`;
 }
 
 function renderSearch() {
@@ -322,17 +418,29 @@ function renderSearch() {
       : '');
 }
 
-function itemRow(it, c, { showCollection = false } = {}) {
+/** Custom fields (price, qty…) as compact "key value" pairs. */
+function fieldsHtml(it) {
+  const entries = Object.entries(it.fields || {}).filter(([k]) => k);
+  if (!entries.length) return '';
+  return `<span class="fields">${entries
+    .map(([k, v]) => `<span class="fld"><span class="k">${esc(k)}</span> ${esc(v) || '–'}</span>`)
+    .join('')}</span>`;
+}
+
+function itemRow(it, c, { showCollection = false, checks = false } = {}) {
   const more = `<button class="icon-btn more-btn" data-act="item-menu" data-col="${esc(c.id)}" data-id="${esc(it.id)}" aria-label="Item options">${icon('moreV')}</button>`;
   const from = showCollection ? `<div class="from">in ${esc(c.title)}</div>` : '';
   const done = it.done ? ' done' : '';
+  const check = checks
+    ? `<button class="check${it.done ? ' on' : ''}" data-act="toggle-done" data-col="${esc(c.id)}" data-id="${esc(it.id)}" role="checkbox" aria-checked="${!!it.done}" aria-label="Done">${icon('check')}</button>`
+    : '';
 
   if (it.type === 'note') {
-    return `<div class="item${done}"><div class="item-body"><div class="note-text">${esc(it.text)}</div>${from}</div>${more}</div>`;
+    return `<div class="item${done}">${check}<div class="item-body"><div class="note-text">${esc(it.text)}</div>${from}</div>${more}</div>`;
   }
   if (it.type === 'highlight') {
     const href = safeHref(it.url);
-    return `<div class="item${done}"><div class="item-body">
+    return `<div class="item${done}">${check}<div class="item-body">
         <div class="quote">${esc(it.text)}</div>
         ${it.note ? `<div class="item-note">${esc(it.note)}</div>` : ''}
         ${href ? `<a class="host" href="${esc(href)}" target="_blank" rel="noopener"><span>${esc(it.title || hostOf(href))}</span></a>` : ''}
@@ -341,9 +449,10 @@ function itemRow(it, c, { showCollection = false } = {}) {
   if (it.type === 'image') {
     const src = safeImg(it.src);
     const page = safeHref(it.srcPageUrl);
-    return `<div class="item${done}"><div class="item-body">
+    return `<div class="item${done}">${check}<div class="item-body">
         ${src ? `<img class="item-img" src="${esc(src)}" ${imgAttrs.replace('alt=""', `alt="${esc(it.alt)}"`)}>` : ''}
         ${page ? `<a class="host" href="${esc(page)}" target="_blank" rel="noopener"><span>${esc(it.alt || hostOf(page))}</span></a>` : ''}
+        ${fieldsHtml(it)}
         ${from}</div>${more}</div>`;
   }
 
@@ -360,9 +469,11 @@ function itemRow(it, c, { showCollection = false } = {}) {
       <span class="item-title">${esc(it.title || it.url)}</span>
       <span class="host">${unread}<span>${esc(hostOf(it.url))}</span></span>
       ${it.note ? `<span class="item-note">${esc(it.note)}</span>` : ''}
+      ${fieldsHtml(it)}
       ${from}
     </span>`;
   return `<div class="item${done}">
+      ${check}
       ${href ? `<a class="item-link" href="${esc(href)}" target="_blank" rel="noopener" data-act="open" data-col="${esc(c.id)}" data-id="${esc(it.id)}">${body}</a>` : `<div class="item-link">${body}</div>`}
       ${more}
     </div>`;
@@ -376,12 +487,26 @@ function renderCollection(c) {
   const subs = kids.length
     ? `<div class="section-label">Collections</div><div class="stack">${kids.map(collectionCard).join('')}</div>`
     : '';
+  const mode = settings.itemSort || 'manual';
+  const checks = showChecks(c);
+  const pages = c.items.filter((it) => it.type === 'page' && safeHref(it.url)).length;
+  const toolbar = c.items.length
+    ? `<div class="toolbar">
+        ${pages ? `<button class="chip accent" data-act="read-through">${icon('play')}Read through</button>` : ''}
+        <button class="chip" data-act="sort-items">${icon('sort')}${esc(ITEM_SORTS[mode] || ITEM_SORTS.manual)}</button>
+        <button class="chip${checks ? ' on' : ''}" data-act="toggle-checks" aria-pressed="${checks}">${icon('check')}Checklist</button>
+      </div>`
+    : '';
+  const doneCount = c.items.filter((it) => it.done).length;
+  const progress = checks && c.items.length ? `<div class="meta checklist-progress">${doneCount} of ${c.items.length} done</div>` : '';
   const items = c.items.length
-    ? `${kids.length ? '<div class="section-label">Items</div>' : ''}<div class="stack">${c.items.map((it) => itemRow(it, c)).join('')}</div>`
+    ? `${kids.length ? '<div class="section-label">Items</div>' : ''}${progress}<div class="stack">${sortItems(c.items, mode)
+        .map((it) => itemRow(it, c, { checks }))
+        .join('')}</div>`
     : kids.length
       ? ''
       : `<div class="empty"><h2>Nothing here yet</h2><p>Tap + to save a link or write a note.</p></div>`;
-  els.view.innerHTML = subs + items;
+  els.view.innerHTML = toolbar + subs + items;
 }
 
 function renderReading() {
@@ -393,8 +518,146 @@ function renderReading() {
     els.view.innerHTML = `<div class="empty"><h2>All caught up</h2><p>Pages you save start here until you open them.</p></div>`;
     return;
   }
-  els.view.innerHTML = `<div class="row-actions"><button class="btn small" data-act="mark-all-read">${icon('check')} Mark all read</button></div>
+  els.view.innerHTML = `<div class="toolbar">
+      <button class="chip accent" data-act="read-through">${icon('play')}Read through</button>
+      <button class="chip" data-act="mark-all-read">${icon('check')}Mark all read</button>
+    </div>
     <div class="stack">${unread.map(({ it, c }) => itemRow(it, c, { showCollection: true })).join('')}</div>`;
+}
+
+// ---- Read through ------------------------------------------------------------
+// Phones won't open a whole collection as tabs (one tap opens one page), so
+// this is the mobile take on Open all: step through a collection's pages one
+// at a time. The list is fixed when you start, so reading pages (which drops
+// them off the Reading list) doesn't shuffle what comes next.
+
+let readSession = null; // { key, refs: [[collectionId, itemId], ...] }
+let readOpened = ''; // `${key}/${n}` once that page has been opened
+
+function readRefs(key) {
+  if (readSession?.key === key) return readSession.refs;
+  let refs;
+  if (key === 'reading') {
+    refs = allPages()
+      .filter(({ it }) => it.unread && safeHref(it.url))
+      .sort((a, b) => (b.it.addedAt || 0) - (a.it.addedAt || 0))
+      .map(({ it, c }) => [c.id, it.id]);
+  } else {
+    const c = findCol(key);
+    refs = sortItems(c.items, settings.itemSort || 'manual')
+      .filter((it) => it.type === 'page' && safeHref(it.url))
+      .map((it) => [c.id, it.id]);
+  }
+  readSession = { key, refs };
+  return refs;
+}
+
+function startReadThrough(key) {
+  readSession = null;
+  readOpened = '';
+  if (!readRefs(key).length) return toast('No pages to read');
+  go(`#/read/${encodeURIComponent(key)}/0`);
+}
+
+function readGo(key, n) {
+  history.replaceState(null, '', `#/read/${encodeURIComponent(key)}/${n}`);
+  window.scrollTo(0, 0);
+  render();
+}
+
+function renderRead({ key, n }) {
+  const c = key === 'reading' ? null : findCol(key);
+  setTitle(c ? c.title : 'Reading list');
+  // Skip anything deleted since the session started.
+  const refs = readRefs(key).filter(([cid, iid]) => findCol(cid)?.items.some((x) => x.id === iid));
+  if (!refs.length) {
+    els.view.innerHTML = `<div class="empty"><h2>Nothing to read</h2><p>There are no pages here to step through.</p></div>`;
+    return;
+  }
+  const i = Math.min(n, refs.length - 1);
+  const [cid, iid] = refs[i];
+  const col = findCol(cid);
+  const it = col.items.find((x) => x.id === iid);
+  const href = safeHref(it.url);
+  const thumb = safeImg(it.thumbnail);
+  const opened = readOpened === `${key}/${i}`;
+  const last = i === refs.length - 1;
+  const unread = settings.readingListEnabled && it.unread ? '<span class="unread-dot" title="Unread"></span>' : '';
+  els.view.innerHTML = `<div class="reader" data-key="${esc(key)}" data-n="${i}">
+      <div class="reader-top">
+        <span class="meta">${i + 1} of ${refs.length}</span>
+        <span class="reader-bar"><span style="width:${((i + 1) / refs.length) * 100}%"></span></span>
+      </div>
+      <article class="reader-card${it.done ? ' done' : ''}">
+        ${thumb ? `<img class="reader-img" src="${esc(thumb)}" ${imgAttrs}>` : ''}
+        <h2 class="item-title">${esc(it.title || it.url)}</h2>
+        <div class="host">${unread}<span>${esc(hostOf(it.url))}</span></div>
+        ${it.note ? `<p class="reader-note">${esc(it.note)}</p>` : ''}
+        ${fieldsHtml(it)}
+        ${key === 'reading' ? `<div class="from">in ${esc(col.title)}</div>` : ''}
+      </article>
+      <a class="btn ${opened ? '' : 'primary '}reader-open" href="${esc(href)}" target="_blank" rel="noopener" data-act="read-open" data-col="${esc(cid)}" data-id="${esc(iid)}">${icon('open')}${opened ? 'Open again' : 'Open page'}</a>
+      <div class="reader-nav">
+        <button class="btn" data-act="read-prev" ${i === 0 ? 'disabled' : ''}>${icon('prev')}Previous</button>
+        <button class="btn${opened ? ' primary' : ''}" data-act="read-next">${last ? 'Finish' : 'Next'}${last ? icon('check') : icon('next')}</button>
+      </div>
+    </div>`;
+}
+
+// Swipe left/right on the reader to move between pages.
+let touchX = null;
+els.view.addEventListener('touchstart', (e) => {
+  touchX = e.target.closest('.reader-card') ? e.touches[0].clientX : null;
+}, { passive: true });
+els.view.addEventListener('touchend', (e) => {
+  if (touchX == null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  touchX = null;
+  if (Math.abs(dx) < 60) return;
+  els.view.querySelector(dx < 0 ? '[data-act="read-next"]' : '[data-act="read-prev"]:not([disabled])')?.click();
+}, { passive: true });
+
+// ---- Share a collection ------------------------------------------------------
+
+/** Send a collection's links to any app via the share sheet (or copy them). */
+async function shareCollection(c) {
+  const list = toLinkList(c);
+  if (!list) return toast('No links to share in this collection');
+  const text = `${c.title}\n\n${list}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: c.title, text });
+      return;
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError') return; // closed the share sheet
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Links copied. Paste them anywhere.');
+  } catch {
+    toast('Couldn’t share the links');
+  }
+}
+
+function sortSheet(kind) {
+  const options = kind === 'items' ? ITEM_SORTS : COLLECTION_SORTS;
+  const key = kind === 'items' ? 'itemSort' : 'collectionSort';
+  const current = settings[key] || 'manual';
+  const handlers = {};
+  for (const mode of Object.keys(options)) {
+    handlers[mode] = async () => {
+      await store.setSettings({ [key]: mode }); // display-only; this device's choice
+      await render();
+    };
+  }
+  openSheet(
+    kind === 'items' ? 'Sort items' : 'Sort collections',
+    `<div class="menu-list">${Object.entries(options)
+      .map(([mode, label]) => menuItem(mode, mode === current ? 'check' : 'sort', label, mode === current ? 'current' : ''))
+      .join('')}</div>`,
+    handlers
+  );
 }
 
 // ---- Bottom sheet ----------------------------------------------------------
@@ -703,17 +966,47 @@ function editItemSheet(c, it) {
     fields = `<label class="field"><span>Title</span><input name="title" value="${esc(it.title)}" autofocus></label>
       <label class="field"><span>Note</span><textarea name="note" rows="4">${esc(it.note)}</textarea></label>`;
   }
+  // Custom fields (price, qty, SKU…), as on the desktop: pages and images only.
+  const hasFields = it.type === 'page' || it.type === 'image';
+  const fieldRows = Object.entries(it.fields || {})
+    .map(
+      ([k, v]) => `<div class="field-row">
+        <label class="field"><span>${esc(k)}</span><input name="field:${esc(k)}" value="${esc(v)}"></label>
+        <button class="icon-btn" type="button" data-sheet="rmfield" aria-label="Remove ${esc(k)}">${icon('close')}</button>
+      </div>`
+    )
+    .join('');
+  const fieldsBlock = hasFields
+    ? `<div class="section-label">Fields</div>${fieldRows}
+       <div class="field-new">
+         <label class="field"><span>New field</span><input name="newKey" maxlength="60" placeholder="e.g. Price"></label>
+         <label class="field"><span>Value</span><input name="newVal" placeholder="e.g. $8.99"></label>
+       </div>`
+    : '';
   openSheet(
     'Edit',
-    `${fields}<div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn primary" type="submit">Save</button></div>`,
+    `${fields}${fieldsBlock}<div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn primary" type="submit">Save</button></div>`,
     {
       cancel: () => {},
+      rmfield: (f, btn) => {
+        btn.closest('.field-row').remove();
+        return true; // keep editing
+      },
       submit: async (f) => {
         const patch = {};
         for (const k of ['text', 'note', 'alt', 'title']) {
           if (f.has(k)) patch[k] = String(f.get(k)).trim();
         }
         if (it.type === 'page' && !patch.title) patch.title = hostOf(it.url) || it.url;
+        if (hasFields) {
+          const next = {};
+          for (const [name, value] of f.entries()) {
+            if (name.startsWith('field:')) next[name.slice(6)] = String(value);
+          }
+          const newKey = String(f.get('newKey') || '').trim();
+          if (newKey) next[newKey] = String(f.get('newVal') || '').trim();
+          patch.fields = next;
+        }
         await edit(() => store.updateItem(c.id, it.id, patch));
       },
     }
@@ -742,6 +1035,7 @@ function collectionMenu(c) {
   openSheet(
     c.title,
     `<div class="menu-list">
+      ${menuItem('share', 'share', 'Share links')}
       ${menuItem('rename', 'edit', 'Rename')}
       ${menuItem('pin', 'pin', c.pinned ? 'Unpin' : 'Pin to top')}
       <div class="menu-sep"></div>
@@ -759,6 +1053,9 @@ function collectionMenu(c) {
           }
         );
         return true;
+      },
+      share: () => {
+        shareCollection(c); // starts inside the tap, so the share sheet is allowed
       },
       pin: () => edit(() => store.setPinned(c.id, !c.pinned)),
       delete: async () => {
@@ -842,8 +1139,40 @@ els.view.addEventListener('click', async (e) => {
     markOpened(el.dataset.col, el.dataset.id); // let the link open normally
     return;
   }
+  if (act === 'read-open') {
+    const r = route();
+    readOpened = `${r.key}/${el.closest('.reader').dataset.n}`;
+    markOpened(el.dataset.col, el.dataset.id).then(render);
+    return; // let the link open normally
+  }
   e.preventDefault();
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
+  else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
+  else if (act === 'toggle-checks') {
+    const c = findCol(route().id);
+    setChecks(c, !showChecks(c));
+    render();
+  } else if (act === 'tag') {
+    tagFilter = tagFilter === el.dataset.tag ? '' : el.dataset.tag;
+    if (route().name !== 'home') go('#/');
+    else render();
+  } else if (act === 'sort-collections') sortSheet('collections');
+  else if (act === 'sort-items') sortSheet('items');
+  else if (act === 'read-through') {
+    const r = route();
+    startReadThrough(r.name === 'collection' ? r.id : 'reading');
+  } else if (act === 'read-prev' || act === 'read-next') {
+    const r = route();
+    const n = Number(el.closest('.reader').dataset.n);
+    const total = readRefs(r.key).length;
+    if (act === 'read-prev') readGo(r.key, Math.max(0, n - 1));
+    else if (n + 1 < total) readGo(r.key, n + 1);
+    else {
+      readSession = null;
+      go(r.key === 'reading' ? '#/reading' : `#/c/${encodeURIComponent(r.key)}`);
+      toast('You’ve reached the end');
+    }
+  }
   else if (act === 'folder') {
     toggleFolderLocal(el.dataset.id);
     render();
@@ -857,6 +1186,7 @@ els.view.addEventListener('click', async (e) => {
 
 els.back.addEventListener('click', () => {
   const r = route();
+  if (r.name === 'read') return go(r.key === 'reading' ? '#/reading' : `#/c/${encodeURIComponent(r.key)}`);
   const c = r.name === 'collection' ? findCol(r.id) : null;
   const parent = c?.parentId && findCol(c.parentId);
   go(parent ? `#/c/${encodeURIComponent(parent.id)}` : '#/');

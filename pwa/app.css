@@ -361,3 +361,85 @@ main {
   font-size: 0.95rem;
 }
 .toast button { border: 0; background: none; color: #7fd3ff; font-weight: 700; padding: 0; }
+
+/* ---- Toolbar chips (sort, tags, read through, checklist) ------------------ */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 2px -16px 10px;
+  padding: 2px 16px;
+}
+.toolbar::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.chip svg { width: 16px; height: 16px; color: var(--muted); }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip.on svg, .chip.accent svg { color: inherit; }
+.chip.accent { background: var(--accent); border-color: transparent; color: var(--accent-text); }
+.tag[data-tag] { cursor: pointer; }
+.menu-list .current { color: var(--accent); font-weight: 700; }
+.menu-list .current svg { color: var(--accent); }
+
+/* ---- Checklists ------------------------------------------------------------ */
+.check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 2px solid var(--faint);
+  border-radius: 8px;
+  background: none;
+  color: transparent;
+}
+.check svg { width: 18px; height: 18px; stroke-width: 3; }
+.check.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.checklist-progress { margin: 0 4px 8px; }
+
+/* ---- Custom fields ---------------------------------------------------------- */
+.fields { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.fld { font-size: 0.8rem; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text); }
+.fld .k { color: var(--muted); }
+.field-row { display: flex; align-items: flex-end; gap: 4px; }
+.field-row .field { flex: 1; }
+.field-row .icon-btn { margin-bottom: 13px; color: var(--muted); }
+.field-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sheet .section-label { margin: 6px 0 8px; }
+
+/* ---- Read through ------------------------------------------------------------ */
+.reader { display: grid; gap: 14px; padding-top: 6px; }
+.reader-top { display: flex; align-items: center; gap: 12px; }
+.reader-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.reader-bar span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.reader-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  touch-action: pan-y;
+}
+.reader-card.done .item-title { text-decoration: line-through; color: var(--muted); }
+.reader-img { display: block; width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin-bottom: 14px; background: var(--surface-2); }
+.reader-card h2.item-title { font-size: 1.25rem; line-height: 1.3; margin: 0 0 6px; -webkit-line-clamp: 4; }
+.reader-note { margin: 10px 0 0; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.reader-open { width: 100%; min-height: 52px; font-size: 1.05rem; }
+.reader-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.reader-nav .btn svg { width: 18px; height: 18px; }
+.btn[disabled] { opacity: 0.4; }

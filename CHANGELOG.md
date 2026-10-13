@@ -12,6 +12,12 @@ search, and troubleshooting. Open them from **⋯ → Help & guides**, or type
 "help" in the **Ctrl+K** command palette. If you haven't made a collection yet,
 the empty list links straight to the getting-started guide.
 
+**Rearrange the collections inside a collection.** Subcollections can now be
+dragged into the order you want, just like your main list: open a collection,
+switch to organize mode (**Ctrl+K → Organize collections**), and drag their
+**⠿** handles. The new order syncs to your other devices, including the mobile
+app, where **Reorder** inside a collection now covers its collections too.
+
 ## 2.10.0
 
 **Sync no longer overwrites your other device's changes.** File sync used to

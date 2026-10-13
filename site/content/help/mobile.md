@@ -66,7 +66,7 @@ On your computer, **Open all** opens a whole collection as tabs. Phones open one
 ## Organize
 
 - **Sort:** tap the sort button at the top of a list ("Your order") to sort by date or A–Z. This only changes the view on your phone.
-- **Rearrange:** tap **Reorder**, then drag the **⠿** handles. Tap **Done** when you're finished.
+- **Rearrange:** tap **Reorder**, then drag the **⠿** handles. On the home screen that's your folders and collections; inside a collection, it's the collections and items in it. Tap **Done** when you're finished.
 - **Move a collection:** in the collection, **⋯ → Move to…** puts it in a folder (or a new one), inside another collection, or back at the top.
 - **Folders:** tap the **⋮** beside a folder to rename it, give it a color, start a new collection inside it, or delete it. Deleting a folder keeps its collections.
 - **Pin**, **Rename**, **Archive** or **Move to Trash** a collection from its **⋯** menu.

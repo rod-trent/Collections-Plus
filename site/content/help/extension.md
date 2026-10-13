@@ -28,7 +28,7 @@ If a page is already in the collection, it isn't saved twice.
 - **Custom fields** like price or quantity can be added to any page or image, and they come along when you export.
 - **Covers:** every collection gets a picture. Click **★** on any saved page to use its image as the cover, or upload your own.
 
-When you're tidying a big list, click **⇅** next to the search box to switch to **organize mode**: the drag handles and the move, archive, pin and delete buttons appear. Click **Done** to go back.
+When you're tidying a big list, click **⇅** next to the search box to switch to **organize mode**: the drag handles and the move, archive, pin and delete buttons appear. Click **Done** to go back. Inside a collection, use **Ctrl+K → Organize collections** instead, then drag the **⠿** handles to put its collections in order.
 
 ## Opening a collection
 

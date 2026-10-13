@@ -511,6 +511,36 @@ console.log('\nsubcollections: folders + import:');
   assert(imported.parentId === importedTop.id, 'merge import keeps subcollections under the re-id’d parent');
 }
 
+console.log('\nreorderSubcollections:');
+{
+  reset();
+  const parent = await store.createCollection('Parent');
+  const a = await store.createSubCollection(parent.id, 'A');
+  const b = await store.createSubCollection(parent.id, 'B');
+  const c = await store.createSubCollection(parent.id, 'C');
+  const kidsInOrder = async () =>
+    (await store.getData()).collections
+      .filter((x) => x.parentId === parent.id)
+      .sort((x, y) => x.order - y.order)
+      .map((x) => x.title);
+  assert(JSON.stringify(await kidsInOrder()) === '["A","B","C"]', 'new subcollections append in order');
+  const before = (await store.getData()).collections.find((x) => x.id === b.id).metaAt;
+  await new Promise((r) => setTimeout(r, 5));
+  await store.reorderSubcollections(parent.id, [c.id, b.id, a.id]);
+  assert(JSON.stringify(await kidsInOrder()) === '["C","B","A"]', 'reorders to the given order');
+  const after = (await store.getData()).collections;
+  assert(after.find((x) => x.id === b.id).metaAt === before, 'a subcollection that stays put is not re-stamped');
+  assert(after.find((x) => x.id === c.id).metaAt > before, 'a moved subcollection is stamped so the order syncs');
+  await store.reorderSubcollections(parent.id, [a.id, 'not-a-kid']);
+  assert(JSON.stringify(await kidsInOrder()) === '["A","C","B"]', 'unlisted children keep their order after the listed ones');
+  const outsider = await store.createCollection('Outsider');
+  await store.reorderSubcollections(parent.id, [outsider.id]);
+  assert(
+    (await store.getData()).collections.find((x) => x.id === outsider.id).parentId === null,
+    'ids from elsewhere are ignored (nothing is re-parented)'
+  );
+}
+
 console.log('');
 if (failures) {
   console.error(`${failures} assertion(s) failed`);

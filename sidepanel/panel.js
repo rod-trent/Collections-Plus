@@ -38,6 +38,7 @@ import {
   toggleDone,
   markAllRead,
   reorderItems,
+  reorderSubcollections,
   findPageByUrl,
   getSettings,
   setSettings,
@@ -919,8 +920,8 @@ async function openAllPages(c) {
 }
 
 /**
- * A collection card. `nested` renders it inside its parent's detail view
- * (no list drag-reorder there).
+ * A collection card. `nested` renders it inside its parent's detail view,
+ * where dragging reorders it among its sibling subcollections.
  */
 function buildCard(c, { nested = false } = {}) {
   const card = document.createElement('div');
@@ -972,7 +973,7 @@ function buildCard(c, { nested = false } = {}) {
   }
 
   card.innerHTML = `
-    ${nested ? '' : '<span class="card-handle" title="Drag to reorder">⠿</span>'}
+    <span class="card-handle" title="Drag to reorder">⠿</span>
     ${coverInner}
     <div class="card-body">
       <div class="card-title">${escapeHtml(c.title)}</div>
@@ -1041,7 +1042,7 @@ function buildCard(c, { nested = false } = {}) {
     });
   });
 
-  if (!nested) wireCardDrag(card);
+  wireCardDrag(card, { nested });
   return card;
 }
 
@@ -1413,10 +1414,13 @@ function wireFolderDrag(el, f) {
   });
 }
 
-function wireCardDrag(card) {
+function wireCardDrag(card, { nested = false } = {}) {
   // Only allow dragging from the handle, so clicking the card still opens it.
   const handle = card.querySelector('.card-handle');
   handle.addEventListener('mousedown', () => {
+    // Inside a collection, only reorder in manual sort: a computed sort would
+    // immediately put the cards back.
+    if (nested && viewPrefs.collectionSort !== 'manual') return;
     card.draggable = true;
   });
   card.addEventListener('mouseup', () => {
@@ -1440,6 +1444,7 @@ function wireCardDrag(card) {
     setTimeout(() => delete card.dataset.dragged, 0);
   });
   card.addEventListener('dragover', (e) => {
+    if (nested && !cardDragId) return; // only sibling subcollections drop here
     e.preventDefault();
     if (card.dataset.id !== cardDragId) card.classList.add('drop-target');
   });
@@ -1447,6 +1452,16 @@ function wireCardDrag(card) {
   card.addEventListener('drop', async (e) => {
     e.preventDefault();
     card.classList.remove('drop-target');
+    if (nested) {
+      // Subcollections: drop before this card, or after it on its lower half.
+      const list = els.subcollectionList;
+      const dragged = cardDragId && list.querySelector(`.card[data-id="${cardDragId}"]`);
+      if (!dragged || dragged === card) return;
+      const r = card.getBoundingClientRect();
+      list.insertBefore(dragged, e.clientY > r.top + r.height / 2 ? card.nextSibling : card);
+      await reorderSubcollections(openId, [...list.children].map((el) => el.dataset.id));
+      return;
+    }
     // A folder dropped onto a card lands (with its children) just before it.
     if (folderDragId) {
       const block = folderBlock(folderDragId);
@@ -1542,6 +1557,7 @@ function renderDetailNesting(c) {
       : pinnedFirst(sortCollections(kids, viewPrefs.collectionSort));
   els.subcollections.hidden = kids.length === 0;
   els.subcollectionList.classList.toggle('compact', viewPrefs.collectionDensity === 'compact');
+  els.subcollectionList.classList.toggle('no-drag', viewPrefs.collectionSort !== 'manual');
   els.subcollectionList.innerHTML = '';
   for (const k of arranged) els.subcollectionList.appendChild(buildCard(k, { nested: true }));
 }

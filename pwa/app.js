@@ -417,6 +417,12 @@ function homeToolbar() {
     </div>`;
 }
 
+/** A collection card with a drag handle, for reorder mode. */
+function dragCollectionRow(c) {
+  const inner = collectionCard(c).replace(/^<a class="card"[^>]*>|<\/a>$/g, '').trim();
+  return `<div class="drag-node" data-kind="collection" data-id="${esc(c.id)}"><div class="card"><span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>${inner}</div></div>`;
+}
+
 function reorderBar(hint) {
   return `<div class="reorder-bar">
       <span>${icon('reorder')}<span>${esc(hint)}</span></span>
@@ -434,8 +440,7 @@ function renderHomeReorder() {
   const cols = data.collections;
   const node = (kind, id, inner) => `<div class="drag-node" data-kind="${kind}" data-id="${esc(id)}">${inner}</div>`;
   const handle = `<span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>`;
-  const colRow = (c) =>
-    node('collection', c.id, `<div class="card">${handle}${collectionCard(c).replace(/^<a class="card"[^>]*>|<\/a>$/g, '').trim()}</div>`);
+  const colRow = dragCollectionRow;
   const tops = cols.filter((c) => !c.parentId);
   const pinned = tops.filter((c) => c.pinned).sort(byOrder);
   const nodes = [
@@ -480,9 +485,10 @@ function homeArrangement() {
 
 async function enterReorder() {
   const r = route();
-  const key = r.name === 'home' ? 'collectionSort' : 'itemSort';
-  if ((settings[key] || 'manual') !== 'manual') {
-    await store.setSettings({ [key]: 'manual' });
+  const keys = r.name === 'home' ? ['collectionSort'] : ['itemSort', 'collectionSort'];
+  const sorted = keys.filter((k) => (settings[k] || 'manual') !== 'manual');
+  if (sorted.length) {
+    await store.setSettings(Object.fromEntries(sorted.map((k) => [k, 'manual'])));
     toast('Showing your own order so you can rearrange it');
   }
   query = els.search.value = '';
@@ -570,6 +576,7 @@ async function endDrag(e) {
   if (order.join() !== before) {
     const r = route();
     if (container.dataset.sortable === 'items') await edit(() => store.reorderItems(container.dataset.col, order));
+    else if (container.dataset.sortable === 'subs') await edit(() => store.reorderSubcollections(container.dataset.parent, order));
     else if (r.name === 'home') await edit(() => store.saveArrangement(homeArrangement()));
   } else if (renderPending) {
     renderPending = false;
@@ -728,26 +735,30 @@ function itemRow(it, c, { showCollection = false, checks = false, drag = false, 
 
 function renderCollection(c) {
   setTitle(c.title);
-  const kids = data.collections
-    .filter((x) => x.parentId === c.id)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  // Subcollections follow the same rules as the home list: your order (or
+  // the chosen sort), pinned first, as in the extension.
+  const kids = arrangeCollections(data.collections.filter((x) => x.parentId === c.id));
   const subs = kids.length
     ? `<div class="section-label">Collections</div><div class="stack">${kids.map(collectionCard).join('')}</div>`
     : '';
   const mode = settings.itemSort || 'manual';
   const checks = showChecks(c);
   const pages = c.items.filter((it) => it.type === 'page' && safeHref(it.url)).length;
-  const toolbar = c.items.length
-    ? `<div class="toolbar">
+  const canReorder = c.items.length > 1 || kids.length > 1;
+  const toolbar =
+    c.items.length || canReorder
+      ? `<div class="toolbar">
         ${pages ? `<button class="chip accent" data-act="read-through">${icon('play')}Read through</button>` : ''}
-        <button class="chip" data-act="sort-items">${icon('sort')}${esc(ITEM_SORTS[mode] || ITEM_SORTS.manual)}</button>
-        <button class="chip${checks ? ' on' : ''}" data-act="toggle-checks" aria-pressed="${checks}">${icon('check')}Checklist</button>
-        ${c.items.length > 1 ? `<button class="chip" data-act="reorder">${icon('reorder')}Reorder</button>` : ''}
+        ${c.items.length ? `<button class="chip" data-act="sort-items">${icon('sort')}${esc(ITEM_SORTS[mode] || ITEM_SORTS.manual)}</button>` : ''}
+        ${c.items.length ? `<button class="chip${checks ? ' on' : ''}" data-act="toggle-checks" aria-pressed="${checks}">${icon('check')}Checklist</button>` : ''}
+        ${canReorder ? `<button class="chip" data-act="reorder">${icon('reorder')}Reorder</button>` : ''}
       </div>`
-    : '';
+      : '';
   if (reorderMode) {
-    els.view.innerHTML = `${reorderBar('Drag ⠿ to rearrange the items in this collection.')}
-      <div class="stack" data-sortable="items" data-col="${esc(c.id)}">${c.items.map((it) => itemRow(it, c, { drag: true })).join('')}</div>`;
+    const what = [kids.length > 1 ? 'collections' : '', c.items.length > 1 ? 'items' : ''].filter(Boolean).join(' and ');
+    els.view.innerHTML = `${reorderBar(`Drag ⠿ to rearrange the ${what || 'items'} in this collection.`)}
+      ${kids.length > 1 ? `<div class="section-label">Collections</div><div class="stack" data-sortable="subs" data-parent="${esc(c.id)}">${kids.map(dragCollectionRow).join('')}</div>` : ''}
+      ${c.items.length > 1 ? `${kids.length > 1 ? '<div class="section-label">Items</div>' : ''}<div class="stack" data-sortable="items" data-col="${esc(c.id)}">${c.items.map((it) => itemRow(it, c, { drag: true })).join('')}</div>` : ''}`;
     return;
   }
   const doneCount = c.items.filter((it) => it.done).length;

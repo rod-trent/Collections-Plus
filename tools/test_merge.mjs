@@ -240,6 +240,24 @@ console.log('\nreplace / restore survive a sync:');
   assert(!m.collections.some((c) => c.items.some((it) => it.title === 'Later')), 'Import → Replace is not undone by the other device');
 }
 
+console.log('\nsubcollection order syncs:');
+{
+  const { col } = await seed();
+  const kids = [];
+  for (const t of ['One', 'Two', 'Three']) kids.push(await on('A', () => store.createSubCollection(col.id, t)));
+  await sync();
+  await on('B', () => store.reorderSubcollections(col.id, [kids[2].id, kids[0].id, kids[1].id]));
+  await on('A', () => store.addItem(col.id, { type: 'note', text: 'unrelated edit on A' }));
+  await sync();
+  const order = async (dev) =>
+    (await on(dev, store.getData)).collections
+      .filter((c) => c.parentId === col.id)
+      .sort((a, b) => a.order - b.order)
+      .map((c) => c.title);
+  assert(JSON.stringify(await order('A')) === '["Three","One","Two"]', "B's reorder reaches A");
+  assert(JSON.stringify(await order('B')) === '["Three","One","Two"]', 'and B keeps it');
+}
+
 console.log('\nmerge properties:');
 {
   const { col } = await seed();

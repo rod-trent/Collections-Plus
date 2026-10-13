@@ -980,11 +980,111 @@ function saveLinkSheet({ url = '', title = '', collectionId = null, heading = 'S
       },
     }
   );
+  wireNewCollectionField();
+}
+
+/** Show the "New collection name" field only when that option is picked. */
+function wireNewCollectionField() {
   const select = els.sheetBody.querySelector('select[name="col"]');
   const newField = els.sheetBody.querySelector('[data-new]');
   const syncNew = () => (newField.hidden = select.value !== '__new__');
   select.addEventListener('change', syncNew);
   syncNew();
+}
+
+/** The collection picked in a save sheet, creating it if "New collection…". */
+async function pickedCollection(f) {
+  const colId = String(f.get('col') || '');
+  if (colId && colId !== '__new__') return colId;
+  const name = String(f.get('newTitle') || '').trim() || 'My Collection';
+  return (await store.createCollection(name)).id;
+}
+
+/** Chrome adds #:~:text=… to links shared from a text selection. */
+function withoutTextFragment(u) {
+  return String(u).replace(/#:~:.*$/, '');
+}
+
+/**
+ * Save shared text. With a link, it can become a Quote (a highlight with its
+ * source, as the extension's "Save selection as highlight" makes) or a Link
+ * with the text as its note. Without a link it's a Note.
+ */
+function saveSharedTextSheet({ url = '', title = '', text = '', collectionId = null }) {
+  const target = collectionId || (findCol(data.activeCollectionId) ? data.activeCollectionId : data.collections[0]?.id);
+  const hasLink = !!url;
+  openSheet(
+    hasLink ? 'Save to Collections Plus' : 'Save as a note',
+    `${hasLink
+      ? `<div class="segmented" role="tablist">
+           <button type="button" class="on" data-as="quote">Quote</button>
+           <button type="button" data-as="link">Link</button>
+         </div>
+         <input type="hidden" name="as" value="quote">
+         <div class="share-preview"><b>${esc(title || hostOf(url))}</b>${esc(withoutTextFragment(url))}</div>`
+      : ''}
+     <label class="field"><span data-text-label>${hasLink ? 'Quote' : 'Note'}</span><textarea name="text" rows="5" ${hasLink ? '' : 'autofocus'}>${esc(text)}</textarea></label>
+     ${hasLink ? `<label class="field" data-quote-only><span>Your note</span><textarea name="note" rows="2" placeholder="Optional"></textarea></label>` : ''}
+     <label class="field"><span>Collection</span><select name="col">${collectionOptions(target, { allowNew: true })}</select></label>
+     <label class="field" data-new hidden><span>New collection name</span><input name="newTitle" maxlength="200"></label>
+     <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn primary" type="submit">Save</button></div>`,
+    {
+      cancel: () => {},
+      submit: async (f) => {
+        const body = String(f.get('text') || '').trim();
+        const as = hasLink ? String(f.get('as')) : 'note';
+        if (!body && as !== 'link') {
+          toast('There’s no text to save');
+          return true;
+        }
+        const colId = await pickedCollection(f);
+        if (as === 'link') {
+          const href = withoutTextFragment(url);
+          if (await store.findPageByUrl(colId, href)) {
+            await render();
+            toast(`Already in ${findCol(colId)?.title || 'that collection'}`);
+            return;
+          }
+          await edit(() =>
+            store.addItem(colId, {
+              type: 'page',
+              url: href,
+              title: title || hostOf(href),
+              note: body,
+              unread: !!settings.readingListEnabled,
+            })
+          );
+        } else if (as === 'quote') {
+          await edit(() =>
+            store.addItem(colId, {
+              type: 'highlight',
+              text: body,
+              url, // keeps Chrome's #:~:text= so the link jumps to the quote
+              title: title || hostOf(url),
+              note: String(f.get('note') || '').trim(),
+            })
+          );
+        } else {
+          await edit(() => store.addItem(colId, { type: 'note', text: body }));
+        }
+        toast(`${as === 'quote' ? 'Quote' : as === 'link' ? 'Link' : 'Note'} saved to ${findCol(colId)?.title || 'collection'}`, {
+          label: 'View',
+          fn: () => go(`#/c/${encodeURIComponent(colId)}`),
+        });
+      },
+    }
+  );
+  wireNewCollectionField();
+  const tabs = els.sheetBody.querySelectorAll('[data-as]');
+  tabs.forEach((t) =>
+    t.addEventListener('click', () => {
+      tabs.forEach((x) => x.classList.toggle('on', x === t));
+      els.sheetBody.querySelector('input[name="as"]').value = t.dataset.as;
+      const quote = t.dataset.as === 'quote';
+      els.sheetBody.querySelector('[data-text-label]').textContent = quote ? 'Quote' : 'Note';
+      els.sheetBody.querySelector('[data-quote-only]').hidden = !quote;
+    })
+  );
 }
 
 function addSheet() {
@@ -1410,19 +1510,37 @@ function takeShare() {
   const p = new URLSearchParams(location.search);
   if (!p.has('url') && !p.has('text') && !p.has('title')) return null;
   history.replaceState(null, '', location.pathname + location.hash); // don't re-share on reload
-  const text = p.get('text') || '';
-  const url = normalizeUrl(p.get('url')) || normalizeUrl((text.match(/https?:\/\/\S+/) || [])[0]);
-  if (!url) return { error: true };
+  const rawUrl = (p.get('url') || '').trim();
+  let text = (p.get('text') || '').trim();
   let title = (p.get('title') || '').trim();
-  if (!title) title = text.replace(url, '').trim();
-  return { url, title };
+  const found = (text.match(/https?:\/\/\S+/) || [])[0] || '';
+  const url = normalizeUrl(rawUrl) || normalizeUrl(found);
+
+  // Whatever's left once the link is taken out: a title, a quote or a note.
+  if (found) text = text.replace(found, '');
+  if (rawUrl) text = text.replace(rawUrl, '');
+  text = text.trim().replace(/^["“'‘]+|["”'’]+$/g, '').trim();
+  if (text === title) text = '';
+
+  if (!url) {
+    const note = [title, text].filter(Boolean).join('\n\n');
+    return note ? { text: note } : { error: true };
+  }
+  // A short single line next to a link (YouTube, many apps) is its title.
+  if (!title && text && text.length <= 120 && !text.includes('\n')) {
+    title = text;
+    text = '';
+  }
+  return { url, title, text };
 }
 
 function openShare(shared) {
   if (!shared) return;
-  if (shared.error) return toast('Nothing to save: the shared item had no web link');
-  const ruled = matchRule(data.rules, shared);
-  saveLinkSheet({ ...shared, collectionId: findCol(ruled) ? ruled : null, heading: 'Save to Collections Plus' });
+  if (shared.error) return toast('Nothing to save: the share was empty');
+  const ruled = shared.url ? matchRule(data.rules, shared) : null;
+  const collectionId = findCol(ruled) ? ruled : null;
+  if (shared.text) return saveSharedTextSheet({ ...shared, collectionId });
+  saveLinkSheet({ ...shared, collectionId, heading: 'Save to Collections Plus' });
 }
 
 // ---- Dropbox sync ----------------------------------------------------------

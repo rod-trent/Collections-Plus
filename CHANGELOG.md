@@ -3,6 +3,15 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.10.1
+
+**Help is one click away.** There are now step-by-step guides at
+[getcollectionsplus.com/help](https://getcollectionsplus.com/help): getting
+started, using the extension, the mobile app, setting up sync with Dropbox, AI
+search, and troubleshooting. Open them from **⋯ → Help & guides**, or type
+"help" in the **Ctrl+K** command palette. If you haven't made a collection yet,
+the empty list links straight to the getting-started guide.
+
 ## 2.10.0
 
 **Sync no longer overwrites your other device's changes.** File sync used to

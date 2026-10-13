@@ -1,15 +1,17 @@
 # Privacy Policy — Collections Plus
 
-_Last updated: 2026-07-13_
+_Last updated: 2026-10-13_
 
-Collections Plus is a **local-first** browser extension. It is designed so that
-your data stays on your own devices. This policy explains exactly what the
-extension does and does not do with your information.
+Collections Plus is a **local-first** browser extension with a companion
+**mobile web app** at <https://getcollectionsplus.com/app/>. Both are designed
+so that your data stays on your own devices. This policy explains exactly what
+the extension, the mobile web app and the getcollectionsplus.com website do and
+do not do with your information.
 
 ## The short version
 
-- **We collect nothing.** There is no account, no server operated by the
-  developer, no analytics, and no telemetry.
+- **We collect nothing.** There is no account, no analytics, and no telemetry,
+  and your collections never pass through a server operated by the developer.
 - **Your data lives in your browser's local storage** on your device.
 - **Nothing is ever transmitted to the developer.**
 - **One automatic exception:** a lightweight recovery copy of your collections
@@ -23,6 +25,9 @@ extension does and does not do with your information.
   caching (fetching images you saved), or the **AI chat** (sending the
   collections you choose to the AI provider **you** configured). Each is **off
   until you enable it**, and none of them route through the developer.
+- **The mobile web app** keeps your library in your phone's browser. If you
+  connect Dropbox, it syncs directly between your phone and your own Dropbox.
+  See **The mobile web app** below.
 
 ## What data the extension stores
 
@@ -69,8 +74,11 @@ These are **off by default** and only do anything if you turn them on:
   single JSON file that **you** place in a folder your own cloud client
   (OneDrive, Google Drive, Dropbox, iCloud Drive, etc.) already syncs. The
   extension uses the browser's File System Access API to read/write that one
-  file on your disk. The developer never sees this file; only your chosen cloud
-  service handles it, under that service's own privacy policy.
+  file on your disk. The file holds your library (including your auto-file
+  rules) and, so that deletions carry over between devices, a list of recently
+  deleted items: just each item's internal ID and when it was deleted, kept for
+  90 days. The developer never sees this file; only your chosen cloud service
+  handles it, under that service's own privacy policy.
 - **Offline image caching.** If you enable it, the extension downloads images
   you save (from the page they came from) so they survive the source going
   offline, and stores a downscaled copy locally. These requests go directly from
@@ -98,6 +106,41 @@ These are **off by default** and only do anything if you turn them on:
   or your collections. This feature is **off until you configure it**, and no
   data is sent to any AI provider unless you actively send a chat message.
 
+## The mobile web app
+
+The mobile web app at <https://getcollectionsplus.com/app/> runs in your
+phone's browser and works like the extension: your data stays on your device
+unless you choose to sync it.
+
+- **Where your data lives:** your collections are stored in your browser's
+  storage for getcollectionsplus.com (IndexedDB) on your phone. They are never
+  sent to the developer. Clearing the site's data in your browser, or
+  uninstalling the app, deletes this copy.
+- **Dropbox sync (optional):** if you tap **Connect Dropbox**, you sign in on
+  Dropbox's own page, and Dropbox asks you to approve access. The app can only
+  reach **its own folder** (`Dropbox/Apps/` followed by the app's folder name),
+  not the rest of your Dropbox, and it reads and writes one file there:
+  `collections-sync.json`, the same sync file described under
+  **Cross-device sync** above. Requests go directly from your browser to
+  Dropbox, under Dropbox's privacy policy, never through the developer.
+- **Your Dropbox sign-in:** the access tokens Dropbox issues are stored only in
+  your browser on that device. The developer never receives them. **Disconnect**
+  in the app revokes access and deletes them from the device, and you can also
+  revoke access at any time in your Dropbox account settings under
+  **Connected apps**.
+
+## The website and hosting
+
+The getcollectionsplus.com website, including the mobile web app's files, is
+hosted by **Vercel**. Like any web host, Vercel receives standard technical
+information when your browser requests a page, such as your IP address and
+browser type, and handles it under Vercel's privacy policy. The site adds no
+analytics, advertising or tracking cookies of its own.
+
+**Accounts** are planned for an optional paid sync service, **Plus Sync**, and
+are not open yet. Before they open, this policy will be updated to explain what
+an account stores and who processes it.
+
 ## How permissions are used
 
 - **Host access (`<all_urls>`)** is used to read the title and preview image of a
@@ -116,18 +159,18 @@ These are **off by default** and only do anything if you turn them on:
 ## Data sharing
 
 The developer does **not** sell, share, or transmit your data to anyone, and runs
-no backend service. Your data leaves your device only in these ways, none of
-which route through the developer: automatically, the lightweight recovery copy
-saved to your browser account's synced storage (see **Automatic recovery
-backup**); and, when **you** enable them, your cloud provider's synced folder
-(cross-device sync) or the AI provider whose key you entered (AI chat). In each
-case the data goes from your browser straight to that party — your browser
-vendor, your cloud service, or your chosen AI provider — never through the
-developer.
+no backend service that receives your collections. Your data leaves your device
+only in these ways, none of which route through the developer: automatically,
+the lightweight recovery copy saved to your browser account's synced storage
+(see **Automatic recovery backup**); and, when **you** enable them, your cloud
+provider's synced folder (cross-device sync), your own Dropbox (mobile web app
+sync), or the AI provider whose key you entered (AI chat). In each case the data
+goes from your browser straight to that party (your browser vendor, your cloud
+service, Dropbox, or your chosen AI provider), never through the developer.
 
 ## Children's privacy
 
-The extension is a general-purpose productivity tool and does not knowingly
+Collections Plus is a general-purpose productivity tool and does not knowingly
 collect any personal information from anyone, including children.
 
 ## Changes to this policy

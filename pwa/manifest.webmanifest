@@ -1,12 +1,12 @@
 {
   "name": "Collections Plus",
   "short_name": "Collections",
-  "description": "Your Collections Plus library, on mobile — in sync with the desktop extension.",
+  "description": "Your Collections Plus library on your phone, in sync with the desktop extension.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b0f14",
-  "theme_color": "#0b0f14",
+  "background_color": "#16181c",
+  "theme_color": "#16181c",
   "icons": [
     {
       "src": "./icon-192.png",
@@ -26,5 +26,14 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

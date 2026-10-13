@@ -4,38 +4,45 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Collections Plus</title>
-  <meta name="theme-color" content="#0b0f14" />
+  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#16181c" media="(prefers-color-scheme: dark)" />
   <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="stylesheet" href="./app.css" />
 </head>
 <body>
-  <header class="app-bar">
-    <h1>Collections <span>Plus</span></h1>
-    <div class="actions">
-      <button id="new-collection" title="New collection">＋ Collection</button>
-      <label class="import" title="Import a JSON export from the desktop extension">
-        Import
-        <input id="import-json" type="file" accept="application/json,.json" hidden />
-      </label>
-    </div>
+  <header class="appbar">
+    <button id="back" class="icon-btn" type="button" aria-label="Back" hidden></button>
+    <h1 id="title">Collections</h1>
+    <button id="search-btn" class="icon-btn" type="button" aria-label="Search"></button>
+    <button id="menu-btn" class="icon-btn" type="button" aria-label="More"></button>
   </header>
 
-  <section class="sync-bar" id="sync-bar" hidden>
-    <span class="sync-state" id="sync-state">Not syncing</span>
-    <span class="sync-actions">
-      <button id="sync-connect" hidden>Connect Dropbox</button>
-      <button id="sync-now" hidden>Sync now</button>
-      <button id="sync-disconnect" class="quiet" hidden>Disconnect</button>
-    </span>
-  </section>
+  <div id="searchbar" class="searchbar" hidden>
+    <input id="search" type="search" placeholder="Search collections and pages" autocomplete="off" enterkeyhint="search" />
+  </div>
 
-  <main id="app">
-    <p class="empty" id="empty" hidden>No collections yet. Create one, or import a JSON export from the desktop extension.</p>
-    <ul id="collections" class="collections"></ul>
-  </main>
+  <button id="sync-chip" class="sync-chip" type="button" hidden></button>
 
-  <footer class="status" id="status">booting…</footer>
+  <main id="view" aria-live="polite"></main>
+
+  <button id="fab" class="fab" type="button" aria-label="Add"></button>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+    <form id="sheet-form" method="dialog">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <h2 id="sheet-title"></h2>
+      <div id="sheet-body"></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden>
+    <span id="toast-msg"></span>
+    <button id="toast-btn" type="button" hidden></button>
+  </div>
+
+  <input id="import-file" type="file" accept="application/json,.json" hidden />
 
   <script type="module" src="./app.js"></script>
 </body>

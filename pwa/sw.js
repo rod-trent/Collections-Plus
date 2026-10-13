@@ -9,7 +9,7 @@
 // Phase 3 will extend this worker with the share-target handler and a
 // Background-Sync queue for offline saves.
 
-const CACHE = 'cp-shell-v7';
+const CACHE = 'cp-shell-v8';
 const SHELL = ['./', './index.html', './app.css', './app.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -33,7 +33,9 @@ self.addEventListener('fetch', (e) => {
   // the cached copy keeps the app working offline. (Cache-first would pin
   // every installed app to the version it first downloaded.)
   e.respondWith(
-    fetch(request)
+    // no-cache: always re-check with the server (a cheap 304 when unchanged),
+    // so a browser's own HTTP cache can't hand back a stale app.
+    fetch(request, { cache: 'no-cache' })
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

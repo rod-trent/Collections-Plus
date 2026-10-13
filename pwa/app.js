@@ -78,6 +78,8 @@ const ICON = {
   tag: '<path d="M3 12V4a1 1 0 011-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/>',
   archive: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9M10 13h4"/>',
   restore: '<path d="M3 12a9 9 0 109-9 9.7 9.7 0 00-6.7 2.8L3 8M3 3v5h5"/>',
+  grip: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
+  reorder: '<path d="M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -153,6 +155,9 @@ let data = null; // last read of store.getData()
 let settings = null;
 let query = '';
 let tagFilter = ''; // home: show only collections with this tag
+let reorderMode = false; // drag handles shown (home or a collection)
+let dragging = false; // a drag is in progress: hold re-renders until it ends
+let renderPending = false;
 const COLLAPSED_KEY = 'cp.collapsedFolders'; // per-device, not synced
 const CHECKS_KEY = 'cp.checklists'; // per-device: { [collectionId]: true|false }
 
@@ -254,6 +259,10 @@ async function edit(fn) {
 // ---- Rendering -------------------------------------------------------------
 
 async function render() {
+  if (dragging) {
+    renderPending = true; // e.g. a sync landed mid-drag; redraw after the drop
+    return;
+  }
   [data, settings] = await Promise.all([store.getData(), store.getSettings()]);
   const r = route();
   if (r.name === 'collection' && !findCol(r.id)) return go('#/');
@@ -262,7 +271,7 @@ async function render() {
   els.searchBtn.hidden = r.name !== 'home';
   els.menuBtn.hidden = r.name === 'read';
   els.searchbar.hidden = r.name !== 'home' || !(query || document.activeElement === els.search || els.searchbar.dataset.open);
-  els.fab.hidden = ['reading', 'read', 'archive', 'trash'].includes(r.name);
+  els.fab.hidden = reorderMode || ['reading', 'read', 'archive', 'trash'].includes(r.name);
   if (r.name === 'home') renderHome();
   else if (r.name === 'collection') renderCollection(findCol(r.id));
   else if (r.name === 'read') renderRead(r);
@@ -330,6 +339,7 @@ function renderHome() {
         <span class="chev">${icon('chev')}</span></a>`
     : '';
 
+  if (reorderMode) return renderHomeReorder();
   const toolbar = homeToolbar();
   if (tagFilter) {
     const tagged = arrangeCollections(cols.filter((c) => (c.tags || []).includes(tagFilter)));
@@ -393,9 +403,173 @@ function homeToolbar() {
     .join('');
   return `<div class="toolbar">
       <button class="chip" data-act="sort-collections">${icon('sort')}${esc(COLLECTION_SORTS[mode] || COLLECTION_SORTS.manual)}</button>
+      ${data.collections.length > 1 || (data.folders || []).length ? `<button class="chip" data-act="reorder">${icon('reorder')}Reorder</button>` : ''}
       ${chips}
     </div>`;
 }
+
+function reorderBar(hint) {
+  return `<div class="reorder-bar">
+      <span>${icon('reorder')}<span>${esc(hint)}</span></span>
+      <button class="btn small primary" data-act="reorder-done">Done</button>
+    </div>`;
+}
+
+/**
+ * Home in reorder mode: the extension's manual arrangement, made draggable.
+ * Pinned collections (always on top) reorder among themselves; folders and
+ * top-level collections share one order; each folder's collections have
+ * their own. Dragging a folder brings its collections along.
+ */
+function renderHomeReorder() {
+  const cols = data.collections;
+  const node = (kind, id, inner) => `<div class="drag-node" data-kind="${kind}" data-id="${esc(id)}">${inner}</div>`;
+  const handle = `<span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>`;
+  const colRow = (c) =>
+    node('collection', c.id, `<div class="card">${handle}${collectionCard(c).replace(/^<a class="card"[^>]*>|<\/a>$/g, '').trim()}</div>`);
+  const tops = cols.filter((c) => !c.parentId);
+  const pinned = tops.filter((c) => c.pinned).sort(byOrder);
+  const nodes = [
+    ...(data.folders || []).map((f) => ({ kind: 'folder', order: f.order ?? 0, f })),
+    ...tops.filter((c) => !c.pinned).map((c) => ({ kind: 'collection', order: c.order ?? 0, c })),
+  ].sort(byOrder);
+  const top = nodes
+    .map((n) => {
+      if (n.kind === 'collection') return colRow(n.c);
+      const kids = cols.filter((c) => c.parentId === n.f.id).sort(byOrder);
+      return node(
+        'folder',
+        n.f.id,
+        `<div class="folder folder-drag">${handle}<span class="swatch" style="${n.f.color ? `background:${esc(n.f.color)}` : ''}"></span>${esc(n.f.name)}<span class="count">${kids.length}</span></div>
+         <div class="folder-kids" data-sortable="folder" data-folder="${esc(n.f.id)}">${kids.map(colRow).join('')}</div>`
+      );
+    })
+    .join('');
+  els.view.innerHTML = `${reorderBar('Drag ⠿ to rearrange your folders and collections.')}
+    ${pinned.length ? `<div class="section-label">Pinned</div><div class="stack" data-sortable="pinned">${pinned.map(colRow).join('')}</div><div class="section-label">Everything else</div>` : ''}
+    <div class="stack" data-sortable="top">${top}</div>`;
+}
+
+/** Read the arranged home list back into saveArrangement() entries. */
+function homeArrangement() {
+  const entries = [];
+  let order = 0;
+  const ids = (el) => [...el.querySelectorAll(':scope > .drag-node')];
+  const pinned = els.view.querySelector('[data-sortable="pinned"]');
+  if (pinned) for (const n of ids(pinned)) entries.push({ kind: 'collection', id: n.dataset.id, parentId: null, order: order++ });
+  for (const n of ids(els.view.querySelector('[data-sortable="top"]'))) {
+    entries.push({ kind: n.dataset.kind, id: n.dataset.id, parentId: null, order: order++ });
+    if (n.dataset.kind === 'folder') {
+      let k = 0;
+      for (const kid of ids(n.querySelector('[data-sortable="folder"]'))) {
+        entries.push({ kind: 'collection', id: kid.dataset.id, parentId: n.dataset.id, order: k++ });
+      }
+    }
+  }
+  return entries;
+}
+
+async function enterReorder() {
+  const r = route();
+  const key = r.name === 'home' ? 'collectionSort' : 'itemSort';
+  if ((settings[key] || 'manual') !== 'manual') {
+    await store.setSettings({ [key]: 'manual' });
+    toast('Showing your own order so you can rearrange it');
+  }
+  query = els.search.value = '';
+  tagFilter = '';
+  reorderMode = true;
+  await render();
+}
+
+// ---- Drag to reorder (touch, pen and mouse) ---------------------------------
+// Press a ⠿ handle and drag. The row follows your finger, a gap shows where
+// it will land, and the page scrolls when you drag near the top or bottom.
+// Only the handle starts a drag, so scrolling the list works as normal.
+
+let drag = null;
+
+els.view.addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle || drag) return;
+  const container = handle.closest('[data-sortable]');
+  const row = [...container.children].find((x) => x.contains(handle));
+  if (!row) return;
+  e.preventDefault();
+  const rect = row.getBoundingClientRect();
+  const ph = document.createElement('div');
+  ph.className = 'drag-placeholder';
+  ph.style.height = `${rect.height}px`;
+  row.after(ph);
+  Object.assign(row.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, zIndex: 30 });
+  row.classList.add('dragging');
+  drag = { row, ph, container, offset: e.clientY - rect.top, y: e.clientY, id: e.pointerId, before: [...container.children].filter((x) => x !== ph).map((x) => x.dataset.id).join() };
+  dragging = true;
+  try {
+    handle.setPointerCapture(e.pointerId); // keep getting moves if the finger leaves the handle
+  } catch {
+    /* pointer already gone (very quick tap); pointerup still ends the drag */
+  }
+  autoScroll();
+});
+
+els.view.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  drag.y = e.clientY;
+  placeDrag();
+});
+
+function placeDrag() {
+  const { row, ph, container, offset, y } = drag;
+  row.style.top = `${y - offset}px`;
+  // The gap goes before the first sibling whose middle is below the finger.
+  const siblings = [...container.children].filter((x) => x !== row && x !== ph);
+  const next = siblings.find((x) => {
+    const r = x.getBoundingClientRect();
+    return y < r.top + r.height / 2;
+  });
+  if (next) {
+    if (next.previousElementSibling !== ph) container.insertBefore(ph, next);
+  } else if (container.lastElementChild !== ph) {
+    container.appendChild(ph);
+  }
+}
+
+function autoScroll() {
+  if (!drag) return;
+  const edge = 70;
+  const top = els.view.getBoundingClientRect().top < 0 ? 0 : 120; // below the app bar
+  let dy = 0;
+  if (drag.y < top + edge) dy = -Math.ceil((top + edge - drag.y) / 6);
+  else if (drag.y > innerHeight - edge) dy = Math.ceil((drag.y - (innerHeight - edge)) / 6);
+  if (dy) {
+    window.scrollBy(0, dy);
+    placeDrag();
+  }
+  requestAnimationFrame(autoScroll);
+}
+
+async function endDrag(e) {
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  const { row, ph, container, before } = drag;
+  drag = null;
+  ph.replaceWith(row);
+  row.removeAttribute('style');
+  row.classList.remove('dragging');
+  const order = [...container.children].map((x) => x.dataset.id);
+  dragging = false;
+  if (order.join() !== before) {
+    const r = route();
+    if (container.dataset.sortable === 'items') await edit(() => store.reorderItems(container.dataset.col, order));
+    else if (r.name === 'home') await edit(() => store.saveArrangement(homeArrangement()));
+  } else if (renderPending) {
+    renderPending = false;
+    await render();
+  }
+}
+els.view.addEventListener('pointerup', endDrag);
+els.view.addEventListener('pointercancel', endDrag);
+
 
 function renderSearch() {
   const q = query.toLowerCase();
@@ -432,29 +606,33 @@ function fieldsHtml(it) {
     .join('')}</span>`;
 }
 
-function itemRow(it, c, { showCollection = false, checks = false } = {}) {
-  const more = `<button class="icon-btn more-btn" data-act="item-menu" data-col="${esc(c.id)}" data-id="${esc(it.id)}" aria-label="Item options">${icon('moreV')}</button>`;
+function itemRow(it, c, { showCollection = false, checks = false, drag = false } = {}) {
+  let more = `<button class="icon-btn more-btn" data-act="item-menu" data-col="${esc(c.id)}" data-id="${esc(it.id)}" aria-label="Item options">${icon('moreV')}</button>`;
   const from = showCollection ? `<div class="from">in ${esc(c.title)}</div>` : '';
   const done = it.done ? ' done' : '';
-  const check = checks
+  let check = checks
     ? `<button class="check${it.done ? ' on' : ''}" data-act="toggle-done" data-col="${esc(c.id)}" data-id="${esc(it.id)}" role="checkbox" aria-checked="${!!it.done}" aria-label="Done">${icon('check')}</button>`
     : '';
+  if (drag) {
+    check = `<span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>`;
+    more = '';
+  }
 
   if (it.type === 'note') {
-    return `<div class="item${done}">${check}<div class="item-body"><div class="note-text">${esc(it.text)}</div>${from}</div>${more}</div>`;
+    return `<div class="item${done}" data-id="${esc(it.id)}">${check}<div class="item-body"><div class="note-text">${esc(it.text)}</div>${from}</div>${more}</div>`;
   }
   if (it.type === 'highlight') {
     const href = safeHref(it.url);
-    return `<div class="item${done}">${check}<div class="item-body">
+    return `<div class="item${done}" data-id="${esc(it.id)}">${check}<div class="item-body">
         <div class="quote">${esc(it.text)}</div>
         ${it.note ? `<div class="item-note">${esc(it.note)}</div>` : ''}
-        ${href ? `<a class="host" href="${esc(href)}" target="_blank" rel="noopener"><span>${esc(it.title || hostOf(href))}</span></a>` : ''}
+        ${href ? `<${drag ? 'span' : 'a'} class="host" href="${esc(href)}" target="_blank" rel="noopener"><span>${esc(it.title || hostOf(href))}</span></${drag ? 'span' : 'a'}>` : ''}
         ${from}</div>${more}</div>`;
   }
   if (it.type === 'image') {
     const src = safeImg(it.src);
     const page = safeHref(it.srcPageUrl);
-    return `<div class="item${done}">${check}<div class="item-body">
+    return `<div class="item${done}" data-id="${esc(it.id)}">${check}<div class="item-body">
         ${src ? `<img class="item-img" src="${esc(src)}" ${imgAttrs.replace('alt=""', `alt="${esc(it.alt)}"`)}>` : ''}
         ${page ? `<a class="host" href="${esc(page)}" target="_blank" rel="noopener"><span>${esc(it.alt || hostOf(page))}</span></a>` : ''}
         ${fieldsHtml(it)}
@@ -477,9 +655,9 @@ function itemRow(it, c, { showCollection = false, checks = false } = {}) {
       ${fieldsHtml(it)}
       ${from}
     </span>`;
-  return `<div class="item${done}">
+  return `<div class="item${done}" data-id="${esc(it.id)}">
       ${check}
-      ${href ? `<a class="item-link" href="${esc(href)}" target="_blank" rel="noopener" data-act="open" data-col="${esc(c.id)}" data-id="${esc(it.id)}">${body}</a>` : `<div class="item-link">${body}</div>`}
+      ${href && !drag ? `<a class="item-link" href="${esc(href)}" target="_blank" rel="noopener" data-act="open" data-col="${esc(c.id)}" data-id="${esc(it.id)}">${body}</a>` : `<div class="item-link">${body}</div>`}
       ${more}
     </div>`;
 }
@@ -500,8 +678,14 @@ function renderCollection(c) {
         ${pages ? `<button class="chip accent" data-act="read-through">${icon('play')}Read through</button>` : ''}
         <button class="chip" data-act="sort-items">${icon('sort')}${esc(ITEM_SORTS[mode] || ITEM_SORTS.manual)}</button>
         <button class="chip${checks ? ' on' : ''}" data-act="toggle-checks" aria-pressed="${checks}">${icon('check')}Checklist</button>
+        ${c.items.length > 1 ? `<button class="chip" data-act="reorder">${icon('reorder')}Reorder</button>` : ''}
       </div>`
     : '';
+  if (reorderMode) {
+    els.view.innerHTML = `${reorderBar('Drag ⠿ to rearrange the items in this collection.')}
+      <div class="stack" data-sortable="items" data-col="${esc(c.id)}">${c.items.map((it) => itemRow(it, c, { drag: true })).join('')}</div>`;
+    return;
+  }
   const doneCount = c.items.filter((it) => it.done).length;
   const progress = checks && c.items.length ? `<div class="meta checklist-progress">${doneCount} of ${c.items.length} done</div>` : '';
   const items = c.items.length
@@ -1394,9 +1578,11 @@ async function markOpened(colId, itemId) {
 // ---- Event wiring ----------------------------------------------------------
 
 els.view.addEventListener('click', async (e) => {
+  if (reorderMode && e.target.closest('.drag-node a, .drag-node .tag')) e.preventDefault();
   const el = e.target.closest('[data-act]');
   if (!el) return;
   const act = el.dataset.act;
+  if (reorderMode && !['reorder-done', 'toggle-done'].includes(act)) return;
   if (act === 'open') {
     markOpened(el.dataset.col, el.dataset.id); // let the link open normally
     return;
@@ -1410,6 +1596,11 @@ els.view.addEventListener('click', async (e) => {
   e.preventDefault();
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
   else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
+  else if (act === 'reorder') enterReorder();
+  else if (act === 'reorder-done') {
+    reorderMode = false;
+    render();
+  }
   else if (act === 'bin-restore' || act === 'bin-menu') {
     const isTrash = route().name === 'trash';
     const entry = binEntry(isTrash, el.dataset.id);
@@ -1482,6 +1673,7 @@ els.search.addEventListener('input', () => {
 els.fab.addEventListener('click', addSheet);
 els.chip.addEventListener('click', () => (dropbox?.isConnected() ? syncNow() : appMenu()));
 window.addEventListener('hashchange', () => {
+  reorderMode = false;
   window.scrollTo(0, 0);
   render();
 });

@@ -453,3 +453,44 @@ main {
 .bin-note { margin: 0 4px 10px; }
 .chip.danger { color: var(--danger); }
 .chip.danger svg { color: var(--danger); }
+
+/* ---- Drag to reorder ------------------------------------------------------- */
+.reorder-bar {
+  position: sticky;
+  top: calc(var(--bar-h) + env(safe-area-inset-top));
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+.reorder-bar > span { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.reorder-bar svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.drag-handle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 44px;
+  margin: -4px 0 -4px -4px;
+  color: var(--faint);
+  cursor: grab;
+  touch-action: none; /* the handle drags; the rest of the list still scrolls */
+  -webkit-user-select: none;
+  user-select: none;
+}
+.item .drag-handle { align-self: center; }
+.drag-node { display: grid; gap: 8px; }
+.drag-node .card .chev { display: none; }
+.drag-node .card { cursor: default; }
+.folder-drag { cursor: default; padding: 4px 6px 4px 0; }
+.drag-node .folder-kids:empty { min-height: 8px; }
+.dragging { box-shadow: var(--shadow); opacity: 0.96; pointer-events: none; }
+.dragging .card, .dragging.item { border-color: var(--accent); }
+.drag-placeholder { border: 2px dashed var(--border); border-radius: var(--radius); background: var(--accent-soft); }

@@ -3,6 +3,28 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.10.0
+
+**Sync no longer overwrites your other device's changes.** File sync used to
+keep whichever copy was saved last, so edits made on one computer could be
+lost if another computer saved in the meantime. Now each device merges: pages
+added, edited, moved or deleted on either side all survive, and if both
+devices changed the same item, the most recent change wins. Deletes carry over
+too, so something you removed doesn't reappear from the other device.
+
+**Collections Plus on your phone.** A companion mobile app is now at
+[getcollectionsplus.com/app](https://getcollectionsplus.com/app/). It
+installs from your phone's browser, with no app store, and syncs with the
+extension through your own Dropbox. To connect them, open the mobile app,
+tap **Connect Dropbox**, then in the extension choose ⋯ → Sync → **Use existing
+sync file…** and pick `collections-sync.json` in your Dropbox `Apps` folder.
+
+**Fixed: auto-file rules lost after syncing.** Pulling from the sync file
+dropped your auto-file rules on that device. They now sync with everything else.
+
+**Fixed: restoring an older version dropped your folders.** Restoring from
+⋯ → Tools → Version history now keeps your folders and auto-file rules.
+
 ## 2.9.0
 
 **Add the current page straight from the list.** Hover a collection and click

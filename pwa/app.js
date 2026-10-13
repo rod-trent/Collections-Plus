@@ -359,9 +359,12 @@ function renderHome() {
   const folderBlock = (f) => {
     const kids = arrangeCollections(cols.filter((c) => c.parentId === f.id));
     const shut = collapsed.has(f.id);
-    return `<button class="folder${shut ? ' collapsed' : ''}" data-act="folder" data-id="${esc(f.id)}" aria-expanded="${!shut}">
-          ${icon('down')}<span class="swatch" style="${f.color ? `background:${esc(f.color)}` : ''}"></span>${esc(f.name)}<span class="count">${kids.length}</span>
-        </button>
+    return `<div class="folder-row">
+          <button class="folder${shut ? ' collapsed' : ''}" data-act="folder" data-id="${esc(f.id)}" aria-expanded="${!shut}">
+            ${icon('down')}<span class="swatch" style="${f.color ? `background:${esc(f.color)}` : ''}"></span><span class="folder-name">${esc(f.name)}</span><span class="count">${kids.length}</span>
+          </button>
+          <button class="icon-btn more-btn" data-act="folder-menu" data-id="${esc(f.id)}" aria-label="Folder options">${icon('moreV')}</button>
+        </div>
         ${shut || !kids.length ? '' : `<div class="folder-kids">${kids.map(collectionCard).join('')}</div>`}`;
   };
 
@@ -1077,6 +1080,9 @@ function closeSheet() {
 }
 
 els.sheet.addEventListener('close', () => {
+  // The close event arrives a moment after close(); if another sheet has
+  // opened since, leave it alone.
+  if (els.sheet.open) return;
   els.sheetBody.innerHTML = '';
   sheetHandlers = {};
   if (sheetHasHistory) {
@@ -1340,8 +1346,9 @@ function addSheet() {
       `<div class="menu-list">
         ${menuItem('link', 'link', 'Save a link')}
         ${menuItem('collection', 'plus', 'New collection')}
+        ${menuItem('folder', 'folder', 'New folder')}
       </div>`,
-      { link: () => (saveLinkSheet(), true), collection: () => (newCollectionSheet(), true) }
+      { link: () => (saveLinkSheet(), true), collection: () => (newCollectionSheet(), true), folder: () => (newFolderSheet(), true) }
     );
     return;
   }
@@ -1700,6 +1707,117 @@ async function aiSettingsSheet({ thenSearch = false } = {}) {
   sync();
 }
 
+// ---- Folders ---------------------------------------------------------------
+// Same folders as the extension (they sync): name, color, the collections in
+// them. Deleting a folder sends it to Trash; its collections move to the top
+// level and go back in if you restore it.
+
+const FOLDER_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#eab308',
+  '#22c55e', '#14b8a6', '#3b82f6', '#6366f1',
+  '#8b5cf6', '#ec4899', '#78716c', '#64748b',
+];
+
+const findFolder = (id) => (data.folders || []).find((f) => f.id === id) || null;
+
+function newFolderSheet() {
+  openSheet(
+    'New folder',
+    `<label class="field"><span>Name</span><input name="name" required maxlength="200" autofocus placeholder="e.g. Work"></label>
+     <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn primary" type="submit">Create</button></div>`,
+    {
+      cancel: () => {},
+      submit: async (f) => {
+        const name = String(f.get('name') || '').trim();
+        if (!name) return true;
+        await edit(() => store.createFolder(name));
+        if (route().name !== 'home') go('#/');
+        toast(`Folder “${name}” created. Use ⋯ → Move to… on a collection to put it inside.`);
+      },
+    }
+  );
+}
+
+function folderMenu(id) {
+  const f = findFolder(id);
+  if (!f) return;
+  const count = data.collections.filter((c) => c.parentId === f.id).length;
+  openSheet(
+    f.name,
+    `<div class="menu-list">
+      ${menuItem('add', 'plus', 'New collection in this folder')}
+      ${menuItem('rename', 'edit', 'Rename')}
+      ${menuItem('color', 'tag', 'Color')}
+      <div class="menu-sep"></div>
+      ${menuItem('delete', 'trash', 'Delete folder', 'danger')}
+    </div>`,
+    {
+      add: () => {
+        openSheet(
+          `New collection in “${f.name}”`,
+          `<label class="field"><span>Name</span><input name="title" required maxlength="200" autofocus></label>
+           <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn primary" type="submit">Create</button></div>`,
+          {
+            cancel: () => {},
+            submit: async (fd) => {
+              const title = String(fd.get('title') || '').trim();
+              if (!title) return true;
+              const created = await store.createCollection(title);
+              await edit(() => store.setParent(created.id, f.id));
+              go(`#/c/${encodeURIComponent(created.id)}`);
+            },
+          }
+        );
+        return true;
+      },
+      rename: () => {
+        openSheet(
+          'Rename folder',
+          `<label class="field"><span>Name</span><input name="name" value="${esc(f.name)}" required maxlength="200" autofocus></label>
+           <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn primary" type="submit">Save</button></div>`,
+          {
+            cancel: () => {},
+            submit: (fd) => edit(() => store.renameFolder(f.id, String(fd.get('name') || ''))),
+          }
+        );
+        return true;
+      },
+      color: () => {
+        const handlers = { none: () => edit(() => store.setFolderColor(f.id, null)) };
+        FOLDER_COLORS.forEach((hex, i) => (handlers[`c${i}`] = () => edit(() => store.setFolderColor(f.id, hex))));
+        openSheet(
+          'Folder color',
+          `<div class="swatch-grid">${FOLDER_COLORS.map(
+            (hex, i) =>
+              `<button type="button" class="color-swatch${f.color?.toLowerCase() === hex ? ' on' : ''}" data-sheet="c${i}" style="background:${hex}" aria-label="Color ${hex}">${f.color?.toLowerCase() === hex ? icon('check') : ''}</button>`
+          ).join('')}</div>
+           <div class="sheet-actions"><button class="btn" type="button" data-sheet="none">No color</button></div>`,
+          handlers
+        );
+        return true;
+      },
+      delete: () => {
+        openSheet(
+          `Delete “${f.name}”?`,
+          `<p class="sheet-note">The folder goes to the Trash for 30 days. ${count === 1 ? 'The collection in it isn’t deleted: it moves to the top level, and back into the folder if you restore it.' : count ? `Its ${count} collections aren’t deleted: they move to the top level, and back into the folder if you restore it.` : 'It’s empty.'}</p>
+           <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn danger" type="submit">Delete folder</button></div>`,
+          {
+            cancel: () => {},
+            submit: async () => {
+              const entryId = await edit(() => store.trashFolder(f.id));
+              toast(`Folder “${f.name}” moved to Trash`, {
+                label: 'Undo',
+                fn: () => edit(() => store.restoreFromTrash(entryId)),
+              });
+            },
+          }
+        );
+        return true;
+      },
+    }
+  );
+}
+
 function appMenu() {
   const connected = dropbox?.isConnected();
   const syncPart = dropbox
@@ -1719,6 +1837,7 @@ function appMenu() {
       ${menuItem('archive', 'archive', `Archive${binCount(false) ? ` (${binCount(false)})` : ''}`)}
       ${menuItem('trash', 'trash', `Trash${binCount(true) ? ` (${binCount(true)})` : ''}`)}
       ${menuItem('new', 'plus', 'New collection')}
+      ${menuItem('newfolder', 'folder', 'New folder')}
       ${menuItem('ai', 'sparkle', 'AI settings')}
       ${menuItem('import', 'import', 'Import a backup (JSON)')}
       <a href="https://getcollectionsplus.com/" target="_blank" rel="noopener">${icon('desktop')}<span>Get the desktop extension</span></a>
@@ -1747,6 +1866,7 @@ function appMenu() {
       archive: () => go('#/archive'),
       trash: () => go('#/trash'),
       new: () => (newCollectionSheet(), true),
+      newfolder: () => (newFolderSheet(), true),
       ai: () => (aiSettingsSheet(), true),
       import: () => els.importFile.click(),
     }
@@ -1782,6 +1902,7 @@ els.view.addEventListener('click', async (e) => {
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
   else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
   else if (act === 'reorder') enterReorder();
+  else if (act === 'folder-menu') folderMenu(el.dataset.id);
   else if (act === 'ai-search') runAiSearch();
   else if (act === 'ai-cancel') aiController?.abort();
   else if (act === 'ai-settings') aiSettingsSheet({ thenSearch: true });

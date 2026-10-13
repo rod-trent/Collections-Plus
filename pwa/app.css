@@ -503,3 +503,20 @@ main {
 .ai-label { display: flex; align-items: center; gap: 6px; color: var(--accent); }
 .ai-none { margin: 0 4px 12px; }
 .why { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.82rem; color: var(--accent); }
+
+/* ---- Folders --------------------------------------------------------------- */
+.folder-row { display: flex; align-items: center; }
+.folder-row .folder { flex: 1; min-width: 0; }
+.folder-row .more-btn { margin: 6px 0 0; }
+.folder .folder-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swatch-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 12px; }
+.color-swatch {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+}
+.color-swatch.on { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--text); }
+.color-swatch svg { stroke-width: 3; }

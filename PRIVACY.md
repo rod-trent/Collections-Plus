@@ -128,6 +128,15 @@ unless you choose to sync it.
   in the app revokes access and deletes them from the device, and you can also
   revoke access at any time in your Dropbox account settings under
   **Connected apps**.
+- **AI search (optional, bring your own provider):** if you add an API key in
+  the app's **AI settings**, tapping **Search by meaning** sends your search
+  and the titles, links, notes and custom fields of up to 250 saved items
+  directly from your phone to the **AI provider you selected**, which handles
+  them under its own privacy policy and terms. Your API key is stored only in
+  your browser on that phone, is **never synced or included in backups**, and
+  can be removed with **Remove key**. The developer never receives your key,
+  your searches or your collections. Nothing is sent to any AI provider unless
+  you tap **Search by meaning**.
 
 ## The website and hosting
 

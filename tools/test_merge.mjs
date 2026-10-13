@@ -274,6 +274,21 @@ console.log('\nArchive order syncs:');
   assert(JSON.stringify(await shown('A')) === '["Y","Z","X"]', "B's Archive order reaches A");
 }
 
+console.log('\nReading list order syncs:');
+{
+  const { col } = await seed();
+  const ids = [];
+  for (const t of ['r1', 'r2', 'r3']) {
+    ids.push((await on('A', () => store.addItem(col.id, { type: 'page', url: `https://${t}.example`, title: t, unread: true }))).item.id);
+  }
+  await sync();
+  await on('B', () => store.reorderReadingList([ids[1], ids[2], ids[0]]));
+  await sync();
+  const shown = async (dev) =>
+    store.readingListInOrder(await on(dev, store.getData)).map((r) => r.item.title).filter((t) => /^r\d$/.test(t));
+  assert(JSON.stringify(await shown('A')) === '["r2","r3","r1"]', "B's Reading list order reaches A");
+}
+
 console.log('\nmerge properties:');
 {
   const { col } = await seed();

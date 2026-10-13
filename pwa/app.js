@@ -584,6 +584,7 @@ async function endDrag(e) {
     if (container.dataset.sortable === 'items') await edit(() => store.reorderItems(container.dataset.col, order));
     else if (container.dataset.sortable === 'subs') await edit(() => store.reorderSubcollections(container.dataset.parent, order));
     else if (container.dataset.sortable === 'archive') await edit(() => store.reorderArchive(order));
+    else if (container.dataset.sortable === 'reading') await edit(() => store.reorderReadingList(order));
     else if (r.name === 'home') await edit(() => store.saveArrangement(homeArrangement()));
   } else if (renderPending) {
     renderPending = false;
@@ -782,9 +783,12 @@ function renderCollection(c) {
 
 function renderReading() {
   setTitle('Reading list');
-  const unread = allPages()
-    .filter(({ it }) => it.unread)
-    .sort((a, b) => (b.it.addedAt || 0) - (a.it.addedAt || 0));
+  const unread = store.readingListInOrder(data).map(({ item, collection }) => ({ it: item, c: collection }));
+  if (reorderMode && unread.length > 1) {
+    els.view.innerHTML = `${reorderBar('Drag ⠿ to rearrange your Reading list.')}
+      <div class="stack" data-sortable="reading">${unread.map(({ it, c }) => itemRow(it, c, { showCollection: true, drag: true })).join('')}</div>`;
+    return;
+  }
   if (!unread.length) {
     els.view.innerHTML = `<div class="empty"><h2>All caught up</h2><p>Pages you save start here until you open them.</p></div>`;
     return;
@@ -792,6 +796,7 @@ function renderReading() {
   els.view.innerHTML = `<div class="toolbar">
       <button class="chip accent" data-act="read-through">${icon('play')}Read through</button>
       <button class="chip" data-act="mark-all-read">${icon('check')}Mark all read</button>
+      ${unread.length > 1 ? `<button class="chip" data-act="reorder">${icon('reorder')}Reorder</button>` : ''}
     </div>
     <div class="stack">${unread.map(({ it, c }) => itemRow(it, c, { showCollection: true })).join('')}</div>`;
 }
@@ -1007,10 +1012,10 @@ function readRefs(key) {
   if (readSession?.key === key) return readSession.refs;
   let refs;
   if (key === 'reading') {
-    refs = allPages()
-      .filter(({ it }) => it.unread && safeHref(it.url))
-      .sort((a, b) => (b.it.addedAt || 0) - (a.it.addedAt || 0))
-      .map(({ it, c }) => [c.id, it.id]);
+    refs = store
+      .readingListInOrder(data)
+      .filter(({ item }) => safeHref(item.url))
+      .map(({ item, collection }) => [collection.id, item.id]);
   } else {
     const c = findCol(key);
     refs = sortItems(c.items, settings.itemSort || 'manual')

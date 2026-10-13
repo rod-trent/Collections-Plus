@@ -633,6 +633,35 @@ console.log('\nArchive order:');
   );
 }
 
+console.log('\nReading list order:');
+{
+  reset();
+  const wait = () => new Promise((r) => setTimeout(r, 3));
+  const c1 = await store.createCollection('One');
+  const c2 = await store.createCollection('Two');
+  const add = async (col, title) => {
+    const { item } = await store.addItem(col.id, { type: 'page', url: `https://${title}.example`, title, unread: true });
+    await wait();
+    return item;
+  };
+  const a = await add(c1, 'a');
+  const b = await add(c2, 'b');
+  const c = await add(c1, 'c');
+  const shown = async () => store.readingListInOrder(await store.getData()).map((r) => r.item.title);
+  assert(JSON.stringify(await shown()) === '["c","b","a"]', 'unarranged Reading list is newest first, across collections');
+  await store.reorderReadingList([a.id, c.id, b.id]);
+  assert(JSON.stringify(await shown()) === '["a","c","b"]', 'reorderReadingList sets the order');
+  const collectionOrder = (await store.getData()).collections.find((x) => x.id === c1.id).items.map((x) => x.title);
+  assert(JSON.stringify(collectionOrder) === '["a","c"]', "a collection's own order is untouched");
+  const d = await add(c2, 'd');
+  assert(JSON.stringify(await shown()) === '["d","a","c","b"]', 'a page saved later lands on top');
+  await store.updateItem(c1.id, a.id, { unread: false });
+  assert(JSON.stringify(await shown()) === '["d","c","b"]', 'reading a page takes it off the list');
+  await store.updateItem(c1.id, a.id, { unread: true });
+  assert((await shown())[0] === 'a', 'marked unread again, it comes back on top as new');
+  void d;
+}
+
 console.log('');
 if (failures) {
   console.error(`${failures} assertion(s) failed`);

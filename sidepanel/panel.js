@@ -10,6 +10,8 @@ import {
   binSubtreeCount,
   archiveInOrder,
   reorderArchive,
+  readingListInOrder,
+  reorderReadingList,
   renameCollection,
   insertItem,
   ensureActiveCollection,
@@ -1241,7 +1243,7 @@ function renderReadingList(data) {
   els.emptyTrashBtn.hidden = true;
   $('#mark-all-read-btn').hidden = rows.length === 0;
 
-  els.binNote.textContent = 'Pages you save start here as unread. Open one to mark it read.';
+  els.binNote.textContent = 'Pages you save start here as unread. Open one to mark it read; drag ⠿ to rearrange.';
   els.binNote.hidden = rows.length === 0;
 
   els.binEmpty.hidden = rows.length > 0;
@@ -1254,12 +1256,14 @@ function renderReadingList(data) {
 function buildReadingRow({ item, collection }) {
   const row = document.createElement('div');
   row.className = 'card reading-row';
+  row.dataset.id = item.id;
   const fav = faviconFor(item);
   const cover = item.thumbnail
     ? `<div class="card-cover" style="background-image:url('${encodeURI(item.thumbnail)}')"></div>`
     : `<div class="card-cover">${fav ? `<img class="item-favicon" src="${encodeURI(fav)}" alt="" />` : '🔗'}</div>`;
 
   row.innerHTML = `
+    <span class="bin-handle" title="Drag to reorder">⠿</span>
     ${cover}
     <div class="card-body">
       <a class="card-title reading-title" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">${escapeHtml(item.title || item.url)}</a>
@@ -1282,6 +1286,7 @@ function buildReadingRow({ item, collection }) {
   row.querySelector('.reading-read').addEventListener('click', async () => {
     await updateItem(collection.id, item.id, { unread: false });
   });
+  wireRowDrag(row, els.binList, '.bin-handle', (ids) => reorderReadingList(ids));
   return row;
 }
 
@@ -3662,13 +3667,7 @@ function countUnread(data) {
 
 /** Gather unread page items across collections, newest first. */
 function unreadItems(data) {
-  const out = [];
-  for (const c of data.collections) {
-    for (const it of c.items) {
-      if (it.type === 'page' && it.unread) out.push({ item: it, collection: c });
-    }
-  }
-  return out.sort((a, b) => (b.item.addedAt || 0) - (a.item.addedAt || 0));
+  return readingListInOrder(data); // your arranged order; new saves on top
 }
 
 // Tracks the OS/Chrome light-dark preference so 'system' theme can mirror it.

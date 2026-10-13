@@ -30,6 +30,11 @@ see what's in it before you restore it or let it go, with how many days are
 left before it's removed. As in the Archive, you can drag its pages and the
 collections deleted with it into order, and **Restore it** brings it all back.
 
+**Read in the order you want.** Drag the **⠿** handles in **⋯ → Reading list**
+to line pages up in the order you plan to read them. Pages you save later appear
+at the top, and a page you mark unread again comes back on top too. The order
+syncs, so the mobile app's Reading list and **Read through** follow it.
+
 ## 2.10.0
 
 **Sync no longer overwrites your other device's changes.** File sync used to

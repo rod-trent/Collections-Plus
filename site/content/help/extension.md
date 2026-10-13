@@ -43,7 +43,7 @@ Hover a collection and click **▶ Open all** to open every page in it at once, 
 
 ## The Reading list
 
-Pages you save start out **unread** and gather in **⋯ → Reading list**. Opening a page marks it read. **Mark all read** clears the list. Don't use read-it-later? Turn off **Show Reading list** under **⋯ → Tools**.
+Pages you save start out **unread** and gather in **⋯ → Reading list**, newest first. Drag the **⠿** handles to put them in the order you want to read them; anything you save later appears at the top. Opening a page marks it read. **Mark all read** clears the list. Don't use read-it-later? Turn off **Show Reading list** under **⋯ → Tools**.
 
 ## Archive and Trash
 

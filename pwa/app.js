@@ -898,15 +898,17 @@ function renderArchived(id) {
       : `<a class="card" href="#/archive/${encodeURIComponent(k.id)}">${main}<span class="chev">${icon('chev')}</span></a>`;
   };
   if (reorderMode) {
-    els.view.innerHTML = `${reorderBar('Drag ⠿ to rearrange the collections in this archived collection.')}
-      <div class="stack" data-sortable="subs" data-parent="${esc(c.id)}">${kids.map(kidRow).join('')}</div>`;
+    const what = [kids.length > 1 ? 'collections' : '', c.items.length > 1 ? 'items' : ''].filter(Boolean).join(' and ');
+    els.view.innerHTML = `${reorderBar(`Drag ⠿ to rearrange the ${what || 'items'} in this archived collection.`)}
+      ${kids.length > 1 ? `<div class="section-label">Collections</div><div class="stack" data-sortable="subs" data-parent="${esc(c.id)}">${kids.map(kidRow).join('')}</div>` : ''}
+      ${c.items.length > 1 ? `${kids.length > 1 ? '<div class="section-label">Items</div>' : ''}<div class="stack" data-sortable="items" data-col="${esc(c.id)}">${c.items.map((it) => itemRow(it, c, { drag: true })).join('')}</div>` : ''}`;
     return;
   }
   els.view.innerHTML = `<div class="ai-box archived-note">
-      <div class="ai-head">${icon('archive')}<span>Archived ${esc(whenAgo(c.archivedAt))} · read-only</span></div>
+      <div class="ai-head">${icon('archive')}<span>Archived ${esc(whenAgo(c.archivedAt))} · restore it to edit</span></div>
       <div class="row-actions"><button class="btn small primary" data-act="archived-restore" data-id="${esc(c.id)}">Restore</button></div>
     </div>
-    ${kids.length > 1 ? `<div class="toolbar"><button class="chip" data-act="reorder">${icon('reorder')}Reorder</button></div>` : ''}
+    ${kids.length > 1 || c.items.length > 1 ? `<div class="toolbar"><button class="chip" data-act="reorder">${icon('reorder')}Reorder</button></div>` : ''}
     ${kids.length ? `<div class="section-label">Collections</div><div class="stack">${kids.map(kidRow).join('')}</div>` : ''}
     ${c.items.length ? `<div class="section-label">Items</div><div class="stack">${c.items.map((it) => itemRow(it, c, { readOnly: true })).join('')}</div>` : ''}
     ${!kids.length && !c.items.length ? '<div class="empty"><h2>Nothing in here</h2></div>' : ''}`;

@@ -1367,9 +1367,9 @@ function buildBinRow(entry, isTrash) {
 }
 
 // ---- Looking inside an archived collection -------------------------------
-// Read-only: its items and the subcollections archived with it. The
-// subcollections can be put in order (ready for when it's restored), and
-// clicking one looks inside it.
+// Its items and the subcollections archived with it, without restoring it.
+// Nothing can be edited, but both can be put in order (ready for when it's
+// restored), and clicking a subcollection looks inside it.
 
 function renderArchivePeek(data) {
   const c = data.archive.find((x) => x.id === archivePeek);
@@ -1379,7 +1379,7 @@ function renderArchivePeek(data) {
   els.binEmpty.hidden = true;
 
   els.binNote.hidden = false;
-  els.binNote.innerHTML = `Archived ${escapeHtml(relativeTime(c.archivedAt))} · read-only. <button class="link-btn" data-peek-restore>Restore it</button> to make changes.`;
+  els.binNote.innerHTML = `Archived ${escapeHtml(relativeTime(c.archivedAt))}. <button class="link-btn" data-peek-restore>Restore it</button> to edit; drag ⠿ to rearrange.`;
   els.binNote.querySelector('[data-peek-restore]').addEventListener('click', async () => {
     await unarchiveCollection(c.id);
     archivePeek = null;
@@ -1429,24 +1429,33 @@ function renderArchivePeek(data) {
     label.className = 'peek-label';
     label.textContent = kids.length ? 'Items' : `${c.items.length} item${c.items.length === 1 ? '' : 's'}`;
     els.binList.appendChild(label);
+    const itemList = document.createElement('div');
+    itemList.className = 'peek-items';
+    const draggable = c.items.length > 1;
     for (const it of c.items) {
       const row = document.createElement('div');
-      row.className = 'peek-item';
+      row.className = 'peek-item' + (draggable ? ' peek-item-drag' : '');
+      row.dataset.id = it.id;
       const url = it.type === 'page' || it.type === 'highlight' ? it.url : it.type === 'image' ? it.srcPageUrl : '';
       const safe = /^https?:\/\//i.test(url || '') ? url : '';
       const text =
         it.type === 'note' ? it.text : it.type === 'highlight' ? `“${it.text}”` : it.type === 'image' ? it.alt || 'Image' : it.title || it.url;
-      row.innerHTML = safe
+      const body = safe
         ? `<a href="${escapeHtml(safe)}" class="peek-link">${escapeHtml(text || safe)}</a><span class="card-meta">${escapeHtml(hostOf(safe))}</span>`
         : `<span class="peek-text">${escapeHtml(text || '')}</span>`;
+      row.innerHTML = draggable
+        ? `<span class="bin-handle" title="Drag to reorder">⠿</span><div class="peek-item-body">${body}</div>`
+        : body;
       if (safe) {
         row.querySelector('a').addEventListener('click', (e) => {
           e.preventDefault();
           openItemUrl(safe, { forceNewTab: true });
         });
       }
-      els.binList.appendChild(row);
+      if (draggable) wireRowDrag(row, itemList, '.bin-handle', (ids) => reorderItems(c.id, ids));
+      itemList.appendChild(row);
     }
+    els.binList.appendChild(itemList);
   }
 
   if (!kids.length && !c.items.length) {

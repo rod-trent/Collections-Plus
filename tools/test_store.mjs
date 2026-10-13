@@ -593,6 +593,19 @@ console.log('\nArchive order:');
   const after = await store.getData();
   assert(after.archive.find((x) => x.id === q1.id).order === archivedOrderBefore, 'an archived child is untouched by its active parent’s reorder');
   assert(after.collections.find((x) => x.id === q2.id).order === 0, 'active children still reorder');
+
+  // Items in an archived collection can be reordered too.
+  const r = await mk('R');
+  const i1 = (await store.addItem(r.id, { type: 'note', text: 'one' })).item;
+  const i2 = (await store.addItem(r.id, { type: 'note', text: 'two' })).item;
+  const i3 = (await store.addItem(r.id, { type: 'note', text: 'three' })).item;
+  await store.archiveCollection(r.id);
+  await store.reorderItems(r.id, [i3.id, i1.id, i2.id]);
+  const archivedR = (await store.getData()).archive.find((x) => x.id === r.id);
+  assert(JSON.stringify(archivedR.items.map((x) => x.text)) === '["three","one","two"]', 'items in an archived collection reorder');
+  await store.unarchiveCollection(r.id);
+  const restoredR = (await store.getData()).collections.find((x) => x.id === r.id);
+  assert(JSON.stringify(restoredR.items.map((x) => x.text)) === '["three","one","two"]', 'and keep that order when restored');
 }
 
 console.log('');

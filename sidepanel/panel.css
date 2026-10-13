@@ -872,6 +872,16 @@ body {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
 }
+.peek-item-drag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.peek-item-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
 .peek-link {
   color: var(--text);
   text-decoration: none;

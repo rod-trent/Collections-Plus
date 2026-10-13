@@ -3200,15 +3200,15 @@ async function createSync() {
       );
       if (useFile) {
         applyingRemote = true;
-        const res = await sync.pull({ interactive: true, force: true });
+        const res = await sync.pull({ interactive: true, force: true, mode: 'replace' });
         if (!res.applied) applyingRemote = false;
         toast('Synced from file');
       } else {
-        await sync.push({ interactive: true });
+        await sync.push({ interactive: true, overwrite: true });
         toast('Sync set up');
       }
     } else {
-      await sync.push({ interactive: true });
+      await sync.push({ interactive: true, overwrite: true });
       toast('Sync set up');
     }
     syncPaused = false;
@@ -3236,11 +3236,11 @@ async function openSync() {
         refreshSyncMenu();
         return;
       }
-      await sync.push({ interactive: true });
+      await sync.push({ interactive: true, overwrite: true });
       toast('Sync set up');
     } else {
       applyingRemote = true;
-      const res = await sync.pull({ interactive: true, force: true });
+      const res = await sync.pull({ interactive: true, force: true, mode: 'replace' });
       if (!res.applied) applyingRemote = false;
       // Upgrade the read-only handle so future edits push automatically.
       await sync.requestWriteAccess();
@@ -3276,6 +3276,7 @@ async function syncPull() {
     applyingRemote = true;
     const res = await sync.pull({ interactive: true, force: true });
     if (!res.applied) applyingRemote = false;
+    if (res.needsPush) schedulePush(); // the file is missing edits made here
     toast(res.applied ? 'Pulled latest from sync file' : 'Already up to date');
   } catch (err) {
     applyingRemote = false;
@@ -3293,6 +3294,8 @@ async function disconnectSync() {
 let conflictNotified = false;
 
 // Best-effort pull on startup and when the panel regains focus (no prompt).
+// Pulls merge the file's changes into local data item by item, so un-pushed
+// local edits survive and go out with the next push.
 async function autoPull() {
   try {
     if (!(await sync.status()).connected) return;
@@ -3300,40 +3303,41 @@ async function autoPull() {
     // so frequent polling can't suppress a concurrent local edit's push.
     if (!(await sync.hasRemoteChange())) return;
 
-    // Conflict: this device has un-pushed edits AND the file changed elsewhere.
-    // Don't silently overwrite local edits — keep ours and offer to use the file.
-    if (pendingPush) {
-      if (!conflictNotified) {
-        conflictNotified = true;
-        toast('Sync conflict — keeping your changes.', {
-          label: 'Use file instead',
-          fn: async () => {
-            if (pushTimer) {
-              clearTimeout(pushTimer);
-              pushTimer = null;
-            }
-            try {
-              applyingRemote = true;
-              const r = await sync.pull({ interactive: true, force: true });
-              if (!r.applied) applyingRemote = false;
-              pendingPush = false;
-              conflictNotified = false;
-            } catch {
-              applyingRemote = false;
-            }
-          },
-        });
-      }
-      return;
-    }
-
     applyingRemote = true;
-    const res = await sync.pull({ interactive: false });
+    const res = await sync.pull({ interactive: false, mode: pendingPush ? 'merge-only' : 'merge' });
     if (!res.applied) applyingRemote = false;
+    if (res.reason === 'legacy') notifyLegacyConflict();
+    else if (res.needsPush) schedulePush();
   } catch (err) {
     applyingRemote = false;
     console.warn('Auto pull failed', err);
   }
+}
+
+// The file was written by an older Collections Plus that can't merge, while
+// this device has un-pushed edits. Don't silently overwrite local edits — keep
+// ours (the next push wins) and offer to use the file instead.
+function notifyLegacyConflict() {
+  if (conflictNotified) return;
+  conflictNotified = true;
+  toast('Sync conflict — keeping your changes.', {
+    label: 'Use file instead',
+    fn: async () => {
+      if (pushTimer) {
+        clearTimeout(pushTimer);
+        pushTimer = null;
+      }
+      try {
+        applyingRemote = true;
+        const r = await sync.pull({ interactive: true, force: true, mode: 'replace' });
+        if (!r.applied) applyingRemote = false;
+        pendingPush = false;
+        conflictNotified = false;
+      } catch {
+        applyingRemote = false;
+      }
+    },
+  });
 }
 
 // Pull on focus, when the panel becomes visible again, and on a light timer so

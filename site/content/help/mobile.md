@@ -51,6 +51,7 @@ On your computer, **Open all** opens a whole collection as tabs. Phones open one
 1. Open a collection (or the Reading list) and tap **▶ Read through**. It follows the list's order, so tap **Reorder** in the Reading list first to read in the order you want.
 2. Tap **Open page** to read the first one. Each page you open is marked as read.
 3. Come back to the app and tap **Next**, or swipe left. Swipe right, or tap **Previous**, to go back.
+4. Tap the progress button ("3 of 12") to see what's **Up next**. Tap a page to jump to it, or drag the **⠿** handles to change the order. That changes the collection's (or the Reading list's) real order, so it's saved and shows up on your computer too. If the collection is sorted, tap **Use your order** first.
 
 ## Checklists and custom fields
 

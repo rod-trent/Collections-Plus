@@ -525,3 +525,9 @@ main {
 .bin-open { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; text-decoration: none; }
 .bin-open:active { opacity: 0.7; }
 .archived-note { margin-top: 4px; }
+
+/* ---- Read through: Up next ------------------------------------------------- */
+.reader-upnext { min-height: 32px; padding: 0 12px; font-size: 0.85rem; }
+.upnext-row { align-items: center; }
+.upnext-jump { flex: 1; min-width: 0; display: flex; padding: 0; border: 0; background: none; text-align: left; }
+.upnext-now { border-color: var(--accent); background: var(--accent-soft); }

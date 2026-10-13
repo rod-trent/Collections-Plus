@@ -587,6 +587,7 @@ async function endDrag(e) {
     else if (container.dataset.sortable === 'subs') await edit(() => store.reorderSubcollections(container.dataset.parent, order));
     else if (container.dataset.sortable === 'archive') await edit(() => store.reorderArchive(order));
     else if (container.dataset.sortable === 'reading') await edit(() => store.reorderReadingList(order));
+    else if (container.dataset.sortable === 'upnext') await saveUpNextOrder(container.dataset.key, Number(container.dataset.n), order);
     else if (r.name === 'home') await edit(() => store.saveArrangement(homeArrangement()));
   } else if (renderPending) {
     renderPending = false;
@@ -1023,6 +1024,7 @@ function emptyTrashSheet() {
 
 let readSession = null; // { key, refs: [[collectionId, itemId], ...] }
 let readOpened = ''; // `${key}/${n}` once that page has been opened
+let upNext = false; // showing the Up next list instead of the current page
 
 function readRefs(key) {
   if (readSession?.key === key) return readSession.refs;
@@ -1050,6 +1052,7 @@ function startReadThrough(key) {
 }
 
 function readGo(key, n) {
+  upNext = false;
   history.replaceState(null, '', `#/read/${encodeURIComponent(key)}/${n}`);
   window.scrollTo(0, 0);
   render();
@@ -1065,6 +1068,7 @@ function renderRead({ key, n }) {
     return;
   }
   const i = Math.min(n, refs.length - 1);
+  if (upNext) return renderUpNext(key, refs, i);
   const [cid, iid] = refs[i];
   const col = findCol(cid);
   const it = col.items.find((x) => x.id === iid);
@@ -1075,7 +1079,7 @@ function renderRead({ key, n }) {
   const unread = settings.readingListEnabled && it.unread ? '<span class="unread-dot" title="Unread"></span>' : '';
   els.view.innerHTML = `<div class="reader" data-key="${esc(key)}" data-n="${i}">
       <div class="reader-top">
-        <span class="meta">${i + 1} of ${refs.length}</span>
+        <button class="chip reader-upnext" data-act="up-next" aria-label="Up next: ${refs.length - i - 1} more">${icon('list')}${i + 1} of ${refs.length}</button>
         <span class="reader-bar"><span style="width:${((i + 1) / refs.length) * 100}%"></span></span>
       </div>
       <article class="reader-card${it.done ? ' done' : ''}">
@@ -1092,6 +1096,79 @@ function renderRead({ key, n }) {
         <button class="btn${opened ? ' primary' : ''}" data-act="read-next">${last ? 'Finish' : 'Next'}${last ? icon('check') : icon('next')}</button>
       </div>
     </div>`;
+}
+
+/**
+ * Up next: the pages still to come. Tap one to jump to it; drag ⠿ to change
+ * the order. That changes the real order (the collection's, or the Reading
+ * list's), so it's saved and syncs, not just for this read-through.
+ */
+function renderUpNext(key, refs, i) {
+  const page = ([cid, iid]) => {
+    const col = findCol(cid);
+    return { col, it: col.items.find((x) => x.id === iid) };
+  };
+  const now = page(refs[i]);
+  const rest = refs.slice(i + 1);
+  // In a sorted collection the order comes from the sort, so dragging can't
+  // change it; offer to switch to your own order first.
+  const sorted = key !== 'reading' && (settings.itemSort || 'manual') !== 'manual';
+  const canDrag = rest.length > 1 && !sorted;
+  const row = (ref, n) => {
+    const { col, it } = page(ref);
+    const fav = safeImg(it.favIconUrl);
+    const body = `<span class="item-body">
+        <span class="item-title">${esc(it.title || it.url)}</span>
+        <span class="host"><span>${esc(hostOf(it.url))}</span></span>
+        ${key === 'reading' ? `<span class="from">in ${esc(col.title)}</span>` : ''}
+      </span>`;
+    return `<div class="item upnext-row" data-id="${esc(it.id)}">
+        ${canDrag ? `<span class="drag-handle" aria-label="Drag to reorder">${icon('grip')}</span>` : ''}
+        ${fav ? `<img class="thumb fav" src="${esc(fav)}" ${imgAttrs}>` : `<span class="thumb blank">${icon('link')}</span>`}
+        <button class="upnext-jump" data-act="read-jump" data-n="${n}">${body}</button>
+      </div>`;
+  };
+  els.view.innerHTML = `<div class="reader">
+      <div class="reorder-bar">
+        <span>${icon('list')}<span>${canDrag ? 'Tap a page to jump to it, or drag ⠿ to change the order.' : 'Tap a page to jump to it.'}</span></span>
+        <button class="btn small primary" data-act="up-next-done">Done</button>
+      </div>
+      <div class="section-label">Now reading</div>
+      <div class="item upnext-now"><span class="item-body"><span class="item-title">${esc(now.it.title || now.it.url)}</span><span class="host"><span>${esc(hostOf(now.it.url))}</span></span></span></div>
+      <div class="section-label">Up next · ${rest.length}</div>
+      ${sorted && rest.length > 1 ? `<div class="ai-box"><div class="ai-head">${icon('sort')}<span>This collection is sorted ${esc((ITEM_SORTS[settings.itemSort] || '').toLowerCase())}. Switch to your own order to rearrange it.</span></div><div class="row-actions"><button class="btn small" data-act="up-next-manual">Use your order</button></div></div>` : ''}
+      ${rest.length ? `<div class="stack" data-sortable="upnext" data-key="${esc(key)}" data-n="${i}">${rest.map((ref, k) => row(ref, i + 1 + k)).join('')}</div>` : '<p class="meta">That’s the last one.</p>'}
+    </div>`;
+}
+
+/**
+ * Save a new Up next order. Only the pages still to come move, swapping
+ * places among the slots they already occupy, so notes, pages you've read
+ * and anything outside this read-through stay exactly where they are.
+ */
+async function saveUpNextOrder(key, i, newIds) {
+  // Same list renderRead shows: skip anything deleted since the session began.
+  const refs = readRefs(key).filter(([cid, iid]) => findCol(cid)?.items.some((x) => x.id === iid));
+  const upOld = refs.slice(i + 1);
+  const byId = new Map(upOld.map((r) => [r[1], r]));
+  const upNew = newIds.map((id) => byId.get(id)).filter(Boolean);
+  if (upNew.length !== upOld.length) return render();
+  readSession.refs = [...refs.slice(0, i + 1), ...upNew];
+  const slotFill = (full, oldIds, newOrder) => {
+    const moving = new Set(oldIds);
+    let k = 0;
+    return full.map((id) => (moving.has(id) ? newOrder[k++] : id));
+  };
+  if (key === 'reading') {
+    const full = store.readingListInOrder(data).map((r) => r.item.id);
+    const inList = (id) => full.includes(id);
+    const ids = slotFill(full, upOld.map((r) => r[1]).filter(inList), upNew.map((r) => r[1]).filter(inList));
+    await edit(() => store.reorderReadingList(ids));
+  } else {
+    const c = findCol(key);
+    const ids = slotFill(c.items.map((it) => it.id), upOld.map((r) => r[1]), upNew.map((r) => r[1]));
+    await edit(() => store.reorderItems(c.id, ids));
+  }
 }
 
 // Swipe left/right on the reader to move between pages.
@@ -2001,6 +2078,28 @@ els.view.addEventListener('click', async (e) => {
   if (act === 'item-menu') itemMenu(el.dataset.col, el.dataset.id);
   else if (act === 'toggle-done') edit(() => store.toggleDone(el.dataset.col, el.dataset.id));
   else if (act === 'reorder') enterReorder();
+  else if (act === 'up-next') {
+    upNext = true;
+    window.scrollTo(0, 0);
+    render();
+  } else if (act === 'up-next-done') {
+    upNext = false;
+    render();
+  } else if (act === 'read-jump') {
+    readGo(route().key, Number(el.dataset.n));
+  } else if (act === 'up-next-manual') {
+    // Switch the collection to your own order, and keep reading the same page.
+    const r = route();
+    const current = readRefs(r.key)[Number(document.querySelector('[data-sortable="upnext"]')?.dataset.n ?? r.n)];
+    await store.setSettings({ itemSort: 'manual' });
+    settings = await store.getSettings();
+    readSession = null;
+    const fresh = readRefs(r.key);
+    const at = Math.max(0, fresh.findIndex((ref) => ref[1] === current?.[1]));
+    history.replaceState(null, '', `#/read/${encodeURIComponent(r.key)}/${at}`);
+    toast('Now showing your own order');
+    render();
+  }
   else if (act === 'bincol-restore') {
     const c = binPool(el.dataset.bin).find((x) => x.id === el.dataset.id);
     if (el.dataset.bin === 'trash') {
@@ -2100,6 +2199,7 @@ els.fab.addEventListener('click', addSheet);
 els.chip.addEventListener('click', () => (dropbox?.isConnected() ? syncNow() : appMenu()));
 window.addEventListener('hashchange', () => {
   reorderMode = false;
+  upNext = false;
   window.scrollTo(0, 0);
   render();
 });

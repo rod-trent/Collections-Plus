@@ -1,5 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
+import { Analytics } from '@vercel/analytics/next';
 import { GITHUB_URL, SITE_URL, STORE_URL } from '../lib/site.js';
 
 export const metadata = {
@@ -57,6 +58,7 @@ export default function RootLayout({ children }) {
             </nav>
           </div>
         </footer>
+        <Analytics />
       </body>
     </html>
   );

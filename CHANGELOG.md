@@ -3,14 +3,7 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
-## 2.10.1
-
-**Help is one click away.** There are now step-by-step guides at
-[getcollectionsplus.com/help](https://getcollectionsplus.com/help): getting
-started, using the extension, the mobile app, setting up sync with Dropbox, AI
-search, and troubleshooting. Open them from **⋯ → Help & guides**, or type
-"help" in the **Ctrl+K** command palette. If you haven't made a collection yet,
-the empty list links straight to the getting-started guide.
+## 2.10.2
 
 **Rearrange the collections inside a collection.** Subcollections can now be
 dragged into the order you want, just like your main list: open a collection,
@@ -47,6 +40,15 @@ now skipped everywhere, including the right-click **Save page** and **Save
 link** menus, which used to add it again. Small differences in the address no
 longer fool it either: a trailing slash, a #section link, or tracking tags like
 `utm_source` still count as the same page.
+
+## 2.10.1
+
+**Help is one click away.** There are now step-by-step guides at
+[getcollectionsplus.com/help](https://getcollectionsplus.com/help): getting
+started, using the extension, the mobile app, setting up sync with Dropbox, AI
+search, and troubleshooting. Open them from **⋯ → Help & guides**, or type
+"help" in the **Ctrl+K** command palette. If you haven't made a collection yet,
+the empty list links straight to the getting-started guide.
 
 ## 2.10.0
 

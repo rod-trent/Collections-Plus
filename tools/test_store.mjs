@@ -123,6 +123,12 @@ console.log('\npin / tags / dedupe:');
   }
   assert(!(await store.findPageByUrl(c.id, 'https://ex.com/a?a=2&b=2')), 'different query is a different page');
   assert(store.urlKey('https://app.com/#/x') !== store.urlKey('https://app.com/#/y'), 'urlKey keeps #/ app routes');
+  assert(
+    store.urlKey('https://www.bing.com/?toWww=1&redig=84AB3552C29D446E9DAEC4EAD3F80558') ===
+      store.urlKey('https://bing.com/?redig=1F2E3D&FORM=Z9FD1'),
+    'urlKey ignores www. and Bing per-visit params'
+  );
+  assert(store.urlKey('https://bing.com/search?q=cats') !== store.urlKey('https://bing.com/search?q=dogs'), 'urlKey keeps real query params');
 }
 
 console.log('\nfolders:');

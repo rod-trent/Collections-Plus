@@ -464,6 +464,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   if (parsed.action === 'save-link') {
+    if (await findPageByUrl(collectionId, info.linkUrl)) return; // already saved — skip
     await addItem(collectionId, {
       type: 'page',
       url: info.linkUrl,
@@ -495,10 +496,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   // save-page (default)
+  const pageUrl = tab?.url || info.pageUrl;
+  if (await findPageByUrl(collectionId, pageUrl)) return; // already saved — skip
   const meta = tab?.id != null ? await captureMeta(tab.id) : {};
   const out = await addItem(collectionId, {
     type: 'page',
-    url: tab?.url || info.pageUrl,
+    url: pageUrl,
     title: meta.title || tab?.title || tab?.url || info.pageUrl,
     favIconUrl: tab?.favIconUrl || '',
     thumbnail: meta.thumbnail || '',

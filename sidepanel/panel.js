@@ -44,6 +44,7 @@ import {
   reorderItems,
   reorderSubcollections,
   findPageByUrl,
+  urlKey,
   getSettings,
   setSettings,
   cacheItemImage,
@@ -2650,12 +2651,12 @@ async function addAllTabs() {
 
   const data = await getData();
   const col = data.collections.find((c) => c.id === openId);
-  const existing = new Set((col?.items || []).filter((i) => i.type === 'page').map((i) => i.url));
+  const existing = new Set((col?.items || []).filter((i) => i.type === 'page').map((i) => urlKey(i.url)));
   const readingOn = (await getSettings()).readingListEnabled;
 
   let added = 0;
   for (const t of pages) {
-    if (existing.has(t.url)) continue;
+    if (existing.has(urlKey(t.url))) continue;
     await addItem(openId, {
       type: 'page',
       url: t.url,
@@ -2663,7 +2664,7 @@ async function addAllTabs() {
       favIconUrl: t.favIconUrl || '',
       unread: readingOn,
     });
-    existing.add(t.url);
+    existing.add(urlKey(t.url));
     added++;
   }
   toast(added ? `Added ${added} tab${added === 1 ? '' : 's'}` : 'All tabs already saved');

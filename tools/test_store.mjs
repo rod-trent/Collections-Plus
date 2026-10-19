@@ -117,6 +117,12 @@ console.log('\npin / tags / dedupe:');
   const hit = await store.findPageByUrl(c.id, 'https://dup.com');
   const miss = await store.findPageByUrl(c.id, 'https://nope.com');
   assert(hit && !miss, 'findPageByUrl matches existing URL only');
+  await store.addItem(c.id, { type: 'page', url: 'https://Ex.com/a/?b=2&a=1&utm_source=x#top' });
+  for (const v of ['https://ex.com/a?a=1&b=2', 'https://ex.com:443/a/?a=1&b=2#intro', 'https://ex.com/a?b=2&a=1&fbclid=z']) {
+    assert(await store.findPageByUrl(c.id, v), `findPageByUrl treats ${v} as a duplicate`);
+  }
+  assert(!(await store.findPageByUrl(c.id, 'https://ex.com/a?a=2&b=2')), 'different query is a different page');
+  assert(store.urlKey('https://app.com/#/x') !== store.urlKey('https://app.com/#/y'), 'urlKey keeps #/ app routes');
 }
 
 console.log('\nfolders:');

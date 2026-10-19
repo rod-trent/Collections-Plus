@@ -42,6 +42,12 @@ what you typed beats one that just contains it. While you're searching, the
 sort menu beside the search box switches to **Best match**, **Recently
 updated** or **A–Z**, and your list's own sort is left alone.
 
+**No more duplicate pages.** Saving a page that's already in a collection is
+now skipped everywhere, including the right-click **Save page** and **Save
+link** menus, which used to add it again. Small differences in the address no
+longer fool it either: a trailing slash, a #section link, or tracking tags like
+`utm_source` still count as the same page.
+
 ## 2.10.0
 
 **Sync no longer overwrites your other device's changes.** File sync used to

@@ -4191,7 +4191,7 @@ els.emptyTrashBtn.addEventListener('click', async () => {
 // Detail view
 $('#back-btn').addEventListener('click', back);
 $('#add-subcollection-btn').addEventListener('click', addSubcollection);
-$('#add-current-btn').addEventListener('click', addCurrentPage);
+$('#add-current-btn').addEventListener('click', () => addCurrentPage());
 
 $('#cover-change-btn').addEventListener('click', () => {
   if (openId) pickFile('cover');

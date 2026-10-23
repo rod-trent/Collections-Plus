@@ -3,7 +3,7 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
-## Unreleased
+## 2.11.0
 
 **Know when a saved page changes.** Hover a saved page and click **👁** to
 watch it. Collections Plus re-checks watched pages in the background, and when

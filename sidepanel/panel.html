@@ -312,6 +312,18 @@
       <button data-action="check-all-links">Check all links</button>
       <button class="menu-toggle" data-action="toggle-autocheck" id="toggle-autocheck-btn" role="switch" aria-checked="false"><span class="menu-label">Auto-check links</span><span class="switch" aria-hidden="true"></span></button>
       <div class="menu-sep"></div>
+      <div class="menu-note">Watched pages</div>
+      <label class="menu-select-row"><span class="menu-label">Check for changes</span>
+        <select id="watch-every-select" class="menu-select" aria-label="How often to check watched pages for changes">
+          <option value="1">Every hour</option>
+          <option value="2">Every 2 hours</option>
+          <option value="3">Every 3 hours</option>
+          <option value="4">Every 4 hours</option>
+          <option value="6">Every 6 hours</option>
+          <option value="12">Every 12 hours</option>
+          <option value="24">Once a day</option>
+        </select></label>
+      <div class="menu-sep"></div>
       <div class="menu-note">Opening</div>
       <label class="menu-select-row"><span class="menu-label">Open in</span>
         <select id="open-mode-select" class="menu-select" aria-label="Open Collections Plus in">
@@ -378,6 +390,8 @@
       <button data-action="fetch-images">Fetch missing images</button>
       <button data-action="cache-now">Cache images now</button>
       <button data-action="check-links">Check links</button>
+      <button data-action="check-watched">Check watched pages</button>
+      <button data-action="clear-changed">Clear change markers</button>
     </div>
 
     <!-- Floating menu for moving/copying an item to another collection -->

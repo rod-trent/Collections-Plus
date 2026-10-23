@@ -1157,6 +1157,7 @@ body {
 .item-field-add,
 .item-snapshot-btn,
 .item-fetch-img-btn,
+.item-watch-btn,
 .item-move-btn {
   background: none;
   border: none;
@@ -1174,6 +1175,7 @@ body {
 .item:hover .item-field-add,
 .item:hover .item-snapshot-btn,
 .item:hover .item-fetch-img-btn,
+.item:hover .item-watch-btn,
 .item:hover .item-move-btn {
   opacity: 1;
 }
@@ -1183,6 +1185,7 @@ body {
 .item-field-add:hover,
 .item-snapshot-btn:hover,
 .item-fetch-img-btn:hover,
+.item-watch-btn:hover,
 .item-move-btn:hover {
   background: var(--bg-elev-2);
   color: var(--accent);
@@ -1240,6 +1243,44 @@ body {
   align-self: center;
   font-size: 12px;
   padding: 4px 8px;
+}
+
+/* ---- Page watching (change detection) ---- */
+/* Red "changed since you last looked" dot, pinned to the top-right corner of
+   an item thumbnail or a collection cover. */
+.change-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e5484d;
+  box-shadow: 0 0 0 2px var(--bg-elev);
+  cursor: pointer;
+}
+
+.cover-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+}
+
+/* The card cover is decorative; let a click on its dot open the card. */
+.cover-wrap .change-dot {
+  cursor: inherit;
+}
+
+.watch-status {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.item-watch-btn.on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* ---- Link-rot status + snapshots ---- */

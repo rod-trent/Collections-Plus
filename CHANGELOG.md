@@ -3,6 +3,18 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## Unreleased
+
+**Know when a saved page changes.** Hover a saved page and click **👁** to
+watch it. Collections Plus re-checks watched pages in the background, and when
+one's content changes you'll see a red dot on the page, on its collection's
+cover, and a count on the toolbar icon. Open the page, switch to its tab, or
+click the dot to clear it. Pick how often to check, from every hour to once a
+day, in **⋯ → Tools → Watched pages**. Signed-in pages like X and LinkedIn are
+checked from their open tab, so keep them open to be told when they update.
+**⋯ → Manage → Check watched pages** checks right away, and **Clear change
+markers** dismisses them all.
+
 ## 2.10.2
 
 **Rearrange the collections inside a collection.** Subcollections can now be

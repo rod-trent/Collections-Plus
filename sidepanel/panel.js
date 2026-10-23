@@ -35,6 +35,8 @@ import {
   saveArrangement,
   addItem,
   updateItem,
+  setWatch,
+  markChangesSeen,
   removeItem,
   removeItems,
   moveItems,
@@ -68,6 +70,7 @@ import { buildXlsx } from '../lib/xlsx.js';
 import { toMarkdown, toHtml, toLinkList, toShareableHtml } from '../lib/render.js';
 import { fileToCover, srcToCover } from '../lib/image.js';
 import { extractReadable } from '../lib/snapshot.js';
+import { hasUnseenChange, countUnseenChanges } from '../lib/pagewatch.js';
 import * as sync from '../lib/sync.js';
 import * as backup from '../lib/backup.js';
 import {
@@ -262,6 +265,7 @@ async function openItem(collectionId, item, url = itemOpenUrl(item), opts = {}) 
   if (viewPrefs.markReadOnOpen && item?.type === 'page' && item.unread) {
     updateItem(collectionId, item.id, { unread: false });
   }
+  if (hasUnseenChange(item)) markChangesSeen(collectionId, [item.id]);
   await openItemUrl(url, opts);
 }
 
@@ -372,6 +376,20 @@ function linkStatusHtml(item) {
   }">⚠ dead link</span>`;
 }
 
+/** Inline "watching" marker for a watched page item (nothing otherwise). */
+function watchStatusHtml(item) {
+  if (!item.watch) return '';
+  const last = Math.max(item.watchCheckedAt || 0, item.watchLiveAt || 0);
+  const checked = last ? `last checked ${timeAgo(last)}` : 'not checked yet';
+  const changed = hasUnseenChange(item) ? `Changed ${timeAgo(item.changedAt)} — open it to clear. ` : '';
+  return ` <span class="watch-status" title="${changed}Watching for changes (${checked})">👁</span>`;
+}
+
+/** Red "changed since you last looked" dot, for item thumbs and collection covers. */
+function changeDotHtml(title) {
+  return `<span class="change-dot" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}"></span>`;
+}
+
 // ---- Content snapshots (link-rot resilience) -------------------------------
 
 /**
@@ -402,6 +420,14 @@ function reportLinkCheck(r) {
   if (!r.checked) return toast('No web links to check');
   const links = `${r.checked} link${r.checked === 1 ? '' : 's'}`;
   toast(r.dead ? `Checked ${links} — ${r.dead} dead` : `Checked ${links} — all OK`);
+}
+
+/** Toast the outcome of an on-demand watched-page check. */
+function reportWatchCheck(r) {
+  if (!r) return toast('Change check failed');
+  if (!r.checked) return toast('No watched pages here — use 👁 on a page to watch it');
+  const pages = `${r.checked} watched page${r.checked === 1 ? '' : 's'}`;
+  toast(r.changed ? `Checked ${pages} — ${r.changed} changed` : `Checked ${pages} — no changes`);
 }
 
 function reportImageFetch(r) {
@@ -889,6 +915,7 @@ async function openAllPages(c) {
   // A pop-up window can't hold tabs, so aim them at the browser window you came
   // from; in the side panel `windowId` is null and Chrome uses the current one.
   const windowId = await hostWindowId();
+  if (countUnseenChanges([c])) markChangesSeen(c.id);
   const tabIds = [];
   for (const p of pages) {
     try {
@@ -960,6 +987,17 @@ function buildCard(c, { nested = false } = {}) {
         .join('')}</div>`
     : '';
 
+  // Watched pages that changed since you last looked — here or in a
+  // subcollection — put a dot on the cover.
+  const changedCount = countUnseenChanges(
+    [c, ...descendantIds(data, c.id).map((id) => data.collections.find((x) => x.id === id)).filter(Boolean)]
+  );
+  const coverHtml = changedCount
+    ? `<div class="cover-wrap">${coverInner}${changeDotHtml(
+        `${changedCount} watched page${changedCount === 1 ? '' : 's'} changed`
+      )}</div>`
+    : coverInner;
+
   // Pinned state is shown as a small badge at rest (the pin button itself lives
   // in the hover-only actions overlay, which is hidden until you hover).
   const pinBadge = c.pinned
@@ -986,7 +1024,7 @@ function buildCard(c, { nested = false } = {}) {
 
   card.innerHTML = `
     <span class="card-handle" title="Drag to reorder">⠿</span>
-    ${coverInner}
+    ${coverHtml}
     <div class="card-body">
       <div class="card-title">${escapeHtml(c.title)}</div>
       <div class="card-meta">${c.items.length} item${c.items.length === 1 ? '' : 's'}${subMeta}</div>
@@ -1863,7 +1901,7 @@ function renderItem(collectionId, item) {
       )}" target="_blank" rel="noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(
       item.title
     )}</a></div>
-      <div class="item-url">${escapeHtml(hostOf(item.url))}${linkStatusHtml(item)}</div>
+      <div class="item-url">${escapeHtml(hostOf(item.url))}${linkStatusHtml(item)}${watchStatusHtml(item)}</div>
       ${item.snapshot ? `<button class="item-snapshot-view" title="Read the saved snapshot">📄 Saved snapshot</button>` : ''}`;
   }
 
@@ -1905,6 +1943,15 @@ ${escapeHtml(fields[k])}</textarea>
         }">📄</button>`
       : '';
 
+  // Page items can be watched: re-checked in the background, with a dot on the
+  // item (and its collection) when the page's content changes.
+  const watchBtn =
+    item.type === 'page' && /^https?:/i.test(item.url || '')
+      ? `<button class="item-watch-btn${item.watch ? ' on' : ''}" aria-pressed="${!!item.watch}" title="${
+          item.watch ? 'Stop watching this page for changes' : 'Watch this page for changes'
+        }">👁</button>`
+      : '';
+
   // Page items can (re)fetch a preview image from the page — the manual
   // counterpart to the bulk "Fetch missing images" action, and the way to
   // backfill an image for an imported page that never had one.
@@ -1927,6 +1974,7 @@ ${escapeHtml(fields[k])}</textarea>
     <span class="drag-handle" title="Drag to reorder">⠿</span>
     <div class="item-media">
       ${thumbHtml}
+      ${hasUnseenChange(item) ? changeDotHtml(`Page changed ${timeAgo(item.changedAt)} — click to dismiss`) : ''}
       <input type="checkbox" class="item-check" ${item.done ? 'checked' : ''} title="Mark done" />
     </div>
     <div class="item-body">${bodyHtml}${fieldsHtml}</div>
@@ -1934,6 +1982,7 @@ ${escapeHtml(fields[k])}</textarea>
       ${coverBtnHtml}
       ${renameBtn}
       ${addFieldBtn}
+      ${watchBtn}
       ${snapshotBtn}
       ${fetchImgBtn}
       <button class="item-move-btn" title="Move or copy to another collection">⇄</button>
@@ -2007,6 +2056,26 @@ ${escapeHtml(fields[k])}</textarea>
       // The row re-renders on the resulting storage change; guard in case it
       // didn't (no image found → no write).
       if (fetchImgBtnEl.isConnected) fetchImgBtnEl.disabled = false;
+    });
+  }
+  const watchBtnEl = row.querySelector('.item-watch-btn');
+  if (watchBtnEl) {
+    watchBtnEl.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const on = !item.watch;
+      await setWatch(collectionId, item.id, on);
+      if (!on) return toast('Stopped watching this page');
+      toast('Watching for changes — you’ll see a dot when it updates');
+      // Record the baseline now, so the first scheduled check can already
+      // compare against something.
+      chrome.runtime.sendMessage({ type: 'checkWatched', collectionId, itemId: item.id }).catch(() => {});
+    });
+  }
+  const changeDot = row.querySelector('.change-dot');
+  if (changeDot) {
+    changeDot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      markChangesSeen(collectionId, [item.id]);
     });
   }
   const unreadDot = row.querySelector('.unread-dot');
@@ -3004,6 +3073,10 @@ async function buildPaletteCommands() {
         toast('Checking links…');
         reportLinkCheck(await chrome.runtime.sendMessage({ type: 'checkLinks', collectionId: openId }));
       }, c.title);
+      add('Check watched pages for changes', async () => {
+        toast('Checking watched pages…');
+        reportWatchCheck(await chrome.runtime.sendMessage({ type: 'checkWatched', collectionId: openId }));
+      }, c.title);
       add('Suggest tags (AI)', () => suggestTags(openId), c.title);
       add('Organize this collection (AI)', () => organizeCollection(openId), c.title);
     }
@@ -3658,6 +3731,7 @@ async function updateSettingLabels() {
   pick('#open-mode-select', s.openMode === 'popup' ? 'popup' : 'sidepanel');
   pick('#open-items-in-select', s.openItemsIn === 'currentTab' ? 'currentTab' : 'newTab');
   pick('#open-all-confirm-select', String(s.openAllConfirmOver ?? 8));
+  pick('#watch-every-select', String(s.watchEveryHours ?? 6));
   pick('#theme-select', ['light', 'system'].includes(s.theme) ? s.theme : 'dark');
 }
 
@@ -4109,6 +4183,9 @@ $('#open-items-in-select').addEventListener('change', (e) =>
 $('#open-all-confirm-select').addEventListener('change', (e) =>
   setSettings({ openAllConfirmOver: Number(e.target.value) })
 );
+$('#watch-every-select').addEventListener('change', (e) =>
+  setSettings({ watchEveryHours: Number(e.target.value) })
+);
 $('#theme-select').addEventListener('change', async (e) => {
   await setSettings({ theme: e.target.value });
   applyTheme(e.target.value);
@@ -4328,6 +4405,14 @@ async function runDetailAction(action) {
     toast('Caching images…');
     const { cached } = await cacheCollectionImages(openId);
     toast(cached ? `Cached ${cached} image${cached === 1 ? '' : 's'}` : 'Nothing to cache');
+  }
+  if (action === 'check-watched') {
+    toast('Checking watched pages…');
+    reportWatchCheck(await chrome.runtime.sendMessage({ type: 'checkWatched', collectionId: openId }));
+  }
+  if (action === 'clear-changed') {
+    await markChangesSeen(openId);
+    toast('Cleared change markers');
   }
   if (action === 'check-links') {
     toast('Checking links…');

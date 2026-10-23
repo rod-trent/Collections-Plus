@@ -10,11 +10,13 @@ import {
   ensureActiveCollection,
   collectionPath,
   findPageByUrl,
+  urlKey,
   getSettings,
   setSettings,
   cacheItemImage,
   applyLinkResults,
   applyImageResults,
+  applyWatchResults,
   STORAGE_KEY,
 } from './lib/store.js';
 import { srcToCover } from './lib/image.js';
@@ -23,6 +25,13 @@ import { extractImageUrl } from './lib/pagemeta.js';
 import { isPrivateUrl, isPublicHttpUrl } from './lib/netguard.js';
 import { matchRule } from './lib/rules.js';
 import { searchEntries } from './lib/omnibox.js';
+import {
+  fingerprint,
+  liveFingerprint,
+  watchResult,
+  hasUnseenChange,
+  countUnseenChanges,
+} from './lib/pagewatch.js';
 
 // If offline image caching is on, inline the freshly-saved item's image.
 async function maybeCache(out) {
@@ -275,7 +284,10 @@ chrome.runtime.onStartup.addListener(() => rebuildMenus());
 
 // Keep menus in sync whenever the data changes (e.g. from the panel).
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[STORAGE_KEY]) rebuildMenus();
+  if (area === 'local' && changes[STORAGE_KEY]) {
+    rebuildMenus();
+    updateChangeBadge();
+  }
 });
 
 // ---- Metadata capture ------------------------------------------------------
@@ -791,6 +803,267 @@ chrome.alarms?.onAlarm.addListener(async (alarm) => {
   if (stale.length) await probeTargets(stale.slice(0, MAX_PER_RUN));
 });
 
+// ---- Page watching (change detection) --------------------------------------
+// Pages the user marked "watch for changes" are re-fetched on an alarm; the
+// readable text is fingerprinted (lib/pagewatch.js, pure and tested) and a
+// moved fingerprint flags the page — a dot on the item, its collection card and
+// a count on the toolbar icon — until the user opens it.
+//
+// Signed-in, script-built pages (X, LinkedIn…) fetch as the same empty shell
+// every time, so when a watched page is open in a tab we also read its rendered
+// text. Each source keeps its own baseline, and both follow the user's "check
+// every" interval; a watched tab loading or being switched to is read at once.
+
+const WATCH_ALARM = 'pagewatch';
+const WATCH_TIMEOUT_MS = 15000;
+const WATCH_CONCURRENCY = 3;
+const WATCH_MAX_BYTES = 3_000_000;
+const WATCH_MAX_PER_RUN = 30;
+// Script-built pages render after 'complete'; give them a moment to fill in.
+const WATCH_SETTLE_MS = 8000;
+// Less rendered text than this is a loading skeleton or sign-in wall, not the page.
+const WATCH_MIN_LIVE_CHARS = 200;
+
+// Read a response body as text, capped so a huge page can't be fully buffered.
+async function readBodyCapped(res, maxBytes) {
+  const reader = res.body?.getReader?.();
+  if (!reader) return (await res.text()).slice(0, maxBytes);
+  const decoder = new TextDecoder();
+  let out = '';
+  let seen = 0;
+  try {
+    while (seen < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      seen += value.byteLength;
+      out += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      /* stream already closed */
+    }
+  }
+  return out;
+}
+
+// Fetch one watched page → its fingerprint, or '' if we couldn't get usable
+// HTML (blocked, non-HTML, timed out). '' never counts as a change.
+async function fetchFingerprint(url) {
+  if (!/^https?:/i.test(url || '')) return '';
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), WATCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      redirect: 'follow',
+      signal: ctrl.signal,
+      cache: 'no-store',
+      credentials: 'omit',
+    });
+    if (!res.ok) return '';
+    const type = res.headers.get('content-type') || '';
+    if (type && !/text\/html|application\/xhtml\+xml|text\/plain/i.test(type)) return '';
+    if (res.url && !isPrivateUrl(url) && !isPublicHttpUrl(res.url)) return '';
+    return await fingerprint(await readBodyCapped(res, WATCH_MAX_BYTES));
+  } catch {
+    return '';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Runs in the page: its rendered text, which is what the user actually sees.
+function pageText() {
+  return document.body ? document.body.innerText : '';
+}
+
+// Fingerprint the rendered text of an open tab, or '' if it can't be read
+// (restricted page, still a skeleton, sign-in wall).
+async function readLiveFingerprint(tabId) {
+  try {
+    const [res] = await chrome.scripting.executeScript({ target: { tabId }, func: pageText });
+    const text = res?.result || '';
+    return text.length >= WATCH_MIN_LIVE_CHARS ? await liveFingerprint(text) : '';
+  } catch {
+    return '';
+  }
+}
+
+// Loaded tabs by urlKey, so a watched page can find a tab showing it. Prefers
+// the tab the user is looking at, and marks that one `seen`.
+async function openWatchTabs() {
+  const byKey = new Map();
+  try {
+    const [tabs, focused] = await Promise.all([
+      chrome.tabs.query({}),
+      chrome.windows.getLastFocused().catch(() => null),
+    ]);
+    for (const t of tabs) {
+      if (t.id == null || t.discarded || t.status !== 'complete' || !/^https?:/i.test(t.url || '')) continue;
+      const seen = !!(t.active && focused?.focused && t.windowId === focused.id);
+      const key = urlKey(t.url);
+      if (!byKey.has(key) || seen) byKey.set(key, { tabId: t.id, seen });
+    }
+  } catch {
+    /* no tab access: fetch-only */
+  }
+  return byKey;
+}
+
+// Watched page items, optionally scoped to one collection or one item.
+function collectWatchTargets(data, { collectionId, itemId } = {}) {
+  const targets = [];
+  for (const c of data.collections) {
+    if (collectionId && c.id !== collectionId) continue;
+    for (const it of c.items) {
+      if (itemId && it.id !== itemId) continue;
+      if (it.type !== 'page' || !it.watch || !/^https?:/i.test(it.url || '')) continue;
+      targets.push({ collectionId: c.id, item: it, at: it.watchCheckedAt || 0 });
+    }
+  }
+  return targets;
+}
+
+/**
+ * Check targets with bounded concurrency; persist in one batch write. Each
+ * target is read from an open tab when there is one and `liveDue(target)`, and
+ * fetched when `fetchDue(target)` (both default to always).
+ */
+async function checkWatched(targets, { fetchDue = () => true, liveDue = () => true } = {}) {
+  const tabs = await openWatchTabs();
+  const results = [];
+  let idx = 0;
+  let checked = 0;
+  let changed = 0;
+  const worker = async () => {
+    for (let i = idx++; i < targets.length; i = idx++) {
+      const t = targets[i];
+      const tab = tabs.get(urlKey(t.item.url));
+      const patches = [];
+      if (tab && liveDue(t)) {
+        const hash = await readLiveFingerprint(tab.tabId);
+        patches.push(watchResult(t.item, hash, Date.now(), { source: 'live', seen: tab.seen }));
+      }
+      if (fetchDue(t)) patches.push(watchResult(t.item, await fetchFingerprint(t.item.url)));
+      if (!patches.length) continue;
+      checked++;
+      const patch = Object.assign({}, ...patches);
+      if (patch.changedAt) changed++;
+      results.push({ collectionId: t.collectionId, itemId: t.item.id, ...patch });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(WATCH_CONCURRENCY, targets.length) }, worker));
+  await applyWatchResults(results);
+  return { checked, changed };
+}
+
+// Read one tab's rendered text against every watched item it shows.
+async function checkWatchedTab(tab, { seen }) {
+  if (!/^https?:/i.test(tab?.url || '')) return;
+  const key = urlKey(tab.url);
+  const targets = collectWatchTargets(await getData()).filter((t) => urlKey(t.item.url) === key);
+  if (!targets.length) return;
+  const hash = await readLiveFingerprint(tab.id);
+  await applyWatchResults(
+    targets.map((t) => ({
+      collectionId: t.collectionId,
+      itemId: t.item.id,
+      ...watchResult(t.item, hash, Date.now(), { source: 'live', seen }),
+    }))
+  );
+}
+
+// A watched page finished loading (opened, reloaded, auto-refreshed): read it
+// once it has settled. If you're looking at it, that just moves the baseline;
+// a reload in a background tab can flag a change.
+const settleTimers = new Map();
+chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  if (info.status !== 'complete' || !/^https?:/i.test(tab.url || '')) return;
+  clearTimeout(settleTimers.get(tabId));
+  settleTimers.set(
+    tabId,
+    setTimeout(async () => {
+      settleTimers.delete(tabId);
+      try {
+        const t = await chrome.tabs.get(tabId);
+        const win = await chrome.windows.get(t.windowId).catch(() => null);
+        await checkWatchedTab(t, { seen: !!(t.active && win?.focused) });
+      } catch {
+        /* tab closed while settling */
+      }
+    }, WATCH_SETTLE_MS)
+  );
+});
+chrome.tabs.onRemoved.addListener((tabId) => {
+  clearTimeout(settleTimers.get(tabId));
+  settleTimers.delete(tabId);
+});
+
+// Switching to a watched tab that changed means you've now seen it.
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!/^https?:/i.test(tab.url || '') || tab.status !== 'complete') return;
+    const key = urlKey(tab.url);
+    const { collections } = await getData();
+    const flagged = collections.some((c) =>
+      c.items.some((it) => hasUnseenChange(it) && urlKey(it.url) === key)
+    );
+    if (flagged) await checkWatchedTab(tab, { seen: true });
+  } catch {
+    /* tab vanished */
+  }
+});
+
+// On-demand check from the panel (a just-watched page's baseline, "Check now").
+async function checkWatchedNow({ collectionId, itemId } = {}) {
+  return checkWatched(collectWatchTargets(await getData(), { collectionId, itemId }));
+}
+
+function ensureWatchAlarm() {
+  chrome.alarms?.get(WATCH_ALARM, (a) => {
+    if (!a) chrome.alarms.create(WATCH_ALARM, { periodInMinutes: 30 });
+  });
+}
+chrome.runtime.onInstalled.addListener(ensureWatchAlarm);
+chrome.runtime.onStartup.addListener(ensureWatchAlarm);
+
+chrome.alarms?.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== WATCH_ALARM) return;
+  const hours = Number((await getSettings()).watchEveryHours) || 6;
+  // Small slack so a page fetched at the last tick isn't skipped for a whole
+  // extra tick by a few seconds of drift.
+  const dueBefore = Date.now() - hours * 3600_000 + 5 * 60_000;
+  const targets = collectWatchTargets(await getData());
+  targets.sort((a, b) => a.at - b.at); // longest-unfetched first
+  // Open tabs are read whenever due (no network); fetches are capped to the
+  // most overdue few per tick.
+  const fetchNow = new Set(targets.filter((t) => t.at < dueBefore).slice(0, WATCH_MAX_PER_RUN));
+  if (targets.length) {
+    await checkWatched(targets, {
+      fetchDue: (t) => fetchNow.has(t),
+      liveDue: (t) => (t.item.watchLiveAt || 0) < dueBefore,
+    });
+  }
+});
+
+// Toolbar badge: how many watched pages changed since you last looked.
+async function updateChangeBadge() {
+  try {
+    const n = countUnseenChanges((await getData()).collections);
+    await chrome.action.setBadgeBackgroundColor({ color: '#e5484d' });
+    await chrome.action.setBadgeText({ text: n ? String(n > 99 ? '99+' : n) : '' });
+    await chrome.action.setTitle({
+      title: n ? `Collections Plus — ${n} watched page${n === 1 ? '' : 's'} changed` : 'Collections Plus',
+    });
+  } catch {
+    /* badge is cosmetic */
+  }
+}
+chrome.runtime.onStartup.addListener(updateChangeBadge);
+chrome.runtime.onInstalled.addListener(updateChangeBadge);
+
 // ---- Omnibox: address-bar search ("col <query>") ---------------------------
 
 function escapeXml(s = '') {
@@ -850,6 +1123,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     switchOpenMode(msg.mode)
       .then(sendResponse)
       .catch(() => sendResponse({ opened: null }));
+    return true; // async response
+  }
+  if (msg?.type === 'checkWatched') {
+    checkWatchedNow({ collectionId: msg.collectionId, itemId: msg.itemId })
+      .then(sendResponse)
+      .catch(() => sendResponse(null));
     return true; // async response
   }
   if (msg?.type === 'fetchImages') {

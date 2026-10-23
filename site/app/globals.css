@@ -126,6 +126,11 @@ section.block { padding: 4rem 0 0; }
 .plan ul { margin: 0; padding-left: 1.1rem; color: var(--muted); }
 .plan li { margin: 0.25rem 0; }
 .plan.featured { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+.tag-inline {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
 .tag {
   align-self: flex-start;
   font-size: 0.75rem;

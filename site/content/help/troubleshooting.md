@@ -70,6 +70,16 @@ In the **⋯** menu, along with the Reading list.
 
 See [Coming from Edge Collections](/help/extension#coming-from-edge-collections). If Edge's `collectionsSQLite` file is gone, for example because Edge's data was cleared, there's unfortunately nothing left to read.
 
+### A watched page never shows a change
+
+- **Is it a signed-in page** (X, LinkedIn, webmail, a dashboard)? Those can only be checked while the page is open in a tab. Keep it open, ideally as a pinned tab.
+- **Has it been checked yet?** Hover the 👁 next to the page's address to see when it was last checked. The first check only records how the page looks; the dot appears after a later check finds something different. To check now, open the collection and choose **⋯ → Manage → Check watched pages**.
+- **Was the tab asleep?** Browsers put unused tabs to sleep to save memory, and a sleeping tab can't be read. Clicking the tab wakes it up.
+
+### A watched page shows a change I can't see
+
+Some pages change small things on every visit, like a rotating "related articles" list or a visitor count. Collections Plus ignores timestamps like "5 minutes ago", but it can't tell every kind of filler from real news. If a page keeps lighting up for nothing, click **👁** to stop watching it.
+
 ### Imported pages have no pictures
 
 Spreadsheet and bookmark imports don't include pictures. Choose **⋯ → Tools → Fetch all missing images** to fill them in.

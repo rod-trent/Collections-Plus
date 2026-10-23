@@ -18,9 +18,10 @@ const FEATURES = [
     body: 'Search across every collection, including notes and tags, or ask the optional AI to search and tidy up with the provider you choose.',
   },
   {
-    icon: '🛟',
-    title: 'Survives link rot',
-    body: 'Spot dead links before they bite, and keep page snapshots so a vanished site doesn’t take your research with it.',
+    icon: '👁️',
+    title: 'Keeps up with your pages',
+    isNew: true,
+    body: 'Watch a page and get a red dot when it changes, even signed-in pages like X and LinkedIn. Dead links get flagged, and snapshots keep a vanished site’s words.',
   },
   {
     icon: '📖',
@@ -68,7 +69,10 @@ export default function Home() {
             {FEATURES.map((f) => (
               <div className="card" key={f.title}>
                 <div className="icon" aria-hidden="true">{f.icon}</div>
-                <h3>{f.title}</h3>
+                <h3>
+                  {f.title}
+                  {f.isNew && <span className="tag tag-inline">New</span>}
+                </h3>
                 <p>{f.body}</p>
               </div>
             ))}

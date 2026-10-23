@@ -50,6 +50,23 @@ Pages you save start out **unread** and gather in **⋯ → Reading list**, newe
 - **Archive** keeps a collection out of your main list without deleting it. Find it again under **⋯ → Archive**, and **Restore** it any time. Drag the **⠿** handles to put the Archive in the order you want, and click an archived collection to look inside it without restoring it. You can't edit it there, but you can drag its pages and the collections inside it into order, ready for when you restore it.
 - **Trash:** deleting a collection or folder moves it to **⋯ → Trash**, with **Undo** right away. Anything in the Trash is deleted for good after **30 days**, unless you restore it first. Click a deleted collection to look inside it before deciding; you can drag its pages and collections into order there too.
 
+## Watching pages for changes
+
+Want to know when a page you saved is updated, like a price, a schedule, a docs page or your LinkedIn notifications? Watch it:
+
+1. Open the collection and hover the page.
+2. Click **👁**. A small 👁 appears next to the page's address to show it's being watched.
+
+Collections Plus checks watched pages in the background. When one changes, a **red dot** appears on the page's picture, on its collection's cover, and as a count on the toolbar icon. The dot clears when you open the page, switch to its tab, or click the dot.
+
+- **How often:** choose under **⋯ → Tools → Watched pages → Check for changes**, from every hour to once a day. The default is every 6 hours.
+- **Check now:** open the collection and choose **⋯ → Manage → Check watched pages**. **Clear change markers** dismisses every dot in the collection.
+- **Signed-in pages** such as X, LinkedIn or your webmail look the same to Collections Plus every time unless you're signed in, so it checks them from an **open tab** instead. Keep the tab open (pinned tabs are ideal) and you'll be told when it updates. If the tab is closed, the page isn't checked until you open it again.
+- **What counts as a change:** the page's text. Things that change every time, like "5 minutes ago", are ignored, so a page doesn't light up just because time passed. Busy pages, like a social feed, will show changes often; that's the point of watching them.
+- **To stop watching,** click **👁** again.
+
+Watching runs in the extension on your computer. The mobile app doesn't show the dots.
+
 ## Keeping pages from disappearing
 
 Websites change and disappear. A few tools help:

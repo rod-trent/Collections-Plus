@@ -1,6 +1,6 @@
 # Privacy Policy — Collections Plus
 
-_Last updated: 2026-10-13_
+_Last updated: 2026-10-23_
 
 Collections Plus is a **local-first** browser extension with a companion
 **mobile web app** at <https://getcollectionsplus.com/app/>. Both are designed
@@ -92,6 +92,16 @@ These are **off by default** and only do anything if you turn them on:
   directly from your browser to the pages and image servers you saved (not to the
   developer, and without sending your cookies), and by default it only fills in
   pages that have no image yet.
+- **Watched pages.** If you mark a saved page as watched (the 👁 button), the
+  extension checks it for changes on the schedule you choose (from hourly to
+  daily). It does this in two ways, both on your computer: it fetches the page's
+  HTML directly from the site (without sending your cookies), and, if the page is
+  open in one of your tabs, it reads that tab's visible text. In both cases the
+  text is reduced to a short fingerprint (a SHA-256 hash) that is compared with
+  the previous one and stored with the saved page; the page text itself is not
+  kept. Only pages you have chosen to watch are checked or read. Nothing is sent
+  to the developer. The fingerprints and check times sync with the rest of your
+  library if you use sync.
 - **AI chat (bring your own provider).** If you open AI settings and enter an API
   key, the extension can chat with your collections. When you send a chat
   message, the extension sends your message **and the contents of the
@@ -156,11 +166,16 @@ an account stores and who processes it.
   page **you choose to save**, to capture a screenshot thumbnail of the page
   you're viewing when you save it, (if you enable caching) to fetch images you
   save, (when you click "Fetch missing images") to fetch a saved page and its
-  preview image, and (if you enable AI chat) to send your request to the AI
+  preview image, (for pages you mark as watched) to fetch them to check for
+  changes, and (if you enable AI chat) to send your request to the AI
   provider's API endpoint you configured. It is not used to monitor your
   browsing.
 - **Tabs / scripting** are used to read the current page's title/URL and extract
-  its preview image when you save it.
+  its preview image when you save it, and to read the visible text of a tab
+  showing a page **you marked as watched**, to check it for changes. Other tabs
+  are only matched by address against your watched pages and are never read.
+- **Alarms** schedule the background checks (watched pages, and link checks if
+  you turn on Auto-check links).
 - **Storage / unlimited storage** hold your collections and cached images
   locally, and keep the lightweight recovery copy (see **Automatic recovery
   backup**) in your browser account's synced storage.

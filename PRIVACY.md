@@ -1,27 +1,33 @@
 # Privacy Policy — Collections Plus
 
-_Last updated: 2026-10-23_
+_Last updated: 2026-11-02_
 
 Collections Plus is a **local-first** browser extension with a companion
 **mobile web app** at <https://getcollectionsplus.com/app/>. Both are designed
 so that your data stays on your own devices. This policy explains exactly what
-the extension, the mobile web app and the getcollectionsplus.com website do and
-do not do with your information.
+the extension, the mobile web app, the getcollectionsplus.com website and the
+optional **Plus Sync** accounts do and do not do with your information.
 
 ## The short version
 
-- **We collect nothing.** There is no account, no analytics, and no telemetry,
-  and your collections never pass through a server operated by the developer.
+- **No account needed, and nothing collected by default.** The extension and
+  the mobile web app have no analytics and no telemetry, and your collections
+  stay on your own devices.
 - **Your data lives in your browser's local storage** on your device.
-- **Nothing is ever transmitted to the developer.**
+- **The one exception is your choice: Plus Sync.** If you create an account and
+  turn on Plus Sync, your library is stored on the service's servers so your
+  devices can sync. It's used for nothing else. See **Accounts and Plus Sync**
+  below.
+- **The website** counts page visits with cookie-free analytics. See **The
+  website and hosting** below.
 - **One automatic exception:** a lightweight recovery copy of your collections
   is saved to your browser's built-in account-synced storage so your library can
   be restored if the extension is ever reset or reinstalled. This is handled by
   your browser (Google for Chrome, Microsoft for Edge) under its own privacy
   policy and tied to your browser account, never to the developer. See
   **Automatic recovery backup** below.
-- Beyond that, data only leaves your device when **you** turn on an optional
-  feature: cross-device sync (a file in your own cloud folder), offline image
+- Beyond that and Plus Sync, data only leaves your device when **you** turn on
+  an optional feature: cross-device sync (a file in your own cloud folder), offline image
   caching (fetching images you saved), or the **AI chat** (sending the
   collections you choose to the AI provider **you** configured). Each is **off
   until you enable it**, and none of them route through the developer.
@@ -58,7 +64,7 @@ default** and updates automatically in the background.
 - **Where it goes:** into your own browser account's sync storage, which the
   browser (Google for Chrome, Microsoft for Edge) replicates across your
   signed-in devices under **its** privacy policy. It is **never** sent to the
-  developer, who still runs no server and receives nothing.
+  developer.
 - **Size limits:** the browser caps this storage at roughly 100 KB, so for a
   large library only your most-recent collections are kept in the recovery copy
   (the extension tells you when this happens). For a complete backup, use the
@@ -124,8 +130,9 @@ unless you choose to sync it.
 
 - **Where your data lives:** your collections are stored in your browser's
   storage for getcollectionsplus.com (IndexedDB) on your phone. They are never
-  sent to the developer. Clearing the site's data in your browser, or
-  uninstalling the app, deletes this copy.
+  sent to the developer unless you turn on **Plus Sync** (see **Accounts and
+  Plus Sync**). Clearing the site's data in your browser, or uninstalling the
+  app, deletes this copy.
 - **Dropbox sync (optional):** if you tap **Connect Dropbox**, you sign in on
   Dropbox's own page, and Dropbox asks you to approve access. The app can only
   reach **its own folder** (`Dropbox/Apps/` followed by the app's folder name),
@@ -153,12 +160,64 @@ unless you choose to sync it.
 The getcollectionsplus.com website, including the mobile web app's files, is
 hosted by **Vercel**. Like any web host, Vercel receives standard technical
 information when your browser requests a page, such as your IP address and
-browser type, and handles it under Vercel's privacy policy. The site adds no
-analytics, advertising or tracking cookies of its own.
+browser type, and handles it under Vercel's privacy policy.
 
-**Accounts** are planned for an optional paid sync service, **Plus Sync**, and
-are not open yet. Before they open, this policy will be updated to explain what
-an account stores and who processes it.
+- **Page-visit counts.** The website's pages (not the mobile web app, and not
+  the extension) use **Vercel Web Analytics** to count visits. It sets no
+  cookies and doesn't identify you: it records which page was viewed, the site
+  that linked to it, and your country, browser and device type.
+- **No advertising or tracking cookies.** The only cookies the site sets are the
+  ones the sign-in pages need to keep you signed in (see below).
+
+## Accounts and Plus Sync
+
+Accounts exist only for **Plus Sync**, an optional hosted sync service. You
+don't need an account for anything else. While Plus Sync is being tested, only
+invited accounts can use it.
+
+- **Signing in.** Accounts are run by **Clerk**, which handles sign-up and
+  sign-in for getcollectionsplus.com under its own privacy policy. Clerk stores
+  your email address, your name if you give one, and sign-in records such as
+  when and from which browser you signed in. The sign-in pages set the cookies
+  Clerk needs to keep you signed in; they aren't used for tracking or
+  advertising.
+- **Signing in with Google.** If you choose **Continue with Google**, Google
+  shares your name, email address and profile picture with Clerk. They are used
+  only to create your account and sign you in. Collections Plus requests no
+  other access to your Google account, and doesn't share Google user data with
+  anyone or use it for advertising. Collections Plus's use of information
+  received from Google APIs adheres to the
+  [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
+  including the Limited Use requirements.
+- **What Plus Sync stores.** When you turn on Plus Sync in the mobile web app,
+  it uploads your library so your other devices can sync with it: your
+  collections, folders, saved pages, images and notes, tags, custom fields,
+  auto-file rules, and a list of recently deleted items (each item's internal
+  ID and when it was deleted). Pictures in your library (page thumbnails,
+  covers and saved images) are stored separately, once each. It also keeps a
+  list of the devices you connected: a label such as "iPhone · Safari", when
+  each was connected and when it last synced. Each device gets its own sign-in
+  key, and only a scrambled (hashed) form of that key is stored. Your settings
+  and AI API keys are never uploaded.
+- **Where it's stored.** In a **Neon** Postgres database, connected through
+  **Vercel**, under their privacy policies. Everything travels over encrypted
+  (HTTPS) connections.
+- **How it's used.** Only to keep your library in sync between your devices.
+  The service stores your library as the app sends it and doesn't read,
+  analyze or index its contents. It is never sold, shared, used for
+  advertising, or used to train AI. The developer accesses stored data only
+  when needed to keep the service running or when you ask for help.
+- **Deleting your data.** In the mobile web app, choose **Turn off Plus Sync**
+  and tick **Also delete my library from Plus Sync**: this immediately erases
+  your library, its pictures and every device's sign-in key from the service.
+  Turning Plus Sync off without ticking it only disconnects that device, and
+  you can also disconnect a device from your account page. Pictures you remove
+  from your library are deleted from the service after the next sync. The
+  copies on your own devices are never affected. To close your account as
+  well, ask using the details under **Contact**, and your account and any Plus
+  Sync data will be deleted.
+- **How long it's kept.** Your Plus Sync data is kept while you use Plus Sync,
+  until you delete it as described above or your account is closed.
 
 ## How permissions are used
 
@@ -182,20 +241,23 @@ an account stores and who processes it.
 
 ## Data sharing
 
-The developer does **not** sell, share, or transmit your data to anyone, and runs
-no backend service that receives your collections. Your data leaves your device
-only in these ways, none of which route through the developer: automatically,
-the lightweight recovery copy saved to your browser account's synced storage
-(see **Automatic recovery backup**); and, when **you** enable them, your cloud
-provider's synced folder (cross-device sync), your own Dropbox (mobile web app
-sync), or the AI provider whose key you entered (AI chat). In each case the data
-goes from your browser straight to that party (your browser vendor, your cloud
-service, Dropbox, or your chosen AI provider), never through the developer.
+The developer does **not** sell, share, or transmit your data to anyone. Unless
+you use Plus Sync, no service run by the developer receives your collections.
+Your data leaves your device only in these ways: automatically, the lightweight
+recovery copy saved to your browser account's synced storage (see **Automatic
+recovery backup**); and, when **you** enable them, your cloud provider's synced
+folder (cross-device sync), your own Dropbox (mobile web app sync), the AI
+provider whose key you entered (AI chat), or Plus Sync. In all but Plus Sync,
+the data goes from your browser straight to that party (your browser vendor,
+your cloud service, Dropbox, or your chosen AI provider), never through the
+developer. Plus Sync data is handled only by the service providers named under
+**Accounts and Plus Sync** (Clerk, Neon and Vercel), solely to run the service.
 
 ## Children's privacy
 
-Collections Plus is a general-purpose productivity tool and does not knowingly
-collect any personal information from anyone, including children.
+Collections Plus is a general-purpose productivity tool. It isn't directed at
+children under 13, accounts aren't intended for them, and it doesn't knowingly
+collect personal information from children.
 
 ## Changes to this policy
 

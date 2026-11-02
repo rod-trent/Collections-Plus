@@ -137,7 +137,7 @@ export default function Home() {
           <div className="privacy-band">
             <h2>Your data stays yours</h2>
             <p className="sub" style={{ marginBottom: '1rem' }}>
-              No analytics, no tracking, and nothing sent to us unless you choose Plus Sync. The extension is
+              The extension and mobile app have no analytics or tracking, and nothing is sent to us unless you choose Plus Sync. The extension is
               open source, so you don’t have to take our word for it.
             </p>
             <p style={{ margin: 0 }}>

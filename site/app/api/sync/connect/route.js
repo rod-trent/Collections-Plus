@@ -50,7 +50,7 @@ export async function GET(req) {
       signIn.searchParams.set('redirect_url', '/api/sync/connect');
       return NextResponse.redirect(signIn, 303);
     }
-    if (!isAllowed(userId)) return back(req, 'plus-error=not-enabled');
+    if (!(await isAllowed(userId))) return back(req, 'plus-error=not-enabled');
     const { token, tokenHash } = newDeviceToken();
     await addDevice(q, userId, { tokenHash, label: deviceLabel(req.headers.get('user-agent') || '') });
     return back(req, `plus-token=${token}`);

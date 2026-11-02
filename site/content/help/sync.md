@@ -102,4 +102,13 @@ Version 2.10 introduced merging. Older versions sync the old way, where whicheve
 
 The sync file stays in your Dropbox either way, so you can reconnect later.
 
+## Plus Sync: subscribing and cancelling
+
+**Plus Sync** is our optional paid sync, where we keep your library for you instead of your Dropbox. Dropbox sync stays free.
+
+- **Subscribe:** sign in on [your account page](/account) and choose **Subscribe**. You pay on Stripe's secure checkout page; we never see your card. Then, in the mobile app, choose **⋯ → Use Plus Sync**.
+- **Change your card, see invoices or cancel:** on [your account page](/account), choose **Manage billing**.
+- **When you cancel**, Plus Sync keeps working until the end of the year you've paid for, then syncing stops. Your synced library is kept until you delete it, so subscribing again picks up where you left off. Your collections on your own devices are never affected.
+- **If a payment fails**, your account page shows a warning and sync keeps working for a few days while you update your card.
+
 Something not working? See [Troubleshooting](/help/troubleshooting#sync).

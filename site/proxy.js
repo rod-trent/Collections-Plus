@@ -1,9 +1,11 @@
 // proxy.js — runs before matching requests.
 //  • /app → /app/: the mobile web app needs the trailing slash so its relative
 //    paths and service-worker scope resolve.
-//  • Clerk runs only on the account pages and the Plus Sync API. The landing
-//    page and the mobile web app never touch Clerk, so free users load no
-//    account scripts and get no auth cookies.
+//  • Clerk runs only on the account pages, the Plus Sync API and the billing
+//    routes (/api/billing/*). The landing page and the mobile web app never
+//    touch Clerk, so free users load no account scripts and get no auth
+//    cookies. The Stripe webhook (/api/stripe/webhook) is left out on
+//    purpose: Stripe signs it, and Clerk must not get in its way.
 //  • Plus Sync calls that carry a device token (Bearer cps_…) skip Clerk: the
 //    API checks the token itself.
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
@@ -28,5 +30,5 @@ export default function proxy(req, event) {
 }
 
 export const config = {
-  matcher: ['/app', '/account(.*)', '/sign-in(.*)', '/sign-up(.*)', '/api/sync(.*)'],
+  matcher: ['/app', '/account(.*)', '/sign-in(.*)', '/sign-up(.*)', '/api/sync(.*)', '/api/billing(.*)'],
 };

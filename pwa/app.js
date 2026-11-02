@@ -2306,7 +2306,11 @@ els.search.addEventListener('input', () => {
   render();
 });
 els.fab.addEventListener('click', addSheet);
-els.chip.addEventListener('click', () => (activeSync() ? syncNow() : appMenu()));
+els.chip.addEventListener('click', () => {
+  if (!activeSync()) return appMenu();
+  if (syncState?.forbidden) showPlusNotEnabled(); // and retry, in case they just subscribed
+  syncNow();
+});
 window.addEventListener('hashchange', () => {
   reorderMode = false;
   upNext = false;
@@ -2454,7 +2458,7 @@ function updateChip() {
 function syncErrorText(err, adapter) {
   if (adapter === plus) {
     if (err?.code === 'reauth') return 'Plus Sync signed out. Turn it on again to keep syncing.';
-    if (err?.code === 'forbidden') return 'Plus Sync isn’t enabled for this account.';
+    if (err?.code === 'forbidden') return 'Plus Sync isn’t active for this account. Tap to subscribe.';
     if (err?.code === 'unavailable') return 'Plus Sync isn’t available right now. Tap to try again.';
     if (err?.code === 'too-large') return 'Your library is too large for Plus Sync.';
     if (err?.code === 'quota') return 'Plus Sync storage is full.';
@@ -2482,7 +2486,7 @@ async function syncNow() {
       if (pulled) await render();
     } catch (err) {
       if (err?.code === 'reauth' || err?.code === 'forbidden') {
-        syncState = { kind: 'error', text: syncErrorText(err, adapter) };
+        syncState = { kind: 'error', text: syncErrorText(err, adapter), forbidden: err?.code === 'forbidden' };
         render();
       } else if (!navigator.onLine) {
         syncState = { kind: 'offline' };
@@ -2520,20 +2524,23 @@ async function startPlusSync() {
   toast('Checking Plus Sync…');
   const state = await plus.probe();
   if (state === 'unavailable') return toast('Plus Sync isn’t available yet.');
-  if (state === 'forbidden') {
-    openSheet(
-      'Plus Sync is invite only',
-      `<p class="sheet-note">Plus Sync isn’t enabled for the account you’re signed in with yet. Dropbox sync is free and works today.</p>
-       <div class="sheet-actions"><button class="btn primary" type="submit">OK</button></div>`,
-      { submit: () => {} }
-    );
-    return;
-  }
+  if (state === 'forbidden') return showPlusNotEnabled();
   plus.beginConnect(); // signed in or not: the site handles the rest
 }
 
+/** 403 not-enabled: no subscription (or it lapsed). Point to the account page. */
+function showPlusNotEnabled() {
+  const account = new URL('/account', location.href).href;
+  openSheet(
+    'Plus Sync isn’t active',
+    `<p class="sheet-note">Plus Sync isn’t active for the account you’re signed in with. You can subscribe, or check your subscription, on <a href="${esc(account)}" target="_blank" rel="noopener">your account page</a>. Your synced library is kept, and Dropbox sync is free and works today.</p>
+     <div class="sheet-actions"><a class="btn" href="${esc(account)}" target="_blank" rel="noopener">Your account</a><button class="btn primary" type="submit">OK</button></div>`,
+    { submit: () => {} }
+  );
+}
+
 const PLUS_ERRORS = {
-  'not-enabled': 'Plus Sync isn’t enabled for this account yet.',
+  'not-enabled': 'Plus Sync isn’t active for this account.',
   unavailable: 'Plus Sync isn’t available yet.',
   unexpected: 'That Plus Sync sign-in didn’t start here. Try again from the menu.',
   server: 'Plus Sync couldn’t sign you in. Please try again.',
@@ -2544,6 +2551,8 @@ async function initSync(plusReturn) {
     if (dropbox?.isConnected()) await dropbox.disconnect(); // one sync at a time
     await plus.completeConnect(plusReturn);
     toast('Plus Sync is on');
+  } else if (plusReturn?.error === 'not-enabled') {
+    showPlusNotEnabled();
   } else if (plusReturn?.error) {
     toast(PLUS_ERRORS[plusReturn.error] || PLUS_ERRORS.server);
   }

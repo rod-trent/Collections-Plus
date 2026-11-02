@@ -8,13 +8,15 @@
 //    expire under it.
 //  • a Clerk session cookie, for pages that do run Clerk.
 //
-// Until billing exists, only Clerk user IDs listed in PLUS_SYNC_ALLOWED_USER_IDS
-// may use it.
+// Who may use it (lib/billing.js decides): anyone with a live subscription,
+// plus the Clerk user IDs in PLUS_SYNC_ALLOWED_USER_IDS (complimentary/admin).
 import { createHash, randomBytes } from 'node:crypto';
 import { auth } from '@clerk/nextjs/server';
 import { clerkEnabled } from './clerk.js';
 import { dbEnabled, q } from './db.js';
 import { deviceUser } from './plus-sync-db.js';
+import { accessFor } from './billing.js';
+import { getSubscription } from './billing-db.js';
 
 export const plusSyncReady = clerkEnabled && dbEnabled;
 
@@ -29,7 +31,26 @@ export function allowedUserIds() {
     .filter(Boolean);
 }
 
-export const isAllowed = (userId) => !!userId && allowedUserIds().includes(userId);
+/** The user's subscription row, or null (also before 002_billing.sql has run). */
+export async function subscriptionFor(userId) {
+  if (!userId || !dbEnabled) return null;
+  try {
+    return await getSubscription(q, userId);
+  } catch (err) {
+    if (err?.code === '42P01') return null; // no subscriptions table yet
+    throw err;
+  }
+}
+
+/** { allowed, reason, sub } for a user; see accessFor in lib/billing.js. */
+export async function plusAccess(userId) {
+  const allowlist = allowedUserIds();
+  // Complimentary users skip the database.
+  const sub = userId && !allowlist.includes(userId) ? await subscriptionFor(userId) : null;
+  return { ...accessFor({ userId, allowlist, sub }), sub };
+}
+
+export const isAllowed = async (userId) => (await plusAccess(userId)).allowed;
 
 export const sha256 = (s) => createHash('sha256').update(s).digest('hex');
 
@@ -66,7 +87,9 @@ export async function authenticate(req) {
     userId = (await auth()).userId;
   }
   if (!userId) return fail(401, 'signed-out', 'Sign in to use Plus Sync.');
-  if (!isAllowed(userId)) return fail(403, 'not-enabled', 'Plus Sync isn’t enabled for this account.');
+  if (!(await isAllowed(userId))) {
+    return fail(403, 'not-enabled', 'Plus Sync isn’t active for this account. Subscribe at /account.');
+  }
   return { userId, tokenHash };
 }
 

@@ -2,6 +2,7 @@
   "name": "getcollectionsplus-site",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "getcollectionsplus.com: landing page, the mobile web app (/app), and Plus Sync accounts.",
   "scripts": {
     "copy-pwa": "node scripts/copy-pwa.mjs",
@@ -19,6 +20,7 @@
     "marked": "18.0.13",
     "next": "16.4.3",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "stripe": "22.3.2"
   }
 }

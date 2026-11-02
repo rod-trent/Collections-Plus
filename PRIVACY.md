@@ -172,8 +172,8 @@ browser type, and handles it under Vercel's privacy policy.
 ## Accounts and Plus Sync
 
 Accounts exist only for **Plus Sync**, an optional hosted sync service. You
-don't need an account for anything else. While Plus Sync is being tested, only
-invited accounts can use it.
+don't need an account for anything else. Plus Sync is a paid annual
+subscription; until it goes on sale, only invited accounts can use it.
 
 - **Signing in.** Accounts are run by **Clerk**, which handles sign-up and
   sign-in for getcollectionsplus.com under its own privacy policy. Clerk stores
@@ -189,6 +189,14 @@ invited accounts can use it.
   received from Google APIs adheres to the
   [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
   including the Limited Use requirements.
+- **Paying for Plus Sync.** Payments are handled by **Stripe** under its own
+  privacy policy: you enter your card on Stripe's checkout page, and manage or
+  cancel your subscription in Stripe's billing portal. Stripe receives your
+  email address so it can send receipts. Collections Plus never sees or stores
+  your card details. The service stores only your Stripe customer and
+  subscription IDs, the subscription's status (such as active, past due or
+  cancelled), its price, and its renewal or end date, so it knows whether Plus
+  Sync is on for your account.
 - **What Plus Sync stores.** When you turn on Plus Sync in the mobile web app,
   it uploads your library so your other devices can sync with it: your
   collections, folders, saved pages, images and notes, tags, custom fields,
@@ -217,7 +225,10 @@ invited accounts can use it.
   well, email <support@getcollectionsplus.com> from the address you signed up
   with, and your account and any Plus Sync data will be deleted.
 - **How long it's kept.** Your Plus Sync data is kept while you use Plus Sync,
-  until you delete it as described above or your account is closed.
+  until you delete it as described above or your account is closed. If your
+  subscription ends, syncing stops but your synced library is kept until you
+  delete it, so you can pick up where you left off if you subscribe again.
+  Stripe keeps payment records such as invoices as the law requires.
 
 ## How permissions are used
 

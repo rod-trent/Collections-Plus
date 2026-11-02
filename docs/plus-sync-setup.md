@@ -83,12 +83,8 @@ On Neon's plans (check https://neon.com/pricing, since numbers change):
 
 ## Before launch (phase 3)
 
-- **PRIVACY.md needs a Plus Sync section**: what's stored (the library doc,
-  pictures, device labels such as "iPhone · Safari", last-used times), where
-  (Neon Postgres via Vercel), how to delete it (the app's off switch with
-  "delete my library", or the account page), and that Clerk handles sign-in.
-- Billing, then replace the `PLUS_SYNC_ALLOWED_USER_IDS` check with the
-  subscription check (in `site/lib/plus-sync.js`, `isAllowed`).
+- Billing (Stripe) is built: see [plus-sync-billing-setup.md](plus-sync-billing-setup.md).
+  `PLUS_SYNC_ALLOWED_USER_IDS` stays as the complimentary/admin list.
 - Check the sign-in return on production: after signing in, Clerk should send
   you on to `/api/sync/connect` (from `redirect_url`) and then back to the app.
   If Clerk refuses the redirect, add the site's domain to Clerk's allowed

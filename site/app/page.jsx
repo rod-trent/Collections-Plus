@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GITHUB_URL, PLUS_PRICE, STORE_URL } from '../lib/site.js';
+import { GITHUB_URL, PLUS_ON_SALE, PLUS_PRICE, STORE_URL } from '../lib/site.js';
 
 const FEATURES = [
   {
@@ -113,7 +113,7 @@ export default function Home() {
               <span className="tag">Plus Sync</span>
               <h3>We handle sync for you</h3>
               <div className="price">
-                {PLUS_PRICE ? (
+                {PLUS_ON_SALE ? (
                   <>
                     {PLUS_PRICE.amount} <small>{PLUS_PRICE.period}</small>
                   </>
@@ -125,8 +125,11 @@ export default function Home() {
                 <li>Sign in on any device and you’re synced, no cloud setup</li>
                 <li>Faster sync and support from a real person</li>
                 <li>Supports ongoing development of Collections Plus</li>
+                {PLUS_ON_SALE && <li>Cancel any time from your account</li>}
               </ul>
-              <Link className="btn btn-brand" href="/account">Your account</Link>
+              <Link className="btn btn-brand" href="/account">
+                {PLUS_ON_SALE ? 'Subscribe' : 'Your account'}
+              </Link>
             </div>
           </div>
         </div>

@@ -214,8 +214,8 @@ invited accounts can use it.
   you can also disconnect a device from your account page. Pictures you remove
   from your library are deleted from the service after the next sync. The
   copies on your own devices are never affected. To close your account as
-  well, ask using the details under **Contact**, and your account and any Plus
-  Sync data will be deleted.
+  well, email <support@getcollectionsplus.com> from the address you signed up
+  with, and your account and any Plus Sync data will be deleted.
 - **How long it's kept.** Your Plus Sync data is kept while you use Plus Sync,
   until you delete it as described above or your account is closed.
 
@@ -265,5 +265,8 @@ Any changes will be published in this file in the project's public repository.
 
 ## Contact
 
-Questions? Open an issue at
+Questions about privacy or your data, or a request to delete your account?
+Email <support@getcollectionsplus.com>.
+
+For bugs and feature requests, open an issue at
 <https://github.com/rod-trent/Collections-Plus/issues>.

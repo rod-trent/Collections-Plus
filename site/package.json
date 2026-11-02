@@ -9,10 +9,12 @@
     "dev": "next dev",
     "prebuild": "node scripts/copy-pwa.mjs",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:setup": "node --env-file-if-exists=.env.local scripts/db-setup.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "7.9.6",
+    "@neondatabase/serverless": "^1.2.0",
     "@vercel/analytics": "^2.0.1",
     "marked": "18.0.13",
     "next": "16.4.3",

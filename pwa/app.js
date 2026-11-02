@@ -3,11 +3,13 @@
 // Runs the SAME store.js the extension uses, on an IndexedDB backend, so the
 // data model, migrations and every edit behave exactly as on the desktop.
 // Views (hash routes): #/ home, #/c/<id> a collection, #/reading the reading
-// list. Edits sync through the user's own Dropbox (lib/sync-engine.js).
+// list. Edits sync through the user's own Dropbox or through Plus Sync, the
+// hosted tier (lib/sync-engine.js) — one of them at a time.
 
 import { setBackend, backend } from '../lib/backend.js';
 import { createIdbBackend } from '../lib/idb-backend.js';
 import { createDropboxAdapter } from '../lib/dropbox-adapter.js';
+import { createHostedAdapter } from '../lib/hosted-adapter.js';
 import { syncOnce } from '../lib/sync-engine.js';
 import { matchRule } from '../lib/rules.js';
 import { sortItems, sortCollections } from '../lib/sortview.js';
@@ -342,7 +344,7 @@ function renderHome() {
   if (tagFilter && !cols.some((c) => (c.tags || []).includes(tagFilter))) tagFilter = '';
 
   if (!cols.length) {
-    const canSync = dropbox && !dropbox.isConnected();
+    const canSync = dropbox && !activeSync();
     els.view.innerHTML = `<div class="empty">
       <img class="art" src="./icon-192.png" alt="">
       <h2>Your collections, on your phone</h2>
@@ -2074,15 +2076,20 @@ function folderMenu(id) {
 }
 
 function appMenu() {
-  const connected = dropbox?.isConnected();
-  const syncPart = dropbox
-    ? connected
+  const active = activeSync();
+  const syncPart =
+    active === plus
       ? `<p class="sheet-note">${esc(syncLabel())}</p>
          ${menuItem('sync', 'sync', 'Sync now')}
-         ${menuItem('disconnect', 'unlink', 'Disconnect Dropbox')}`
-      : `<p class="sheet-note">Sync with the Collections Plus extension on your computer through your own Dropbox.</p>
-         ${menuItem('connect', 'cloud', 'Connect Dropbox')}`
-    : '';
+         ${menuItem('plus-off', 'unlink', 'Turn off Plus Sync')}`
+      : active
+        ? `<p class="sheet-note">${esc(syncLabel())}</p>
+           ${menuItem('sync', 'sync', 'Sync now')}
+           ${menuItem('disconnect', 'unlink', 'Disconnect Dropbox')}`
+        : `${dropbox ? `<p class="sheet-note">Sync with the Collections Plus extension on your computer through your own Dropbox.</p>
+           ${menuItem('connect', 'cloud', 'Connect Dropbox')}` : ''}
+           <p class="sheet-note">Or keep this app in sync across your phones and tablets with Plus Sync, our hosted sync (invite only for now).</p>
+           ${menuItem('plus-on', 'cloud', 'Use Plus Sync')}`;
   openSheet(
     'Collections Plus',
     `<div class="menu-list">
@@ -2110,6 +2117,29 @@ function appMenu() {
             cancel: () => {},
             submit: async () => {
               await dropbox.disconnect();
+              watchRemote();
+              updateChip();
+              render();
+            },
+          }
+        );
+        return true;
+      },
+      'plus-on': () => {
+        startPlusSync(); // closes the menu; may open its own sheet after the check
+      },
+      'plus-off': () => {
+        openSheet(
+          'Turn off Plus Sync?',
+          `<p class="sheet-note">Syncing stops on this device. Your collections stay on this phone, and your other devices keep syncing.</p>
+           <label class="sheet-check"><input type="checkbox" name="erase"> Also delete my library from Plus Sync (every device stops syncing)</label>
+           <div class="sheet-actions"><button class="btn" type="button" data-sheet="cancel">Cancel</button><button class="btn danger" type="submit">Turn off</button></div>`,
+          {
+            cancel: () => {},
+            submit: async (f) => {
+              await plus.disconnect({ deleteData: !!f?.get?.('erase') });
+              syncState = { kind: 'idle', text: '' };
+              lastSyncAt = 0;
               watchRemote();
               updateChip();
               render();
@@ -2276,7 +2306,7 @@ els.search.addEventListener('input', () => {
   render();
 });
 els.fab.addEventListener('click', addSheet);
-els.chip.addEventListener('click', () => (dropbox?.isConnected() ? syncNow() : appMenu()));
+els.chip.addEventListener('click', () => (activeSync() ? syncNow() : appMenu()));
 window.addEventListener('hashchange', () => {
   reorderMode = false;
   upNext = false;
@@ -2341,10 +2371,14 @@ function openShare(shared) {
   saveLinkSheet({ ...shared, collectionId, heading: 'Save to Collections Plus' });
 }
 
-// ---- Dropbox sync ----------------------------------------------------------
-// The user's own Dropbox holds the same sync file the desktop extension uses.
+// ---- Sync ------------------------------------------------------------------
+// Two ways to sync, one at a time:
+//  • Dropbox: the user's own Dropbox holds the same sync file the desktop
+//    extension uses (free).
+//  • Plus Sync: our hosted sync on getcollectionsplus.com (invite only for
+//    now). Signing in goes through the site and comes back with a device token.
 // Every round is pull → merge → push (lib/sync-engine.js), so edits made here
-// and on the desktop are combined, never overwritten.
+// and elsewhere are combined, never overwritten.
 
 const dropbox = DROPBOX_APP_KEY
   ? createDropboxAdapter({
@@ -2353,6 +2387,23 @@ const dropbox = DROPBOX_APP_KEY
       kv: backend(),
     })
   : null;
+
+// The API is same-origin on getcollectionsplus.com (the app lives at /app/).
+const plus = createHostedAdapter({
+  base: new URL('/api/sync', location.href).href,
+  kv: backend(),
+  // Pictures by hash, so a pull only downloads ones this phone hasn't seen.
+  imageCache: createIdbBackend({ dbName: 'collections-plus-images' }),
+});
+
+/** The connected adapter, if any. */
+function activeSync() {
+  if (plus.isConnected()) return plus;
+  if (dropbox?.isConnected()) return dropbox;
+  return null;
+}
+
+const syncName = () => (activeSync() === plus ? 'Plus Sync' : 'Dropbox');
 
 let syncing = null; // the in-flight round, so rounds never overlap
 let syncAgain = false;
@@ -2373,32 +2424,50 @@ function syncLabel() {
   if (syncState.kind === 'busy') return 'Syncing…';
   if (syncState.kind === 'error') return syncState.text;
   if (syncState.kind === 'offline') return 'Offline. Changes sync when you’re back online.';
-  return lastSyncAt ? `Synced ${ago(lastSyncAt)} with Dropbox` : 'Connected to Dropbox';
+  return lastSyncAt ? `Synced ${ago(lastSyncAt)} with ${syncName()}` : `Connected to ${syncName()}`;
 }
 
 function updateChip() {
-  if (!dropbox) return (els.chip.hidden = true);
-  els.chip.hidden = false;
   els.chip.className = 'sync-chip';
-  if (!dropbox.isConnected()) {
+  if (!activeSync()) {
     if (syncState.kind === 'error') {
+      els.chip.hidden = false;
       els.chip.classList.add('error');
       els.chip.innerHTML = `<span class="dot"></span>${esc(syncState.text)}`;
-    } else {
+    } else if (dropbox) {
+      els.chip.hidden = false;
       els.chip.classList.add('cta');
       els.chip.innerHTML = `${icon('cloud')}<span>Sync with your computer</span>`;
+    } else {
+      els.chip.hidden = true;
     }
     return;
   }
+  els.chip.hidden = false;
   els.chip.classList.add(
     syncState.kind === 'busy' ? 'busy' : syncState.kind === 'error' ? 'error' : syncState.kind === 'offline' ? '' : 'ok'
   );
   els.chip.innerHTML = `<span class="dot"></span>${esc(syncLabel())}`;
 }
 
+/** What to tell the user when a round fails, by error code. */
+function syncErrorText(err, adapter) {
+  if (adapter === plus) {
+    if (err?.code === 'reauth') return 'Plus Sync signed out. Turn it on again to keep syncing.';
+    if (err?.code === 'forbidden') return 'Plus Sync isn’t enabled for this account.';
+    if (err?.code === 'unavailable') return 'Plus Sync isn’t available right now. Tap to try again.';
+    if (err?.code === 'too-large') return 'Your library is too large for Plus Sync.';
+    if (err?.code === 'quota') return 'Plus Sync storage is full.';
+  } else if (err?.code === 'reauth') {
+    return 'Dropbox access ended. Connect again to keep syncing.';
+  }
+  return 'Sync failed. Tap to try again.';
+}
+
 /** Run a sync round now (or once more after the current one finishes). */
 async function syncNow() {
-  if (!dropbox?.isConnected()) return;
+  const adapter = activeSync();
+  if (!adapter) return;
   if (syncing) {
     syncAgain = true;
     return syncing;
@@ -2407,19 +2476,19 @@ async function syncNow() {
   updateChip();
   syncing = (async () => {
     try {
-      const { pulled } = await syncOnce(dropbox, store);
+      const { pulled } = await syncOnce(adapter, store);
       lastSyncAt = Date.now();
       syncState = { kind: 'ok' };
       if (pulled) await render();
     } catch (err) {
-      if (err?.code === 'reauth') {
-        syncState = { kind: 'error', text: 'Dropbox access ended. Connect again to keep syncing.' };
+      if (err?.code === 'reauth' || err?.code === 'forbidden') {
+        syncState = { kind: 'error', text: syncErrorText(err, adapter) };
         render();
       } else if (!navigator.onLine) {
         syncState = { kind: 'offline' };
       } else {
         console.warn('Sync failed', err);
-        syncState = { kind: 'error', text: 'Sync failed. Tap to try again.' };
+        syncState = { kind: 'error', text: syncErrorText(err, adapter) };
       }
     } finally {
       syncing = null;
@@ -2435,32 +2504,67 @@ async function syncNow() {
 
 /** Debounced sync after a local edit, so a burst of edits is one upload. */
 function scheduleSync() {
-  if (!dropbox?.isConnected()) return;
+  if (!activeSync()) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(syncNow, 1500);
 }
 
 function watchRemote() {
   stopWatching?.();
-  stopWatching = dropbox?.isConnected() ? dropbox.onRemoteChange(syncNow) : null;
+  stopWatching = activeSync()?.onRemoteChange(syncNow) || null;
 }
 
-async function initSync() {
-  if (!dropbox) return;
-  try {
-    // Returning from Dropbox's consent screen: finish sign-in, tidy the URL.
-    if (await dropbox.completeAuth(location.href)) {
-      history.replaceState(null, '', new URL('./', location.href).pathname);
-      toast('Dropbox connected');
-    }
-  } catch (err) {
-    history.replaceState(null, '', new URL('./', location.href).pathname);
-    syncState = { kind: 'error', text: 'Dropbox sign-in failed: ' + err.message };
+/** "Use Plus Sync": check it's open to us, then go sign in on the site. */
+async function startPlusSync() {
+  if (dropbox?.isConnected()) return toast('Disconnect Dropbox first: one sync at a time.');
+  toast('Checking Plus Sync…');
+  const state = await plus.probe();
+  if (state === 'unavailable') return toast('Plus Sync isn’t available yet.');
+  if (state === 'forbidden') {
+    openSheet(
+      'Plus Sync is invite only',
+      `<p class="sheet-note">Plus Sync isn’t enabled for the account you’re signed in with yet. Dropbox sync is free and works today.</p>
+       <div class="sheet-actions"><button class="btn primary" type="submit">OK</button></div>`,
+      { submit: () => {} }
+    );
+    return;
   }
-  await dropbox.init();
+  plus.beginConnect(); // signed in or not: the site handles the rest
+}
+
+const PLUS_ERRORS = {
+  'not-enabled': 'Plus Sync isn’t enabled for this account yet.',
+  unavailable: 'Plus Sync isn’t available yet.',
+  unexpected: 'That Plus Sync sign-in didn’t start here. Try again from the menu.',
+  server: 'Plus Sync couldn’t sign you in. Please try again.',
+};
+
+async function initSync(plusReturn) {
+  if (plusReturn?.token) {
+    if (dropbox?.isConnected()) await dropbox.disconnect(); // one sync at a time
+    await plus.completeConnect(plusReturn);
+    toast('Plus Sync is on');
+  } else if (plusReturn?.error) {
+    toast(PLUS_ERRORS[plusReturn.error] || PLUS_ERRORS.server);
+  }
+  await plus.init();
+  if (dropbox) {
+    try {
+      // Returning from Dropbox's consent screen: finish sign-in, tidy the URL.
+      if (await dropbox.completeAuth(location.href)) {
+        history.replaceState(null, '', new URL('./', location.href).pathname);
+        toast('Dropbox connected');
+      }
+    } catch (err) {
+      history.replaceState(null, '', new URL('./', location.href).pathname);
+      syncState = { kind: 'error', text: 'Dropbox sign-in failed: ' + err.message };
+    }
+    await dropbox.init();
+    if (plus.isConnected() && dropbox.isConnected()) await dropbox.disconnect();
+  }
   updateChip();
   watchRemote();
-  if (dropbox.isConnected()) {
+  if (activeSync()) {
     await syncNow();
     render();
   }
@@ -2475,6 +2579,9 @@ setInterval(() => syncState.kind === 'ok' && updateChip(), 60000); // keep "x mi
 // ---- Boot ------------------------------------------------------------------
 
 (async () => {
+  // A Plus Sync return carries #plus-token=; take it out of the address bar
+  // before anything else runs.
+  const plusReturn = plus.takeConnectReturn(location.href);
   // A Dropbox return carries ?code=; a share carries ?url=/text=. Take the
   // share before sync tidies the URL.
   const shared = new URLSearchParams(location.search).has('code') ? null : takeShare();
@@ -2485,7 +2592,7 @@ setInterval(() => syncState.kind === 'ok' && updateChip(), 60000); // keep "x mi
     return;
   }
   openShare(shared);
-  await initSync();
+  await initSync(plusReturn);
 })();
 
 if ('serviceWorker' in navigator) {

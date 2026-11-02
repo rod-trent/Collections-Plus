@@ -10,6 +10,8 @@ accounts.
 - `/privacy` renders the repo's `../PRIVACY.md` at build time.
 - `/account`, `/sign-in`, `/sign-up` are the only pages that load Clerk. Free
   users never get Clerk scripts or cookies.
+- `/api/sync/*` is the Plus Sync API (Neon Postgres). Setup steps are in
+  [`../docs/plus-sync-setup.md`](../docs/plus-sync-setup.md).
 
 ## Run locally
 

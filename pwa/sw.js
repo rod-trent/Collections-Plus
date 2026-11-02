@@ -9,7 +9,7 @@
 // Phase 3 will extend this worker with the share-target handler and a
 // Background-Sync queue for offline saves.
 
-const CACHE = 'cp-shell-v20';
+const CACHE = 'cp-shell-v21';
 const SHELL = ['./', './index.html', './app.css', './app.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -28,7 +28,10 @@ self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET') return;
   // Only our own files; Dropbox API calls etc. go straight to the network.
-  if (new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  // Plus Sync calls (/api/sync) are live user data: never cache them.
+  if (url.pathname.startsWith('/api/')) return;
   // Network-first: a deploy reaches installed apps on their next launch, and
   // the cached copy keeps the app working offline. (Cache-first would pin
   // every installed app to the version it first downloaded.)

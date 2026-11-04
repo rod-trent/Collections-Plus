@@ -122,7 +122,8 @@ export default function Home() {
                 )}
               </div>
               <ul>
-                <li>Sign in on any device and you’re synced, no cloud setup</li>
+                <li>Sign in on your phones and tablets and they stay in sync, no cloud setup</li>
+                <li>The desktop extension joins Plus Sync soon; until then it syncs through Dropbox</li>
                 <li>Faster sync and support from a real person</li>
                 <li>Supports ongoing development of Collections Plus</li>
                 {PLUS_ON_SALE && <li>Cancel any time from your account</li>}

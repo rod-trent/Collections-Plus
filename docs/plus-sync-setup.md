@@ -50,6 +50,10 @@ If Dropbox is connected in the app, disconnect it first: one sync at a time.
   download only pictures that the device hasn't cached yet.
 - **Conflicts:** each push sends the rev it started from. If another device
   wrote first the API answers 409, and the app pulls, merges and retries.
+- **Change checks:** an open app asks for the doc's rev every 2 minutes (and
+  syncs whenever it comes to the front or after an edit). Keeping it slow lets
+  Neon suspend its database when nobody is active, which is most of what Plus
+  Sync costs to run. `pollMs` in `lib/hosted-adapter.js` sets it.
 - **Clean-up:** when a push drops a picture, the app asks the server to delete
   pictures the new doc no longer references. Pictures any device touched in
   the last hour are kept, so a push in progress never loses one.

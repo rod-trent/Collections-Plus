@@ -35,6 +35,8 @@ There's no Collections Plus account, and your collections never pass through our
 
 → [Sync with Dropbox](/help/sync)
 
+Would you rather not set up a cloud folder? [Plus Sync](/help/sync#plus-sync) is our optional paid sync, where we keep your library for you.
+
 ## Your data stays yours
 
 - Your collections live **in your browser**, on each device you use.

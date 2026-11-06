@@ -25,6 +25,7 @@ import { extractImageUrl } from './lib/pagemeta.js';
 import { isPrivateUrl, isPublicHttpUrl } from './lib/netguard.js';
 import { matchRule } from './lib/rules.js';
 import { searchEntries } from './lib/omnibox.js';
+import { parseConnectReturn, PENDING_KEY, RETURN_KEY } from './lib/plus-connect.js';
 import {
   fingerprint,
   liveFingerprint,
@@ -288,6 +289,22 @@ chrome.storage.onChanged.addListener((changes, area) => {
     rebuildMenus();
     updateChangeBadge();
   }
+});
+
+// ---- Plus Sync sign-in -----------------------------------------------------
+
+// The panel opens the sign-in page in a tab, and the site finishes on a page with
+// the device token in its URL fragment. Pick it up here so it still arrives if
+// the panel was closed in the meantime; the panel takes it from RETURN_KEY.
+chrome.tabs.onUpdated.addListener(async (tabId, info) => {
+  if (!info.url) return;
+  const pending = (await chrome.storage.session.get(PENDING_KEY))[PENDING_KEY];
+  const result = parseConnectReturn(info.url, pending);
+  if (!result) return;
+  await chrome.storage.session.remove(PENDING_KEY);
+  await chrome.storage.local.set({ [RETURN_KEY]: result });
+  // On an error, leave the tab open: the page explains what to do next.
+  if (result.token) chrome.tabs.remove(tabId).catch(() => {});
 });
 
 // ---- Metadata capture ------------------------------------------------------

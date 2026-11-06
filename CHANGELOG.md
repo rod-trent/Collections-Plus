@@ -3,6 +3,14 @@
 Release notes for Collections Plus. The summaries here double as the
 "What's new" copy used in the Chrome Web Store listing.
 
+## 2.12.0
+
+**Plus Sync comes to the extension.** Plus Sync is our optional paid sync: sign
+in and your computers, phones and tablets stay in step, with no cloud folder to
+set up. Choose **⋯ → Sync → Use Plus Sync…** to turn it on. Edits from every
+device are merged, so nothing gets overwritten. Syncing through a file in your
+own cloud folder stays free and works as before.
+
 ## 2.11.0
 
 **Know when a saved page changes.** Hover a saved page and click **👁** to

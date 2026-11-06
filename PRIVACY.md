@@ -1,6 +1,6 @@
 # Privacy Policy — Collections Plus
 
-_Last updated: 2026-11-02_
+_Last updated: 2026-11-06_
 
 Collections Plus is a **local-first** browser extension with a companion
 **mobile web app** at <https://getcollectionsplus.com/app/>. Both are designed
@@ -173,7 +173,7 @@ browser type, and handles it under Vercel's privacy policy.
 
 Accounts exist only for **Plus Sync**, an optional hosted sync service. You
 don't need an account for anything else. Plus Sync is a paid annual
-subscription; until it goes on sale, only invited accounts can use it.
+subscription.
 
 - **Signing in.** Accounts are run by **Clerk**, which handles sign-up and
   sign-in for getcollectionsplus.com under its own privacy policy. Clerk stores
@@ -197,13 +197,13 @@ subscription; until it goes on sale, only invited accounts can use it.
   subscription IDs, the subscription's status (such as active, past due or
   cancelled), its price, and its renewal or end date, so it knows whether Plus
   Sync is on for your account.
-- **What Plus Sync stores.** When you turn on Plus Sync in the mobile web app,
-  it uploads your library so your other devices can sync with it: your
+- **What Plus Sync stores.** When you turn on Plus Sync in the extension or the
+  mobile web app, it uploads your library so your other devices can sync with it: your
   collections, folders, saved pages, images and notes, tags, custom fields,
   auto-file rules, and a list of recently deleted items (each item's internal
   ID and when it was deleted). Pictures in your library (page thumbnails,
   covers and saved images) are stored separately, once each. It also keeps a
-  list of the devices you connected: a label such as "iPhone · Safari", when
+  list of the devices you connected: a label such as "Windows · Chrome", when
   each was connected and when it last synced. Each device gets its own sign-in
   key, and only a scrambled (hashed) form of that key is stored. Your settings
   and AI API keys are never uploaded.
@@ -215,11 +215,12 @@ subscription; until it goes on sale, only invited accounts can use it.
   analyze or index its contents. It is never sold, shared, used for
   advertising, or used to train AI. The developer accesses stored data only
   when needed to keep the service running or when you ask for help.
-- **Deleting your data.** In the mobile web app, choose **Turn off Plus Sync**
-  and tick **Also delete my library from Plus Sync**: this immediately erases
-  your library, its pictures and every device's sign-in key from the service.
-  Turning Plus Sync off without ticking it only disconnects that device, and
-  you can also disconnect a device from your account page. Pictures you remove
+- **Deleting your data.** Choose **Turn off Plus Sync**, then **Delete it** in
+  the extension, or tick **Also delete my library from Plus Sync** in the mobile
+  web app: this immediately erases your library, its pictures and every device's
+  sign-in key from the service. Turning Plus Sync off without deleting only
+  disconnects that device, and you can also disconnect a device from your
+  account page. Pictures you remove
   from your library are deleted from the service after the next sync. The
   copies on your own devices are never affected. To close your account as
   well, email <support@getcollectionsplus.com> from the address you signed up

@@ -102,11 +102,17 @@ Version 2.10 introduced merging. Older versions sync the old way, where whicheve
 
 The sync file stays in your Dropbox either way, so you can reconnect later.
 
-## Plus Sync: subscribing and cancelling
+## Plus Sync
 
-**Plus Sync** is our optional paid sync, where we keep your library for you instead of your Dropbox. Dropbox sync stays free.
+**Plus Sync** is our optional paid sync, where we keep your library for you instead of your Dropbox. There's no cloud folder to set up. Dropbox sync stays free.
 
-- **Subscribe:** sign in on [your account page](/account) and choose **Subscribe**. You pay on Stripe's secure checkout page; we never see your card. Then, in the mobile app, choose **⋯ → Use Plus Sync**.
+- **Subscribe:** sign in on [your account page](/account) and choose **Subscribe**. You pay on Stripe's secure checkout page; we never see your card.
+- **Turn it on in the mobile app:** choose **⋯ → Use Plus Sync**.
+- **Turn it on in the extension (version 2.12 or later):** choose **⋯ → Sync → Use Plus Sync…** and sign in on the page that opens. The tab closes by itself when you're done.
+- **What's already on each device is kept.** Your libraries are merged, so nothing gets overwritten.
+- **One sync at a time.** Turning on Plus Sync replaces Dropbox or a sync file on that device. Move all your devices over, because a device on Plus Sync doesn't see changes from a device still using Dropbox or a sync file.
+- **In the extension, syncing happens while the side panel is open.** Pages you save with the panel closed sync the next time you open it.
+- **Turn it off:** in the extension, choose **⋯ → Sync → Turn off Plus Sync**; in the mobile app, choose **⋯ → Turn off Plus Sync**. Your collections stay on the device, and you can also choose to delete your synced library.
 - **Change your card, see invoices or cancel:** on [your account page](/account), choose **Manage billing**.
 - **When you cancel**, Plus Sync keeps working until the end of the year you've paid for, then syncing stops. Your synced library is kept until you delete it, so subscribing again picks up where you left off. Your collections on your own devices are never affected.
 - **If a payment fails**, your account page shows a warning and sync keeps working for a few days while you update your card.

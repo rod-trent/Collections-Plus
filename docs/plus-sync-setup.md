@@ -1,8 +1,9 @@
-# Plus Sync: setup (phase 1, invite only)
+# Plus Sync: setup
 
-Plus Sync is the hosted sync tier. In phase 1 it keeps the **mobile web app**
-(`/app/`) in sync across your phones and tablets. The desktop extension joins in
-phase 2. There's no billing yet: only the Clerk user IDs you list can use it.
+Plus Sync is the hosted sync tier. It keeps the **mobile web app** (`/app/`) and
+the **desktop extension** (2.12 or later) in sync. Billing is covered in
+[plus-sync-billing-setup.md](plus-sync-billing-setup.md); the Clerk user IDs you
+list get it for free.
 
 Everything runs on what the site already has: Vercel, Clerk, and **Neon
 Postgres** through Vercel's Neon integration. Nothing else.
@@ -43,6 +44,15 @@ If Dropbox is connected in the app, disconnect it first: one sync at a time.
   sends it as a Bearer header. (Clerk's own session cookie only lasts a minute
   unless Clerk's script runs on the page, and the app never loads Clerk.) Only a
   SHA-256 of each token is stored, in `sync_devices`.
+- **Extension sign-in:** "Use Plus Sync…" opens
+  `/api/sync/connect?client=extension&state=…` in a normal tab, because Google can
+  refuse to sign in from an embedded auth window. It returns to
+  `/sync-connected.html#plus-token=…&state=…`, a static file with no analytics,
+  where the service worker reads the token and closes the tab. The random state
+  stops another site from connecting the browser to its own account. See
+  `lib/plus-connect.js` and `site/lib/sync-return.js`. The extension calls the API
+  from its own origin, which its host permission allows, so the API needs no CORS.
+  It syncs while the panel is open and checks for changes every 2 minutes.
 - **Images:** pictures are stored inline in a library, which can be tens of MB,
   and Vercel functions take at most 4.5 MB per request. The app swaps each
   picture for a `cpimg:<sha256>` reference, uploads only the pictures the server
@@ -101,4 +111,6 @@ On Neon's plans (check https://neon.com/pricing, since numbers change):
 - Queries: `site/lib/plus-sync-db.js`; auth and allowlist: `site/lib/plus-sync.js`
 - Schema: `site/db/migrations/001_plus_sync.sql`; setup: `site/scripts/db-setup.mjs`
 - App side: `lib/hosted-adapter.js`, `lib/image-split.js`, `pwa/app.js`
-- Tests: `tools/test_hosted_adapter.mjs`, `tools/test_image_split.mjs`
+- Extension side: `lib/plus-connect.js`, `sidepanel/panel.js`, `background.js`
+- Tests: `tools/test_hosted_adapter.mjs`, `tools/test_image_split.mjs`,
+  `tools/test_plus_connect.mjs`

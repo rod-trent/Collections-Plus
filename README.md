@@ -4,10 +4,11 @@ An open, local-first replacement for **Microsoft Edge Collections**, which
 Microsoft has now retired. Collections Plus is the way to get that workflow
 back — and, if you never exported before the feature disappeared, the way to
 recover the collections Edge left behind on disk. It's a small Manifest V3
-browser extension for **Chromium-based browsers**: no account, no server, no
-build step. Your data stays in your browser. A companion **mobile web app** at
+browser extension for **Chromium-based browsers**: no account needed, no build
+step. Your data stays in your browser unless you turn on optional Plus Sync. A
+companion **mobile web app** at
 [getcollectionsplus.com/app](https://getcollectionsplus.com/app/) puts the same
-collections on your phone, synced through your own Dropbox.
+collections on your phone, synced through your own Dropbox or Plus Sync.
 
 📖 **Guides:** [getcollectionsplus.com/help](https://getcollectionsplus.com/help)
 
@@ -378,7 +379,13 @@ synced.
 
 ## Syncing across devices
 
-Sync is **optional and provider-agnostic**: there's no account. Instead of
+There are two optional ways to sync, and a device uses one at a time.
+
+**Plus Sync** is our paid hosted sync: choose **⋯ → Sync → Use Plus Sync…**, sign
+in, and your computers, phones and tablets stay in step, with no cloud folder to
+set up. See the [Plus Sync guide](https://getcollectionsplus.com/help/sync#plus-sync).
+
+**A sync file** is free and **provider-agnostic**, with no account. Instead of
 integrating with one cloud, the extension reads and writes a single
 `collections-sync.json` file that **you** place inside a folder your computer
 already keeps synced: OneDrive, Google Drive, Dropbox, iCloud Drive, etc. Your
@@ -480,7 +487,8 @@ Guide: [getcollectionsplus.com/help/mobile](https://getcollectionsplus.com/help/
 
 Everything is stored locally via `chrome.storage.local` on your machine (and,
 in the mobile app, in your phone's browser storage). Nothing is sent to us or any
-server; the optional sync file lives in a folder *you* chose (or your own
+server unless you turn on [Plus Sync](PRIVACY.md#accounts-and-plus-sync); the
+optional sync file lives in a folder *you* chose (or your own
 Dropbox, for the phone), and only your own cloud touches it. Saved page/image
 thumbnails are stored as references to their original URLs (not copied), so they
 display as long as the source stays online; **uploaded covers**, **captured
@@ -509,9 +517,11 @@ lib/ai.js              generative-AI provider adapters + context builder
 lib/semantic.js        AI search catalog + result parsing (pure, testable)
 lib/xlsx.js            dependency-free .xlsx writer (pure, testable)
 lib/image.js           downscale a file/URL/screenshot into a small data URL
-lib/idb-backend.js     IndexedDB storage backend (mobile app)
+lib/idb-backend.js     IndexedDB storage backend (mobile app, Plus Sync images)
 lib/remote-adapter.js  the sync transport contract
-lib/sync-engine.js     pull → merge → push over any adapter (mobile app)
+lib/sync-engine.js     pull → merge → push over any adapter
+lib/hosted-adapter.js  Plus Sync transport: device token, images split out
+lib/plus-connect.js    the extension's Plus Sync sign-in handshake
 lib/dropbox-adapter.js Dropbox transport: OAuth PKCE, rev-checked uploads
 pwa/                   the mobile web app (served at getcollectionsplus.com/app)
 site/                  getcollectionsplus.com (Next.js on Vercel), incl. /help

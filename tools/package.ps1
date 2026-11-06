@@ -25,7 +25,7 @@ Copy-Item (Join-Path $root 'LICENSE') $staging
 
 # Modules and assets. lib/ also holds code used only by the mobile web app
 # (pwa/); the extension never loads it, so it stays out of the store package.
-$pwaOnly = @('dropbox-adapter.js', 'sync-engine.js', 'idb-backend.js', 'remote-adapter.js', 'hosted-adapter.js', 'image-split.js')
+$pwaOnly = @('dropbox-adapter.js')
 Get-ChildItem (Join-Path $root 'lib/*.js') |
   Where-Object { $pwaOnly -notcontains $_.Name } |
   Copy-Item -Destination (Join-Path $staging 'lib')

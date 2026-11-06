@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Where the extension's Plus Sync sign-in lands. It's a plain file on purpose:
+     the URL fragment holds a device token, so this page loads no analytics or
+     other scripts. The extension reads the token and closes the tab. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Plus Sync · Collections Plus</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        box-sizing: border-box;
+        background: #fff;
+        color: #1f2937;
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      main { max-width: 28rem; }
+      h1 { font-size: 1.4rem; margin: 0 0 0.5rem; }
+      a { color: #2563eb; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #0b1220; color: #e5e7eb; }
+        a { color: #7ab0ff; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Plus Sync is on</h1>
+      <p id="text">You can close this tab and go back to Collections Plus.</p>
+    </main>
+    <script>
+      (function () {
+        var hash = new URLSearchParams(location.hash.slice(1));
+        var error = hash.get('plus-error');
+        if (error) {
+          document.getElementById('title').textContent =
+            error === 'not-enabled' ? 'Plus Sync isn’t active' : 'Plus Sync couldn’t sign you in';
+          document.getElementById('text').innerHTML =
+            error === 'not-enabled'
+              ? 'Plus Sync isn’t active for this account. You can subscribe on <a href="/account">your account page</a>, then choose <strong>Use Plus Sync</strong> in the extension again.'
+              : 'Please close this tab and try again from the extension.';
+        }
+        // The extension has read it by now. Don't leave a token in the address bar.
+        setTimeout(function () {
+          history.replaceState(null, '', location.pathname);
+        }, 2000);
+      })();
+    </script>
+  </body>
+</html>

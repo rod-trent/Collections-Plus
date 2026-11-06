@@ -61,6 +61,7 @@ import {
   importBookmarks,
   addRule,
   removeRule,
+  setData,
   STORAGE_KEY,
 } from '../lib/store.js';
 import { ruleLabel } from '../lib/rules.js';
@@ -72,6 +73,19 @@ import { fileToCover, srcToCover } from '../lib/image.js';
 import { extractReadable } from '../lib/snapshot.js';
 import { hasUnseenChange, countUnseenChanges } from '../lib/pagewatch.js';
 import * as sync from '../lib/sync.js';
+import { backend } from '../lib/backend.js';
+import { createIdbBackend } from '../lib/idb-backend.js';
+import { createHostedAdapter } from '../lib/hosted-adapter.js';
+import { syncOnce } from '../lib/sync-engine.js';
+import {
+  PLUS_API,
+  PLUS_ACCOUNT_URL,
+  PLUS_STATE_KEY,
+  PENDING_KEY,
+  RETURN_KEY,
+  newConnectState,
+  connectUrl,
+} from '../lib/plus-connect.js';
 import * as backup from '../lib/backup.js';
 import {
   AI_PROVIDERS,
@@ -113,6 +127,7 @@ const els = {
   detailCover: $('#detail-cover'),
   coverRemoveBtn: $('#cover-remove-btn'),
   syncStatus: $('#sync-status'),
+  plusNote: $('#plus-note'),
   fileInput: $('#file-input'),
   toast: $('#toast'),
   binView: $('#bin-view'),
@@ -3378,11 +3393,25 @@ async function refreshSyncMenu() {
   const pull = syncBtn('sync-pull');
   const disc = syncBtn('sync-disconnect');
   const status = els.syncStatus;
+  const plusOn = plus.isConnected();
+
+  // Plus Sync and the sync file are one or the other.
+  syncBtn('plus-connect').hidden = plusOn;
+  syncBtn('plus-account').hidden = syncBtn('plus-disconnect').hidden = !plusOn;
+  els.plusNote.hidden = plusOn;
+  if (plusOn) {
+    create.hidden = openExisting.hidden = resume.hidden = pull.hidden = disc.hidden = true;
+    now.hidden = false;
+    status.hidden = false;
+    const when = plusLastSyncAt ? ` · ${relativeTime(plusLastSyncAt)}` : '';
+    status.textContent = plusProblem || `Synced with Plus Sync${when}`;
+    return;
+  }
 
   if (!sync.supported()) {
     create.hidden = openExisting.hidden = resume.hidden = now.hidden = pull.hidden = disc.hidden = true;
     status.hidden = false;
-    status.textContent = 'Sync needs a Chromium browser with the File System Access API.';
+    status.textContent = 'Sync files need a Chromium browser with the File System Access API.';
     return;
   }
 
@@ -3416,6 +3445,7 @@ let pendingPush = false; // local edits not yet written to the sync file
 
 // Debounced background write after local edits.
 function schedulePush() {
+  if (plus.isConnected()) return schedulePlusSync();
   pendingPush = true;
   if (syncPaused) {
     // Write access is gone; don't hammer the API. The edit is remembered in
@@ -3573,6 +3603,11 @@ async function openSync() {
 }
 
 async function syncNow() {
+  if (plus.isConnected()) {
+    await plusSyncNow();
+    if (!plusProblem) toast('Synced');
+    return;
+  }
   try {
     await sync.push({ interactive: true });
     syncPaused = false;
@@ -3612,6 +3647,8 @@ let conflictNotified = false;
 // Pulls merge the file's changes into local data item by item, so un-pushed
 // local edits survive and go out with the next push.
 async function autoPull() {
+  // Plus Sync checks for changes itself, on a slower timer: see watchPlus().
+  if (plus.isConnected()) return;
   try {
     if (!(await sync.status()).connected) return;
     // Only engage the remote-apply guard when there's actually a new version,
@@ -3664,6 +3701,168 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) autoPull();
 });
 setInterval(autoPull, 20000);
+
+// ---- Plus Sync -------------------------------------------------------------
+//
+// Our hosted sync, as an alternative to the sync file. It's the same pull →
+// merge → push round the mobile app runs (lib/sync-engine.js) over
+// lib/hosted-adapter.js. The panel only syncs while it's open; a round when it
+// next opens picks up anything saved from the context menu in the meantime.
+
+const PLUS_PROBLEMS = {
+  reauth: 'Plus Sync signed out. Turn it on again to keep syncing.',
+  forbidden: 'Plus Sync isn’t active for this account.',
+  unavailable: 'Plus Sync isn’t available right now.',
+  'too-large': 'Your library is too large for Plus Sync.',
+  quota: 'Plus Sync storage is full.',
+};
+const PLUS_RETURN_ERRORS = {
+  'not-enabled': 'Plus Sync isn’t active for this account.',
+  unavailable: 'Plus Sync isn’t available right now.',
+};
+
+const openPlusAccount = () => chrome.tabs.create({ url: PLUS_ACCOUNT_URL });
+
+const makePlus = () =>
+  createHostedAdapter({
+    base: PLUS_API,
+    kv: backend(),
+    // Pictures by hash, so a pull only downloads ones this browser hasn't seen.
+    imageCache: createIdbBackend({ dbName: 'collections-plus-images' }),
+  });
+
+let plus = makePlus();
+let plusLastSyncAt = 0;
+let plusProblem = '';
+let plusNotified = '';
+let plusSyncing = null; // the in-flight round, so rounds never overlap
+let plusAgain = false;
+let plusTimer = null;
+let stopPlusWatch = null;
+
+// A round's write isn't a local edit: don't echo it back or snapshot it as one.
+const plusStore = {
+  getData,
+  async setData(data) {
+    await snapshotHistory(0); // so version history can undo what a sync brought in
+    applyingRemote = true;
+    await setData(data);
+  },
+};
+
+function plusFailed(err) {
+  console.warn('Plus Sync failed', err);
+  plusProblem = PLUS_PROBLEMS[err?.code] || 'Plus Sync failed. Your changes are safe here.';
+  if (!navigator.onLine) plusProblem = 'Offline. Changes sync when you’re back online.';
+  if (plusNotified === plusProblem || !navigator.onLine) return;
+  plusNotified = plusProblem;
+  if (err?.code === 'forbidden') toast(plusProblem, { label: 'Your account', fn: openPlusAccount });
+  else toast(plusProblem);
+}
+
+/** Run a round now, or once more after the current one finishes. */
+async function plusSyncNow() {
+  if (!plus.isConnected()) return;
+  if (plusSyncing) {
+    plusAgain = true;
+    return plusSyncing;
+  }
+  const adapter = plus;
+  plusSyncing = (async () => {
+    try {
+      await syncOnce(adapter, plusStore);
+      plusLastSyncAt = Date.now();
+      plusProblem = plusNotified = '';
+    } catch (err) {
+      applyingRemote = false;
+      plusFailed(err);
+    } finally {
+      plusSyncing = null;
+      refreshSyncMenu();
+      if (plusAgain) {
+        plusAgain = false;
+        plusSyncNow();
+      }
+    }
+  })();
+  return plusSyncing;
+}
+
+/** Debounced round after a local edit, so a burst of edits is one upload. */
+function schedulePlusSync() {
+  clearTimeout(plusTimer);
+  plusTimer = setTimeout(plusSyncNow, 1500);
+}
+
+function watchPlus() {
+  stopPlusWatch?.();
+  stopPlusWatch = plus.isConnected() ? plus.onRemoteChange(plusSyncNow) : null;
+}
+
+/** "Use Plus Sync…": check the site's up, then go sign in on it. */
+async function startPlusSync() {
+  if ((await plus.probe()) === 'unavailable') {
+    toast('Plus Sync isn’t available right now. Check your connection and try again.');
+    return;
+  }
+  if ((await sync.status()).connected) {
+    const proceed = await showConfirm(
+      'Plus Sync replaces your sync file on this computer. Your collections stay here and the file stays where it is, but it stops updating. Other devices using that file need to move to Plus Sync too.',
+      { okLabel: 'Use Plus Sync', cancelLabel: 'Cancel' }
+    );
+    if (!proceed) return;
+  }
+  const state = newConnectState();
+  await chrome.storage.session.set({ [PENDING_KEY]: state });
+  await chrome.tabs.create({ url: connectUrl(state) });
+}
+
+/** The service worker caught the end of a sign-in: act on it. */
+async function takePlusReturn() {
+  const result = (await chrome.storage.local.get(RETURN_KEY))[RETURN_KEY];
+  if (!result) return;
+  await chrome.storage.local.remove(RETURN_KEY);
+  if (!result.token) {
+    toast(PLUS_RETURN_ERRORS[result.error] || 'Plus Sync couldn’t sign you in. Please try again.');
+    return;
+  }
+  if ((await sync.status()).connected) await sync.disconnect(); // one sync at a time
+  syncPaused = syncPausedNotified = pendingPush = false;
+  await plus.completeConnect(result);
+  toast('Plus Sync is on');
+  watchPlus();
+  await plusSyncNow();
+}
+
+async function turnOffPlus() {
+  const proceed = await showConfirm(
+    'Turn off Plus Sync on this computer? Your collections stay here, and your synced library stays on your account.',
+    { okLabel: 'Turn off', cancelLabel: 'Cancel' }
+  );
+  if (!proceed) return;
+  const erase = await showConfirm(
+    'Also delete your synced library from Plus Sync? Every device stops syncing. The collections on your devices aren’t affected.',
+    { okLabel: 'Delete it', cancelLabel: 'Keep it' }
+  );
+  await plus.disconnect({ deleteData: erase });
+  plusLastSyncAt = 0;
+  plusProblem = plusNotified = '';
+  watchPlus();
+  toast('Plus Sync turned off');
+  refreshSyncMenu();
+}
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'local') return;
+  if (changes[RETURN_KEY]?.newValue) takePlusReturn();
+  // Turned on or off, or signed out, possibly from another window's panel.
+  if (changes[PLUS_STATE_KEY]) {
+    plus = makePlus();
+    await plus.init();
+    watchPlus();
+    refreshSyncMenu();
+  }
+});
 
 // ---- Event wiring ----------------------------------------------------------
 
@@ -3917,6 +4116,9 @@ async function runMenuAction(action) {
   if (action === 'sync-now') syncNow();
   if (action === 'sync-pull') syncPull();
   if (action === 'sync-disconnect') disconnectSync();
+  if (action === 'plus-connect') startPlusSync();
+  if (action === 'plus-account') openPlusAccount();
+  if (action === 'plus-disconnect') turnOffPlus();
 }
 
 // ---- Overflow (settings) menu + category submenus --------------------------
@@ -4559,6 +4761,12 @@ function watchForLateBackup() {
 }
 
 async function initSafety() {
+  await plus.init();
+  await takePlusReturn(); // a sign-in that finished while the panel was closed
+  if (plus.isConnected() && !plusSyncing) {
+    watchPlus();
+    plusSyncNow();
+  }
   // Mark file-sync paused up front so the menu shows Resume, not a failed push.
   const { connected } = await sync.status();
   if (connected && !(await sync.canWrite())) syncPaused = true;
@@ -4582,6 +4790,7 @@ async function initSafety() {
   runBackup();
 
   // Proactively nudge so protection is actually active.
+  if (plus.isConnected()) return;
   if (connected) {
     if (syncPaused && !syncPausedNotified) {
       syncPausedNotified = true;
@@ -4595,7 +4804,7 @@ async function initSafety() {
     if (!s.syncHintShown && data.collections.length >= 3) {
       await setSettings({ syncHintShown: true });
       toast(
-        'Your collections are auto-backed-up to your Chrome account. Set up Sync (⋯ menu) for a full cross-device backup too.'
+        'Your collections are auto-backed-up to your Chrome account. For a full copy on your other devices, set up Sync in the ⋯ menu.'
       );
     }
   }

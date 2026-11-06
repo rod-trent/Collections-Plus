@@ -2088,7 +2088,7 @@ function appMenu() {
            ${menuItem('disconnect', 'unlink', 'Disconnect Dropbox')}`
         : `${dropbox ? `<p class="sheet-note">Sync with the Collections Plus extension on your computer through your own Dropbox.</p>
            ${menuItem('connect', 'cloud', 'Connect Dropbox')}` : ''}
-           <p class="sheet-note">Or keep this app in sync across your phones and tablets with Plus Sync, our hosted sync (invite only for now).</p>
+           <p class="sheet-note">Or let us handle it with Plus Sync, our optional paid sync. There’s no cloud folder to set up.</p>
            ${menuItem('plus-on', 'cloud', 'Use Plus Sync')}`;
   openSheet(
     'Collections Plus',
@@ -2379,8 +2379,7 @@ function openShare(shared) {
 // Two ways to sync, one at a time:
 //  • Dropbox: the user's own Dropbox holds the same sync file the desktop
 //    extension uses (free).
-//  • Plus Sync: our hosted sync on getcollectionsplus.com (invite only for
-//    now). Signing in goes through the site and comes back with a device token.
+//  • Plus Sync: our hosted sync on getcollectionsplus.com. Signing in goes through the site and comes back with a device token.
 // Every round is pull → merge → push (lib/sync-engine.js), so edits made here
 // and elsewhere are combined, never overwritten.
 

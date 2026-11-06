@@ -16,7 +16,7 @@ The Collections Plus mobile app runs in your phone's browser and installs onto y
 2. Tap the **Share** button, then **Add to Home Screen**.
 3. Open Collections Plus from your home screen.
 
-Your collections are stored in the app on that phone. To see the ones from your computer, connect Dropbox: see [Sync with Dropbox](/help/sync).
+Your collections are stored in the app on that phone. To see the ones from your computer, connect Dropbox: see [Sync with Dropbox](/help/sync). Or use [Plus Sync](/help/sync#plus-sync), our optional paid sync. If Dropbox is already connected, disconnect it first, and **Use Plus Sync** then appears in the **⋯** menu.
 
 ## Find your way around
 

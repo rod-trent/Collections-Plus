@@ -128,7 +128,8 @@ function NotActive({ sub, buyable, justSubscribed }) {
       {buyable ? (
         <>
           <p>
-            Plus Sync is {PLUS_PRICE.amount} {PLUS_PRICE.period}. Cancel any time.
+            Plus Sync is {PLUS_PRICE.amount} {PLUS_PRICE.period} and renews automatically. Cancel any time. By
+            subscribing, you agree to the <a href="/terms">Terms of Service</a>.
           </p>
           <SubscribeButton />
         </>

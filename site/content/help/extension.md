@@ -100,7 +100,7 @@ Microsoft retired Edge Collections, but your collections are probably still on y
 **If you never exported them** (most people), Edge left its database behind:
 
 1. In Collections Plus, choose **⋯ → Import → Import Edge database (SQLite)…**
-2. Browse to `%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Collections\` and choose the file named **collectionsSQLite**. It has no file extension, so set the file picker to show **All files**. If you used a different Edge profile, replace `Default` with that profile's folder, such as `Profile 1`.
+2. Browse to `%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Collections` and choose the file named **collectionsSQLite**. It has no file extension, so set the file picker to show **All files**. If you used a different Edge profile, replace `Default` with that profile's folder, such as `Profile 1`.
 
 Your collections come back, with their page pictures.
 

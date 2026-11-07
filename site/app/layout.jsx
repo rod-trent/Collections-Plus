@@ -54,6 +54,7 @@ export default function RootLayout({ children }) {
               <a href="/app/">Mobile app</a>
               <Link href="/help">Help</Link>
               <Link href="/privacy">Privacy</Link>
+              <Link href="/terms">Terms</Link>
               <a href={GITHUB_URL}>GitHub</a>
             </nav>
           </div>

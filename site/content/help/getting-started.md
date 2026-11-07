@@ -29,13 +29,12 @@ The mobile app puts your collections on your phone. It isn't in an app store: yo
 
 ## Keeping them in sync
 
-The extension and the app share one library through **your own Dropbox**. Edit on either one and the change shows up on the other. Edits from both sides are merged, so nothing gets overwritten.
+The extension and the app can share one library. Edit on either one and the change shows up on the other. Edits from both sides are merged, so nothing gets overwritten. There are two ways to connect them:
 
-There's no Collections Plus account, and your collections never pass through our servers: they go straight between your devices and your Dropbox.
+- **Your own Dropbox** is free. There's no Collections Plus account, and your collections never pass through our servers: they go straight between your devices and your Dropbox.
+- **Plus Sync** is our optional paid sync, where we keep your library for you. You sign in on each device, with no cloud folder to set up.
 
-→ [Sync with Dropbox](/help/sync)
-
-Would you rather not set up a cloud folder? [Plus Sync](/help/sync#plus-sync) is our optional paid sync, where we keep your library for you.
+→ [Sync your devices](/help/sync)
 
 ## Your data stays yours
 

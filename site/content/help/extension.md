@@ -84,6 +84,15 @@ Under **⋯ → Export**:
 
 **⋯ → Tools → Version history…** keeps recent snapshots of your library on this computer, so you can roll back a mistake.
 
+## Syncing with your other devices
+
+Open **⋯ → Sync** and choose how to keep your library on your other computers and your phone:
+
+- **Plus Sync** is our optional paid sync. Choose **Use Plus Sync…** and sign in on the page that opens, with no cloud folder to set up.
+- **A sync file** is free. It keeps your library in a file in your own Dropbox or other cloud folder.
+
+→ [Sync your devices](/help/sync)
+
 ## Coming from Edge Collections
 
 Microsoft retired Edge Collections, but your collections are probably still on your computer.

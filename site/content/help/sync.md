@@ -1,8 +1,13 @@
-# Sync with Dropbox
+# Sync your devices
 
 Sync keeps one library on all your devices: your phone and any number of computers. Save a page on your phone and it shows up in the extension; tidy up on your laptop and your phone follows.
 
-It works through **your own Dropbox**. Your library is kept in a single file, `collections-sync.json`, in a Collections Plus folder in your Dropbox. Every device reads and writes that one file. There's no Collections Plus account, and your collections never pass through our servers.
+There are two ways to do it:
+
+- **Your own Dropbox** is free, and it's what most of this guide covers.
+- **[Plus Sync](#plus-sync)** is our optional paid sync. You sign in on each device, in the extension or the mobile app, with no cloud folder to set up.
+
+With Dropbox, your library is kept in a single file, `collections-sync.json`, in a Collections Plus folder in your Dropbox. Every device reads and writes that one file. There's no Collections Plus account, and your collections never pass through our servers.
 
 ## Before you start
 

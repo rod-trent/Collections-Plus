@@ -76,8 +76,8 @@ async function PlusSyncEnabled({ userId, reason }) {
         <p>No devices yet.</p>
       )}
       <p>
-        To start, <a href="/app/">open the mobile app</a>, tap the menu, and choose Use Plus Sync. In
-        the extension (version 2.12 or later), choose ⋯ → Sync → Use Plus Sync.
+        To start, in the extension choose ⋯ → Sync → Use Plus Sync. In the{' '}
+        <a href="/app/">mobile app</a>, tap the menu and choose Use Plus Sync.
       </p>
     </div>
   );

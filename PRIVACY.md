@@ -32,8 +32,8 @@ optional **Plus Sync** accounts do and do not do with your information.
   collections you choose to the AI provider **you** configured). Each is **off
   until you enable it**, and none of them route through the developer.
 - **The mobile web app** keeps your library in your phone's browser. If you
-  connect Dropbox, it syncs directly between your phone and your own Dropbox.
-  See **The mobile web app** below.
+  connect Dropbox, it syncs directly between your phone and your own Dropbox,
+  or you can turn on Plus Sync. See **The mobile web app** below.
 
 ## What data the extension stores
 

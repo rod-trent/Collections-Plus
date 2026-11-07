@@ -8,7 +8,7 @@ export const HELP_PAGES = [
   { slug: 'getting-started', title: 'Getting started', blurb: 'What Collections Plus is and how the pieces fit together.' },
   { slug: 'extension', title: 'Using the extension', blurb: 'Saving, organizing, the Reading list, watching pages for changes, and coming from Edge.' },
   { slug: 'mobile', title: 'The mobile app', blurb: 'Install it on your phone and save from any app.' },
-  { slug: 'sync', title: 'Sync with Dropbox', blurb: 'Keep your phone and computers in step, step by step.' },
+  { slug: 'sync', title: 'Sync your devices', blurb: 'Keep your phone and computers in step, with your own Dropbox or Plus Sync.' },
   { slug: 'ai', title: 'AI search', blurb: 'Find things by meaning with your own AI provider.' },
   { slug: 'troubleshooting', title: 'Troubleshooting & FAQ', blurb: 'Fixes for the things that trip people up.' },
 ];

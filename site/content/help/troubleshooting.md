@@ -7,7 +7,31 @@
 1. **Give it a moment.** The extension saves a few seconds after each change, and the Dropbox desktop app then uploads the file, usually within seconds.
 2. **Check the Dropbox desktop app is running** on your computer and has finished syncing. If it's paused or signed out, the file never leaves your computer.
 3. **Nudge it.** On your phone, close the app and open it again, or tap the sync line at the top. In the extension, choose **⋯ → Sync → Sync now** (or **Pull from sync file** to fetch the latest).
-4. **Make sure both devices use the same file:** `Dropbox` → `Apps` → `Collections Plus` → `collections-sync.json`. The mobile app can only see that file. If your computer is connected to a sync file anywhere else (say, one you created in OneDrive), your phone won't see its changes. Choose **⋯ → Sync → Disconnect sync**, then follow [Sync with Dropbox](/help/sync).
+4. **Make sure both devices use the same file:** `Dropbox` → `Apps` → `Collections Plus` → `collections-sync.json`. The mobile app can only see that file. If your computer is connected to a sync file anywhere else (say, one you created in OneDrive), your phone won't see its changes. Choose **⋯ → Sync → Disconnect sync**, then follow [Sync your devices](/help/sync).
+
+### A change isn't showing up with Plus Sync
+
+1. **Check the extension's side panel is open.** The extension only syncs while it's open, so pages saved from the right-click menu go up the next time you open it.
+2. **Give it a couple of minutes.** A device that's already open checks for changes every couple of minutes. Opening the app or the side panel checks right away.
+3. **Nudge it.** In the extension, choose **⋯ → Sync → Sync now**. On your phone, tap the sync line at the top.
+4. **Make sure every device is on Plus Sync.** A device still using Dropbox or a sync file won't see the changes. See [Plus Sync](/help/sync#plus-sync).
+
+### I can't find "Use Plus Sync"
+
+- **On your phone:** the option is hidden while Dropbox is connected. Choose **⋯ → Disconnect Dropbox** first. Your collections stay on the phone.
+- **In the extension:** it's under **⋯ → Sync**, in version 2.12 or later. Check your version at `chrome://extensions` (or `edge://extensions`).
+
+### "Plus Sync isn't active for this account"
+
+Plus Sync needs a subscription on the account you signed in with. Check [your account page](/account), and subscribe there if you need to. If a payment failed, that page says so. Your synced library is kept, so syncing picks up where it left off.
+
+### "Plus Sync signed out"
+
+This device's sign-in ended, usually because it was signed out from your account page. Choose **Use Plus Sync** on that device again. Your collections are untouched.
+
+### "Plus Sync storage is full"
+
+Your library has reached its limit for pictures. Your collections are safe on your devices, but new changes can't sync until there's room, so remove some pictures you don't need. If you need help, write to <support@getcollectionsplus.com>.
 
 ### The extension says "Sync paused — write access needed"
 
@@ -58,7 +82,7 @@ No. The app opens and shows your collections offline, and you can add and edit t
 
 ### Where are my collections stored on the phone?
 
-In the browser storage for getcollectionsplus.com on that phone. If you clear that site's data, or uninstall the app, the phone's copy is removed. With Dropbox sync on, connecting again brings everything back.
+In the browser storage for getcollectionsplus.com on that phone. If you clear that site's data, or uninstall the app, the phone's copy is removed. With Dropbox or Plus Sync on, connecting again brings everything back.
 
 ## The extension
 

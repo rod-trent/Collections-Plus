@@ -472,7 +472,7 @@ never lost in the meantime; it's just held locally until you resume.
 **[getcollectionsplus.com/app](https://getcollectionsplus.com/app/)** is a web
 app you install from your phone's browser, with no app store. It runs the same
 data layer as the extension (`lib/store.js` on IndexedDB) and syncs with it
-through your own Dropbox.
+through your own Dropbox or Plus Sync.
 
 - Browse, search and edit your collections, folders, Reading list, Archive and
   Trash; **Read through** a collection a page at a time (the phone's take on
@@ -531,7 +531,7 @@ tools/test_*.mjs       pure-logic test harnesses (no browser needed)
 fixtures/              sample Edge CSV / SQLite for testing the importers
 ```
 
-The store package (`npm run package`) leaves out the mobile-only modules.
+The store package (`npm run package`) leaves out `lib/dropbox-adapter.js`, which only the mobile app uses.
 
 ## Development
 

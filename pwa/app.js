@@ -2088,7 +2088,7 @@ function appMenu() {
            ${menuItem('disconnect', 'unlink', 'Disconnect Dropbox')}`
         : `${dropbox ? `<p class="sheet-note">Sync with the Collections Plus extension on your computer through your own Dropbox.</p>
            ${menuItem('connect', 'cloud', 'Connect Dropbox')}` : ''}
-           <p class="sheet-note">Or let us handle it with Plus Sync, our optional paid sync. There’s no cloud folder to set up.</p>
+           <p class="sheet-note">Or let us handle it with Plus Sync, our optional paid sync. It works here and in the extension, with no cloud folder to set up.</p>
            ${menuItem('plus-on', 'cloud', 'Use Plus Sync')}`;
   openSheet(
     'Collections Plus',

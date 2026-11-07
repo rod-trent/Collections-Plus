@@ -31,8 +31,9 @@ Postgres** through Vercel's Neon integration. Nothing else.
    Optional: `PLUS_SYNC_QUOTA_MB` (default 250) caps picture storage per user.
 5. **Redeploy** so the new variables take effect.
 6. **Try it.** On your phone open https://getcollectionsplus.com/app/ → menu →
-   **Use Plus Sync**. You sign in, land back in the app, and it syncs. Do the
-   same on a second device. https://getcollectionsplus.com/account shows last
+   **Use Plus Sync**. You sign in, land back in the app, and it syncs. In the
+   extension, choose **⋯ → Sync → Use Plus Sync…**, which signs in the same way
+   in a tab. https://getcollectionsplus.com/account shows last
    sync, storage used and your devices (with a Sign out button for each).
 
 If Dropbox is connected in the app, disconnect it first: one sync at a time.
@@ -69,9 +70,9 @@ If Dropbox is connected in the app, disconnect it first: one sync at a time.
   the last hour are kept, so a push in progress never loses one.
 - **Privacy-ready:** the server stores the doc without reading it, so end-to-end
   encryption can be added in the app later with no server change.
-- **Off switch:** "Turn off Plus Sync" in the app forgets that device's token.
-  Ticking "Also delete my library" erases the doc, the pictures and every
-  device token for the account.
+- **Off switch:** "Turn off Plus Sync" forgets that device's token. Choosing to
+  delete the library as well erases the doc, the pictures and every device token
+  for the account.
 
 ## Storage estimate (Neon)
 
@@ -95,11 +96,11 @@ On Neon's plans (check https://neon.com/pricing, since numbers change):
   user costs about **$0.17 a year**, well under a $20/year price. Vercel
   function time and transfer for syncing are small next to that.
 
-## Before launch (phase 3)
+## Billing and sign-in
 
 - Billing (Stripe) is built: see [plus-sync-billing-setup.md](plus-sync-billing-setup.md).
   `PLUS_SYNC_ALLOWED_USER_IDS` stays as the complimentary/admin list.
-- Check the sign-in return on production: after signing in, Clerk should send
+- If the sign-in return ever breaks: after signing in, Clerk should send
   you on to `/api/sync/connect` (from `redirect_url`) and then back to the app.
   If Clerk refuses the redirect, add the site's domain to Clerk's allowed
   redirect origins.

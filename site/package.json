@@ -18,7 +18,7 @@
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/analytics": "^2.0.1",
     "marked": "18.0.13",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "stripe": "22.3.2"
